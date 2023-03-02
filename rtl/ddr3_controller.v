@@ -103,7 +103,7 @@ module ddr3_controller #(
 
 `ifdef	FORMAL
 
-	end
+
 `endif
 endmodule
 
