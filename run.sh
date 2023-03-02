@@ -6,7 +6,7 @@ then
 
 elif [ "$1" == "iverilog" ] 
 then
-    iverilog ./rtl/ddr3_controller.v -o .out
+    iverilog ./rtl/ddr3_controller.v -I ./rtl/ -o .out
     vvp .out
 
 fi
