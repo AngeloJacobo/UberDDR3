@@ -631,8 +631,10 @@ module ddr3_controller #(
         assert(f_addr == instruction_address); //f_addr is the shadow of instruction_address (thus f_addr is the address of NEXT instruction)
         f_read_inst = read_rom_instruction(f_read); //f_read is the address of CURRENT instruction 
         assert(f_read_inst == read_rom_instruction(f_read)); // needed for induction to make sure the engine will not create his own instruction
-        if(f_addr == 0) f_read_inst = INITIAL_RESET_INSTRUCTION; //will only happen at the very start:  f_addr (0)  ->  f_read (0)  where we are reading the initial reset instruction and not the rom
-        assert(f_read_inst == instruction);  // f_read_inst is the shadow of current instruction 
+	if(f_addr == 0) begin
+		f_read_inst = INITIAL_RESET_INSTRUCTION; //will only happen at the very start:  f_addr (0)  ->  f_read (0)  where we are reading the initial reset instruction and not the rom
+	end
+	assert(f_read_inst == instruction);  // f_read_inst is the shadow of current instruction 
     end
     
     // main assertions for the reset sequence 
@@ -675,15 +677,22 @@ module ddr3_controller #(
                 end
                 
                 //sanity checking for the comment "delay_counter will be zero AT NEXT CLOCK CYCLE when counter is now one"
-                if($past(delay_counter) == 1) assert(delay_counter == 0 && delay_counter_is_zero); 
-                
+		if($past(delay_counter) == 1) begin
+		    assert(delay_counter == 0 && delay_counter_is_zero); 
+		end
                 //assert the relationship between the stages FOR RESET SEQUENCE
-                if(!reset_done) begin
-                    if(f_addr == 0) assert(f_read == 0); //will only happen at the very start:  f_addr (0)  ->  f_read (0)  
-                    else if(f_read == 0) assert(f_addr <= 1); //will only happen at the very first two cycles: f_addr (1)  ->  f_read (0) or f_addr (0)  ->  f_read (0)  
-                    //else if($past(reset_done)) assert(f_read == $past(f_read)); //reset instruction does not repeat after reaching end address thus it must saturate when pipeline reaches end
-                    else assert(f_read + 1 == f_addr); //address increments continuously
-                    assert($past(f_read) <= 14); //only instruction address 0-to-13 is for reset sequence (reset_done is asserted at address 14)
+		if(!reset_done) begin
+			if(f_addr == 0) begin
+				assert(f_read == 0); //will only happen at the very start:  f_addr (0)  ->  f_read (0)  
+			end
+			else if(f_read == 0) begin 
+				assert(f_addr <= 1); //will only happen at the very first two cycles: f_addr (1)  ->  f_read (0) or f_addr (0)  ->  f_read (0)  
+			end
+			//else if($past(reset_done)) assert(f_read == $past(f_read)); //reset instruction does not repeat after reaching end address thus it must saturate when pipeline reaches end
+			else begin
+				assert(f_read + 1 == f_addr); //address increments continuously
+			end
+			assert($past(f_read) <= 14); //only instruction address 0-to-13 is for reset sequence (reset_done is asserted at address 14)
                 end
                 
                 //assert the relationship between the stages FOR REFRESH SEQUENCE
@@ -713,7 +722,9 @@ module ddr3_controller #(
     wire[$bits(instruction) - 1:0]  a= read_rom_instruction(f_const_addr); //retrieve an instruction based on engine's choice
     always @* begin
      //there MUST BE no instruction which USE_TIMER is high but delay is zero since it can cause the logic to lock-up (delay must be at least 1)    
-        if(a[USE_TIMER]) assert( a[DELAY_COUNTER_WIDTH - 1:0] > 0);                                                                                                                     
+    if(a[USE_TIMER]) begin
+	    assert( a[DELAY_COUNTER_WIDTH - 1:0] > 0);      
+    end
     end
     
     
