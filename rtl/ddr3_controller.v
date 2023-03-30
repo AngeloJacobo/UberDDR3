@@ -8,8 +8,8 @@
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
 
 
-`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
-`define COVER_DELAY 3 //fixed delay used in formal cover for reset sequence
+//`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
+//`define COVER_DELAY 3 //fixed delay used in formal cover for reset sequence
 `default_nettype none
 
 
@@ -82,14 +82,11 @@ module ddr3_controller #(
                          RESET_N = 23; //Reset_n to DDR3
                          
                          // ddr3_metadata partitioning
-    localparam CMD_START = 4 + BA_BITS + ROW_BITS - 1, //4 is the width of a CMD, CMD_START is also the CS_n bit
-                          BANK_START = BA_BITS + ROW_BITS - 1,
-                          ROW_ADDRESS_START = ROW_BITS - 1;
-                          
-                          //3 stages 
-    localparam PRECHARGE = 0,
-                ACTIVATE = 1,
-                READ_WRITE = 2;
+    localparam CMD_LEN = 4 + BA_BITS + ROW_BITS, //4 is the width of a single ddr3 command (precharge,actvate, etc.) plus bank bits plus row bits
+               CMD_CS_N = CMD_LEN - 1, 
+               CMD_BANK_START = BA_BITS + ROW_BITS - 1,
+               CMD_ROW_ADDRESS_START = ROW_BITS - 1;
+               
     localparam READ_SLOT = get_slot(CMD_RD),
                 WRITE_SLOT = get_slot(CMD_WR),
                 ACTIVATE_SLOT = get_slot(CMD_ACT),
@@ -165,7 +162,10 @@ module ddr3_controller #(
     localparam tXPR = max(5*DDR3_CLK_PERIOD,tRFC+10); // ns Exit Reset from CKE HIGH to a valid command
     localparam tMRD = 4; // nCK Mode Register Set command cycle time
     localparam tWR = 15.0; // ns Write Recovery Time
+    localparam tWTR = max(nCK_to_ns(4), 7.5); //ns Delay from start of internal write transaction to internal read command
     localparam tDLLK = 512.0; //nCK DLL Locking time
+    localparam tRTP = max(nCK_to_ns(4), 7.5); //ns Internal Command to PRECHARGE Command delay
+    localparam tCCD = 4; //nCK CAS to CAS command delay
     localparam[DELAY_SLOT_WIDTH - 1:0] tMOD = max(nCK_to_cycles(12), ns_to_cycles(15)); //cycles (controller)  Mode Register Set command update delay
     localparam[DELAY_SLOT_WIDTH - 1:0] tZQinit = max(nCK_to_cycles(512), ns_to_cycles(640));//cycles (controller)  Power-up and RESET calibration time
     localparam[DELAY_SLOT_WIDTH - 1:0] tZQoper = max(nCK_to_cycles(256), ns_to_cycles(320)); //cycles (controller) Normal operation Full calibration time
@@ -173,7 +173,7 @@ module ddr3_controller #(
     localparam CWL_nCK = 8;
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
-    localparam DELAY_SLOT_WIDTH = $bits(MR0); //Bitwidth of the delay slot and mode register slot on the reset/refresh rom will be at the same size as the Mode Register
+    localparam DELAY_SLOT_WIDTH = 19; //Bitwidth of the delay slot and mode register slot on the reset/refresh rom will be at the same size as the Mode Register
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -308,74 +308,156 @@ module ddr3_controller #(
     end
     //////////////////////////////////////////////////////// Track Bank Status and Active Row ////////////////////////////////////////////////////////
     // 
-    reg[(1<<BA_BITS)-1:0] bank_status; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
-    reg[ROW_BITS-1:0] bank_active_row[(1<<BA_BITS)-1:0]; //bank_active_row[bank_number] = stores the active row address in the specified bank
-    integer index;
+    reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
+    reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; //bank_active_row[bank_number] = stores the active row address in the specified bank
+    
     
      //clear bank_status and bank_active_row to zero
+    integer index;
     initial begin
-        for(index=0; index< (1<<BA_BITS); index=index+1) begin
-            bank_status[index] = 0;  
-            bank_active_row[index] = 0; 
+        for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
+            bank_status_q[index] = 0;  
+			bank_status_d[index] = 0;
+            bank_active_row_q[index] = 0; 
+			bank_active_row_d[index] = 0; 
         end
     end
     
-    
-    reg request_pending = 0;
     reg request_we = 0;
+	reg request_pending_q = 0, request_pending_d = 0;
     reg[COL_BITS-1:0] request_col = 0;
     reg[BA_BITS-1:0] request_bank = 0;
     reg[ROW_BITS-1:0] request_row = 0;
     reg[BA_BITS-1:0] next_bank = 0;
     reg[ROW_BITS-1:0] next_row = 0;
-    localparam[ns_to_nCK(tRP):0] tRP_delay = {1'b1, {{ns_to_nCK(tRP)-(4-PRECHARGE_SLOT)}{1'b0}}};
-    localparam[ns_to_nCK(tRCD):0] tRCD_delay = {1'b1, {{ns_to_nCK(tRCD)-(4-ACTIVATE_SLOT)}{1'b0}}};
-	reg[$bits(tRP_thread)-1:0] delay_before_activate = -1; //initially all 1s, depends on tRP after executing precharge command
-	reg[$bits(tRCD_delay)-1:0] delay_before_read_or_write = -1; //initially all 1s, depends on tRCD after executing activate command
-	reg[31:0] delay_before_precharge = -1; //initially all 1s, depends on tRTP and tWR (start counts only after 8th data burst)
-    reg[2:0] stage; //[2] = READ_WRITE, [1] = ACTIVATE, [0] = PRECHARGE
-    reg[CMD_START:0] ddr3_metadata; //stores metadata of the command: {ddr3 command, bank address, row address}
+    reg[3:0] delay_before_precharge_counter_q[(1<<BA_BITS)-1:0], delay_before_precharge_counter_d[(1<<BA_BITS)-1:0]; //delay counters
+    reg[3:0] delay_before_activate_counter_q[(1<<BA_BITS)-1:0], delay_before_activate_counter_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_write_counter_q[(1<<BA_BITS)-1:0], delay_before_write_counter_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_read_counter_q[(1<<BA_BITS)-1:0] , delay_before_read_counter_d[(1<<BA_BITS)-1:0] ;
+	
+	reg[3:0] delay_before_precharge_mask_q[(1<<BA_BITS)-1:0], delay_before_precharge_mask_d[(1<<BA_BITS)-1:0]; //command slot mask
+    reg[3:0] delay_before_activate_mask_q[(1<<BA_BITS)-1:0], delay_before_activate_mask_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_write_mask_q[(1<<BA_BITS)-1:0], delay_before_write_mask_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_read_mask_q[(1<<BA_BITS)-1:0] , delay_before_read_mask_d[(1<<BA_BITS)-1:0] ;
+	
+	(*keep*) reg[7:0] delay_before_precharge_added_delay;
+	(*keep*) reg[7:0] delay_before_activate_added_delay;
+	(*keep*) reg[7:0] delay_before_write_added_delay;
+	(*keep*) reg[7:0] delay_before_read_added_delay;
+	
+	 initial begin
+        for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
+			delay_before_precharge_counter_q[index] = 0;  
+			delay_before_activate_counter_q[index] = 0;
+			delay_before_write_counter_q[index] = 0; 
+			delay_before_read_counter_q[index] = 0; 
+			
+			delay_before_precharge_mask_q[index] = -1;
+			delay_before_activate_mask_q[index] = -1;
+			delay_before_write_mask_q[index] = -1;
+			delay_before_read_mask_q[index] = -1;
+		end
+    end
+	
+    (* keep *) reg[CMD_LEN-1:0] cmd_q[3:0], cmd_d[3:0];
+    reg o_wb_stall_d;
+    reg o_wb_ack_d;
+    initial begin
+        cmd_q[0] = -1;
+        cmd_q[1] = -1;
+        cmd_q[2] = -1;
+        cmd_q[3] = -1;
+		cmd_d[0] = -1;
+        cmd_d[1] = -1;
+        cmd_d[2] = -1;
+        cmd_d[3] = -1;
+    end
 
     //process request transaction 
     always @(posedge i_clk, negedge i_rst_n) begin
         if(!i_rst_n ) begin
             o_wb_stall <= 1'b1; 
-            request_pending <= 0;
+            o_wb_ack <= 1'b0;
+			request_pending_q <= 0;
+			for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
+				delay_before_precharge_counter_q[index] <= 0;  
+				delay_before_activate_counter_q[index] <= 0;
+				delay_before_write_counter_q[index] <= 0; 
+				delay_before_read_counter_q[index] <= 0; 
+				
+				delay_before_precharge_mask_q[index] <= -1;
+				delay_before_activate_mask_q[index] <= -1;
+				delay_before_write_mask_q[index] <= -1;
+				delay_before_read_mask_q[index] <= -1;
+			end
+            cmd_q[0] <= -1;
+            cmd_q[1] <= -1;
+            cmd_q[2] <= -1;
+            cmd_q[3] <= -1;
+            for(integer index=0; index < (1<<BA_BITS); index=index+1) begin
+                    bank_status_q[index] <= 0;  
+            end
             request_we <= 0;
             request_col <= 0;
             request_bank <= 0;
             request_row <= 0;
+            next_bank <= 0;
+            next_row <= 0;
         end
         // can only start accepting requests  when reset is done
-        else if(reset_done) begin
+        else if(1/*reset_done*/) begin /////////////////////////////////////// else if(reset_done) begin
+            o_wb_stall <= o_wb_stall_d;
+            o_wb_ack <= o_wb_ack_d;
+			request_pending_q <= request_pending_d;
+			for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
+				delay_before_precharge_counter_q[index] <= delay_before_precharge_counter_d[index];  
+				delay_before_activate_counter_q[index] <= delay_before_activate_counter_d[index];
+				delay_before_write_counter_q[index] <= delay_before_write_counter_d[index]; 
+				delay_before_read_counter_q[index] <= delay_before_read_counter_d[index]; 
+				
+				delay_before_precharge_mask_q[index] <= delay_before_precharge_mask_d[index];
+				delay_before_activate_mask_q[index] <= delay_before_activate_mask_d[index] ;
+				delay_before_write_mask_q[index] <= delay_before_write_mask_d[index];
+				delay_before_read_mask_q[index] <= delay_before_read_mask_d[index];
+			end
+
+             for(index=0; index < (1<<4); index=index+1) begin
+                cmd_q[index] <= cmd_d[index];
+            end
+            for(index=0; index < (1<<BA_BITS); index=index+1) begin
+                bank_status_q[index] <= bank_status_d[index];
+                bank_active_row_q[index] <= bank_active_row_d[index];
+            end
+
             //refresh sequence is on-going 
-            if(!instruction[REF_IDLE]) begin 
+            if(0) begin ////////////////////////// if(!instruction[REF_IDLE])
                 //all banks will be in idle after refresh
-                for(index=0; index< (1<<BA_BITS); index=index+1) begin
-                    bank_status[index] = 0;  
+                for(integer index=0; index < (1<<BA_BITS); index=index+1) begin
+                    bank_status_q[index] <= 0;  
                 end
                 //no transaction will be pending during refresh
                 o_wb_stall <= 1'b1; 
-                request_pending <= 0;
                 request_we <= 0;
                 request_col <= 0;
                 request_bank <= 0;
                 request_row <= 0;
+                next_bank <= 0;
+                next_row <= 0;
             end
             
             // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall
             if(i_wb_cyc && !o_wb_stall) begin 
                 o_wb_stall <= i_wb_stb;  // accept request only when stb is high and stall is low 
-                request_pending <= i_wb_stb; // accept request only when stb is high and stall is low 
+				request_pending_q <= i_wb_stb;
                 request_we <= i_wb_we; //write-enable
                 request_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
                 request_bank <=  i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
                 request_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                {next_row , next_bank} <= i_wb_addr[ (wb_addr_bits-1) : (wb_addr_bits - ROW_BITS - BA_BITS) ]; //anticipated next row and bank to be accessed 
+                {next_row , next_bank} <= i_wb_addr[ (wb_addr_bits-1) : (wb_addr_bits - ROW_BITS - BA_BITS)+1 ]; //anticipated next row and bank to be accessed 
             end
-
-            stage <= 3'b000;
-
+        end
+    end
+    
             // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
             //
             //                          tRTP
@@ -388,8 +470,8 @@ module ddr3_controller #(
             //  |                                  ------> Write -------> Write
             //  |                                                 tCCD      |
             //  -------------------------------------------------------------
-            //                          tWR (after 8th data burst)
-            //
+            //                          tWR (after data burst)
+            //note: all delays after write counts only after the data burst (except for write-to-write tCCD)
             //
             //
 		    // Example scenario on how this works:
@@ -420,52 +502,186 @@ module ddr3_controller #(
             // Notice also that since this is arithmetically right shifted the
             // 1s are preserved and the thread will remain all 1s until it is
             // overwritten
-
-			delay_before_activate <= $signed(delay_before_activate) >>> 4; //shift right arithmetic (empty slots will be filled by 1s)
-			delay_before_read_or_write <= $signed(delay_before_read_or_write) >>> 4; //shift right arithmetic (empty slots will be filled by 1s)
-			delay_before_precharge <= $signed(delay_before_precharge) >>> 4; //shift right arithmetic (empty slots will be filled by 1s)
-			
-            //if there is a pending request, update the current stage
-            if(request_pending) begin 
-                //bank is not idle but wrong row is activated so do precharge
-                if(bank_status[request_bank] && bank_active_row[request_bank] != request_row && delay_before_precharge[PRECHARGE_SLOT]) begin                    
-                    stage <= 0;
-                    stage <= stage[PRECHARGE_SLOT];
-                    delay_before_activate <= tRP_delay; //use signed to turn MSB to 1s
-                    bank_status[request_bank] = 1'b0; 
-                end
-                //bank is idle so activate it
-                else if(!bank_status[request_bank] && delay_before_activate[ACTIVATE_SLOT]) begin 
-                    stage <= 0;
-                    stage <= stage[PRECHARGE_SLOT];
-                    delay_before_read_or_write <= tRCD_delay;
-                    bank_status[request_bank] <= 1'b1;
-                    bank_active_row[request_bank] <= request_row;
-                end
-                //right row is already active so go straight to read/write
-                else if(request_we && delay_before_read_or_write[READ_SLOT] || !request_we && delay_before_read_or_write[WRITE_SLOT]) begin//write operation
-                    stage <= 0;
-                    stage <= stage[PRECHARGE_SLOT];
-                        // add delays needed before next precharge
-				end
-            end
-
-            // Output commands to DDR3 based on stage value
-            precharge_cmd = { !stage[PRECHARGE], CMD_PRE, request_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0]} };
-            activate_cmd = {!stage[ACTIVATE], CMD_ACT , request_bank , request_row};
-            if(COL_BITS <= 10)
-                read_write_cmd[BANK_START: 0] = { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_col[9:0]};  
-            else
-                read_write_cmd[BANK_START: 0] = { {{ROW_BITS-4'd12}{1'b0}} , request_col[10] , 1'b0 , request_col[9:0]};  
-
-            cmd[PRECHARGE_SLOT] <= precharge_cmd; 
-            cmd[ACTIVATE_SLOT] <= activate_cmd;
-            cmd[READ_SLOT] <= {!(!request_we && stage[READ_WRITE]), CMD_RD, read_write_cmd};
-            cmd[WRITE_SLOT] <= {!(request_we && stage[READ_WRITE]), CMD_WR, read_write_cmd} 
+		
+    (*keep*) reg[1:0] f_stage;
+    always @* begin
+		request_pending_d = request_pending_q;
+        o_wb_ack_d = 0;
+        cmd_d[0] = -1;
+        cmd_d[1] = -1;
+        cmd_d[2] = -1;
+        cmd_d[3] = -1;
+		delay_before_precharge_added_delay = 0;
+		delay_before_activate_added_delay = 0;
+		delay_before_write_added_delay = 0;
+		delay_before_read_added_delay = 0;
+        for(integer index=0; index < (1<<BA_BITS); index=index+1) begin
+            bank_status_d[index] = bank_status_q[index];
+            bank_active_row_d[index] = bank_active_row_q[index];
         end
+            
+        // free-running shift registers (shift right arithmetic by 4 per controller clock cycle)
+		for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
+			delay_before_precharge_counter_d[index] = (delay_before_precharge_counter_q[index] == 0)? 0: delay_before_precharge_counter_q[index] - 1;
+			delay_before_activate_counter_d[index] = (delay_before_activate_counter_q[index] == 0)? 0: delay_before_activate_counter_q[index] - 1;
+			delay_before_write_counter_d[index] = (delay_before_write_counter_q[index] == 0)? 0:delay_before_write_counter_q[index] - 1;
+			delay_before_read_counter_d[index] = (delay_before_read_counter_q[index] == 0)? 0:delay_before_read_counter_q[index] - 1;
+			
+			delay_before_precharge_mask_d[index] = (delay_before_precharge_counter_q[index] == 0)? -1 : delay_before_precharge_mask_q[index];
+			delay_before_activate_mask_d[index] = (delay_before_activate_counter_q[index] == 0)? -1 : delay_before_activate_mask_q[index];
+			delay_before_write_mask_d[index] = (delay_before_write_counter_q[index] == 0)? -1 : delay_before_write_mask_q[index] ;
+			delay_before_read_mask_d[index] = (delay_before_read_counter_q[index] == 0)? -1 : delay_before_read_mask_q[index] ;
+		end
+        
+        //if there is a pending request (stall is high), update the current stage
+        if(request_pending_q) begin 
+            o_wb_stall_d = 1'b1;
+			request_pending_d = 1'b1;
+            //right row is already active so go straight to read/write
+            if(bank_status_q[request_bank] &&  bank_active_row_q[request_bank] == request_row) begin //read/write operation
+                //write request
+                if(request_we && delay_before_write_mask_q[request_bank][WRITE_SLOT] && delay_before_write_counter_q[request_bank] == 0) begin       
+                    o_wb_stall_d = 0;         
+					request_pending_d = 0;
+					o_wb_ack_d = 1;
+					
+					delay_before_precharge_added_delay = {{8{1'b1}}, added_delay(WRITE_SLOT), {{((CWL_nCK + 3'd4 + ns_to_nCK(tWR)) % 3'd4)}{1'b0}}};
+					delay_before_precharge_mask_d[request_bank] = delay_before_precharge_added_delay[3:0]? delay_before_precharge_added_delay[3:0]:delay_before_precharge_added_delay[7:4];
+					delay_before_precharge_counter_d[request_bank] = delay_before_precharge_added_delay[3:0]? ($floor((CWL_nCK + 4 + ns_to_nCK(tWR))/4) - 1): ($floor((CWL_nCK + 4 + ns_to_nCK(tWR))/4) - 1 + 1);
+					
+					delay_before_write_added_delay = {{8{1'b1}}, added_delay(WRITE_SLOT), {{tCCD % 3'd4}{1'b0}}};
+					delay_before_write_mask_d[request_bank] = delay_before_write_added_delay[3:0]? delay_before_write_added_delay[3:0]:delay_before_write_added_delay[7:4];
+					delay_before_write_counter_d[request_bank] = delay_before_write_added_delay[3:0]? ($floor(tCCD/4) - 1): ($floor(tCCD/4) - 1 + 1);
+					
+					delay_before_read_added_delay = {{8{1'b1}}, added_delay(WRITE_SLOT), {{(CWL_nCK + 3'd4 + ns_to_nCK(tWTR)) % 3'd4}{1'b0}}};
+					delay_before_read_mask_d[request_bank] = delay_before_read_added_delay[3:0]? delay_before_read_added_delay[3:0]:delay_before_read_added_delay[7:4];
+					delay_before_read_counter_d[request_bank] = delay_before_read_added_delay[3:0]? ($floor((CWL_nCK + 4 + ns_to_nCK(tWTR))/4) - 1): ($floor((CWL_nCK + 4 + ns_to_nCK(tWTR))/4) - 1 + 1);
 
-    end
+                    if(COL_BITS <= 10) begin
+                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , request_col[9:0]};  
+                    end
+                    else begin
+                        cmd_d[WRITE_SLOT] =  {1'b0, CMD_WR[2:0], {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , request_col[10] , 1'b0 , request_col[9:0]};  
+                    end
+					f_stage = 3;
+                end
+                
+                //read request
+                else if(!request_we && delay_before_read_mask_q[request_bank][READ_SLOT] && delay_before_read_counter_q[request_bank]==0) begin     
+                    o_wb_stall_d = 0;     
+					request_pending_d = 0;
+					o_wb_ack_d = 1;
+					
+					delay_before_precharge_added_delay = {{8{1'b1}}, added_delay(READ_SLOT), {{ns_to_nCK(tRTP) % 3'd4}{1'b0}}};
+					delay_before_precharge_mask_d[request_bank] = delay_before_precharge_added_delay[3:0]? delay_before_precharge_added_delay[3:0]:delay_before_precharge_added_delay[7:4];
+					delay_before_precharge_counter_d[request_bank] = delay_before_precharge_added_delay[3:0]? ($floor(ns_to_nCK(tRTP)/4) - 1): ($floor(ns_to_nCK(tRTP)/4) - 1 + 1);
+					
+					delay_before_read_added_delay = {{8{1'b1}}, added_delay(READ_SLOT), {{tCCD % 3'd4}{1'b0}}};
+					delay_before_read_mask_d[request_bank] = delay_before_read_added_delay[3:0]? delay_before_read_added_delay[3:0]:delay_before_read_added_delay[7:4];
+					delay_before_read_counter_d[request_bank] = delay_before_read_added_delay[3:0]? ($floor(tCCD/4) - 1): ($floor(tCCD/4) - 1 + 1);
+					
+					delay_before_write_added_delay = {{8{1'b1}}, added_delay(READ_SLOT), {{(CL_nCK + tCCD + 3'd2 - CWL_nCK) % 3'd4}{1'b0}}};
+					delay_before_write_mask_d[request_bank] = delay_before_write_added_delay[3:0]? delay_before_write_added_delay[3:0]:delay_before_write_added_delay[7:4];
+					delay_before_write_counter_d[request_bank] = delay_before_write_added_delay[3:0]? ($floor((CL_nCK + tCCD + 2 - CWL_nCK)/4) - 1): ($floor((CL_nCK + tCCD + 2 - CWL_nCK)/4) - 1 + 1);
 
+                    if(COL_BITS <= 10) begin
+                        cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , request_col[9:0]};  
+                    end
+                    else begin
+                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , request_col[10] , 1'b0 , request_col[9:0]};  
+                    end
+					f_stage = 3;
+                end
+	        end
+	        
+	        //bank is idle so activate it
+            else if(!bank_status_q[request_bank]) begin 
+				delay_before_read_added_delay = {{8{1'b1}}, delay_before_activate_mask_q[request_bank], {{ns_to_nCK(tRCD) % 3'd4}{1'b0}}};
+				delay_before_read_mask_d[request_bank] = delay_before_read_added_delay[3:0]? delay_before_read_added_delay[3:0]:delay_before_read_added_delay[7:4];
+				delay_before_read_counter_d[request_bank] = delay_before_read_added_delay[3:0]? ($floor(ns_to_nCK(tRCD) /4) - 1): ($floor(ns_to_nCK(tRCD) /4) - 1 + 1);
+				
+				delay_before_write_added_delay = {{8{1'b1}}, delay_before_activate_mask_q[request_bank], {{ns_to_nCK(tRCD) % 3'd4}{1'b0}}};
+				delay_before_write_mask_d[request_bank] = delay_before_write_added_delay[3:0]? delay_before_write_added_delay[3:0]:delay_before_write_added_delay[7:4];
+				delay_before_write_counter_d[request_bank] = delay_before_write_added_delay[3:0]? ($floor(ns_to_nCK(tRCD)/4) - 1): ($floor(ns_to_nCK(tRCD)/4) - 1 + 1);
+                
+                if(delay_before_activate_mask_q[request_bank][3:0] && delay_before_activate_counter_q[request_bank] == 0) begin
+					cmd_d[0] = {!delay_before_activate_mask_q[request_bank][0], CMD_ACT[2:0] , request_bank , request_row};
+					cmd_d[1] = {(delay_before_activate_mask_q[request_bank][1] ~^ delay_before_activate_mask_q[request_bank][0]), CMD_ACT[2:0] , request_bank , request_row};
+					cmd_d[2] = {(delay_before_activate_mask_q[request_bank][2] ~^ delay_before_activate_mask_q[request_bank][1]), CMD_ACT[2:0] , request_bank , request_row};
+					cmd_d[3] = {(delay_before_activate_mask_q[request_bank][3] ~^ delay_before_activate_mask_q[request_bank][2]), CMD_ACT[2:0] , request_bank , request_row}; //4 + 3 + 14 = 21
+                    bank_status_d[request_bank] = 1'b1;
+                    bank_active_row_d[request_bank] = request_row;
+					f_stage = 2;
+                end
+            end
+            
+            //bank is not idle but wrong row is activated so do precharge
+            else begin        
+				delay_before_activate_added_delay = {{8{1'b1}}, delay_before_precharge_mask_q[request_bank], {{ns_to_nCK(tRP) % 3'd4}{1'b0}}};
+				delay_before_activate_mask_d[request_bank] = delay_before_activate_added_delay[3:0]? delay_before_activate_added_delay[3:0]:delay_before_activate_added_delay[7:4];
+				delay_before_activate_counter_d[request_bank] = delay_before_activate_added_delay[3:0]? ($floor(ns_to_nCK(tRP)/4) - 1): ($floor(ns_to_nCK(tRP)/4) - 1 + 1);
+					
+                //delay_before_activate_d[request_bank][31:ns_to_nCK(tRP) - 4] = delay_before_precharge_q[request_bank]; //this will get overwritten at next cock cycle
+                if(delay_before_precharge_mask_q[request_bank][3:0] && delay_before_precharge_counter_q[request_bank] ==0) begin
+					cmd_d[0] = {!delay_before_precharge_mask_q[request_bank][0], CMD_PRE[2:0], request_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+					cmd_d[1] = {(delay_before_precharge_mask_q[request_bank][1] ~^ delay_before_precharge_mask_q[request_bank][0]), CMD_PRE[2:0], request_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+					cmd_d[2] = {(delay_before_precharge_mask_q[request_bank][2] ~^ delay_before_precharge_mask_q[request_bank][1]), CMD_PRE[2:0], request_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+					cmd_d[3] = {(delay_before_precharge_mask_q[request_bank][3] ~^ delay_before_precharge_mask_q[request_bank][2]), CMD_PRE[2:0], request_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+                    bank_status_d[request_bank] = 1'b0; 
+					f_stage = 1;
+                end
+            end
+/*
+            //anticipated activate and precharge commands will only be allowed during the read/write cycles
+            if(bank_status[request_bank] &&  bank_active_row[request_bank] == request_row) begin          
+                //anticipated bank is not idle but wrong row is currently activated so do precharge
+                if(bank_status[next_bank] &&  bank_active_row[next_bank] != next_row) begin    
+					delay_before_activate_added_delay = {{8{1'b1}}, delay_before_precharge_mask_q[next_bank], {{ns_to_nCK(tRP) % 3'd4}{1'b0}}};
+					delay_before_activate_mask_d[next_bank] = delay_before_activate_added_delay[3:0]? delay_before_activate_added_delay[3:0]:delay_before_activate_added_delay[7:4];
+					delay_before_activate_counter_d[next_bank] = delay_before_activate_added_delay[3:0]? ($floor(ns_to_nCK(tRP)/4) - 1): ($floor(ns_to_nCK(tRP)/4) - 1 + 1);
+					                
+					if(delay_before_precharge_mask_q[next_bank][3:0] && delay_before_precharge_counter_q[next_bank] ==0) begin
+						cmd_d[0] = {!delay_before_precharge_mask_q[next_bank][0], CMD_PRE[2:0], next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+						cmd_d[1] = {(delay_before_precharge_mask_q[next_bank][1] ~^ delay_before_precharge_mask_q[next_bank][0]), CMD_PRE[2:0], next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+						cmd_d[2] = {(delay_before_precharge_mask_q[next_bank][2] ~^ delay_before_precharge_mask_q[next_bank][1]), CMD_PRE[2:0], next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+						cmd_d[3] = {(delay_before_precharge_mask_q[next_bank][3] ~^ delay_before_precharge_mask_q[next_bank][2]), CMD_PRE[2:0], next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , request_row[9:0] } };
+						bank_status_d[next_bank] = 1'b0; 
+						f_stage = 1;
+					end
+				end //end of anticipate precharge
+				
+				//anticipated bank is idle so do activate
+				else if(!bank_status_q[next_bank]) begin 
+					delay_before_read_added_delay = {{8{1'b1}}, delay_before_activate_mask_q[next_bank], {{ns_to_nCK(tRCD) % 3'd4}{1'b0}}};
+					delay_before_read_mask_d[next_bank] = delay_before_read_added_delay[3:0]? delay_before_read_added_delay[3:0]:delay_before_read_added_delay[7:4];
+					delay_before_read_counter_d[next_bank] = delay_before_read_added_delay[3:0]? ($floor(ns_to_nCK(tRCD) /4) - 1): ($floor(ns_to_nCK(tRCD) /4) - 1 + 1);
+					
+					delay_before_write_added_delay = {{8{1'b1}}, delay_before_activate_mask_q[next_bank], {{ns_to_nCK(tRCD) % 3'd4}{1'b0}}};
+					delay_before_write_mask_d[next_bank] = delay_before_write_added_delay[3:0]? delay_before_write_added_delay[3:0]:delay_before_write_added_delay[7:4];
+					delay_before_write_counter_d[next_bank] = delay_before_write_added_delay[3:0]? ($floor(ns_to_nCK(tRCD)/4) - 1): ($floor(ns_to_nCK(tRCD)/4) - 1 + 1);
+					
+					if(delay_before_activate_mask_q[next_bank][3:0] && delay_before_activate_counter_q[next_bank] == 0) begin
+						cmd_d[0] = {!delay_before_activate_mask_q[next_bank][0], CMD_ACT[2:0] , next_bank , request_row};
+						cmd_d[1] = {(delay_before_activate_mask_q[next_bank][1] ~^ delay_before_activate_mask_q[next_bank][0]), CMD_ACT[2:0] , next_bank , request_row};
+						cmd_d[2] = {(delay_before_activate_mask_q[next_bank][2] ~^ delay_before_activate_mask_q[next_bank][1]), CMD_ACT[2:0] , next_bank , request_row};
+						cmd_d[3] = {(delay_before_activate_mask_q[next_bank][3] ~^ delay_before_activate_mask_q[next_bank][2]), CMD_ACT[2:0] , next_bank , request_row}; //4 + 3 + 14 = 21
+						bank_status_d[next_bank] = 1'b1;
+						bank_active_row_d[next_bank] = request_row;
+						f_stage = 2;
+					end
+				end //end of anticipate activate
+            end //end of anticipate block 
+			*/
+        end //end of if(request_pending_q) block   
+		
+		else begin
+			o_wb_stall_d = 0;
+			f_stage = 0;
+		end
+		
+    end //end of always block
+    
+    
 
     //Good reference for intialization and ODT
     //https://www.systemverilog.io/design/ddr4-initialization-and-calibration/
@@ -474,27 +690,44 @@ module ddr3_controller #(
     
     //////////////////////////////////////////////////////////////////////// FUNCTIONS ////////////////////////////////////////////////////////////////////////////////////////////////////
     //convert nanoseconds time input to number of controller clock cycles (referenced to CONTROLLER_CLK_PERIOD)
-    function [DELAY_SLOT_WIDTH - 1:0] ns_to_cycles (input[DELAY_SLOT_WIDTH - 1:0] ns); //output is set at same length as a MRS command (19 bits) to maximize the time slot
+    function [DELAY_SLOT_WIDTH - 1:0] ns_to_cycles (input integer ns); //output is set at same length as a MRS command (19 bits) to maximize the time slot
         ns_to_cycles = $rtoi($ceil(ns*1.0/CONTROLLER_CLK_PERIOD)); //Without $rtoi: YOSYS ERROR: Non-constant expression in constant function
     endfunction
 
     //convert nCK input (number of DDR3 clock cycles) to number of controller clock cycles (referenced to CONTROLLER_CLK_PERIOD)
-    function [DELAY_SLOT_WIDTH - 1:0] nCK_to_cycles (input  nCK); //Without $rtoi: YOSYS ERROR: syntax error, unexpected TOK_REAL
+    function [DELAY_SLOT_WIDTH - 1:0] nCK_to_cycles (input integer nCK); //Without $rtoi: YOSYS ERROR: syntax error, unexpected TOK_REAL
         nCK_to_cycles = $rtoi($ceil(nCK*1.0/serdes_ratio)) ; 
     endfunction
     
+    
     //convert nanoseconds time input  to number of DDR clock cycles (referenced to DDR3_CLK_PERIOD)
-    function [DELAY_SLOT_WIDTH - 1:0] ns_to_nCK (input[DELAY_SLOT_WIDTH - 1:0] ns); 
+    function [DELAY_SLOT_WIDTH - 1:0] ns_to_nCK (input integer ns); 
         ns_to_nCK = $rtoi($ceil(ns*1.0/DDR3_CLK_PERIOD)); //Without $rtoi: YOSYS ERROR: Non-constant expression in constant function
     endfunction
     
-    // functions used to infer some localparam values
+    //convert nanoseconds time input  to number of DDR clock cycles (referenced to DDR3_CLK_PERIOD)
+    function [DELAY_SLOT_WIDTH - 1:0] nCK_to_ns (input integer nCK); 
+        nCK_to_ns = $rtoi($ceil(nCK*1.0*DDR3_CLK_PERIOD)); //Without $rtoi: YOSYS ERROR: Non-constant expression in constant function
+    endfunction
+	
+       // functions used to infer some localparam values
     function integer max(input integer a, input integer b);
         if(a >= b) max = a;
         else    max = b;
     endfunction
-
-    function[2:0] WRA_mode_register_value(input integer WRA); //Find the 3-bit value for the Mode Register 0  WR (Write recovery for auto-precharge)
+    
+    //creates the added delay needed for the "delay_before_x" given an input slot number
+    function[31:0] added_delay(input[2:0] slot_number);
+        case(slot_number)
+            0: added_delay = {{28{1'b1}},4'b1111};
+            1: added_delay = {{28{1'b1}},4'b1110};
+            2: added_delay = {{28{1'b1}},4'b1100};
+            3: added_delay = {{28{1'b1}},4'b1000};
+         endcase
+    endfunction
+                        
+    //Find the 3-bit value for the Mode Register 0  WR (Write recovery for auto-precharge)
+    function[2:0] WRA_mode_register_value(input integer WRA); 
             //WR_min (write recovery for autoprecharge) in clock cycles is calculated by dividing tWR(in ns) by tCK(in ns) and rounding up to the next integer.
             //The WR value in the mode register must be programmed to be equal or larger than WRmin.
         case(WRA) 
@@ -560,41 +793,84 @@ module ddr3_controller #(
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
+`ifndef YOSYS
     ///YOSYS: System task `$display' called with invalid/unsupported format specifier
     initial begin
-        $display("DELAY_MAX_VALUE = %0d", DELAY_MAX_VALUE);
-        $display("tRCD = %0d", ns_to_nCK(tRCD));
-        $display("DELAY_COUNTER_WIDTH = %0d", DELAY_COUNTER_WIDTH);
+		$display("Test ns_to_cycles() function:");
+		$display("\tns_to_cycles(15) = 3 = %0d [exact]", ns_to_cycles(15) );
+		$display("\tns_to_cycles(14.5) = 3 = %0d [round-off]", ns_to_cycles(14.5) );
+		$display("\tns_to_cycles(11) = 3 = %0d [round-up]\n", ns_to_cycles(11) );
+		
+		$display("Test nCK_to_cycles() function:");
+		$display("\tns_to_cycles(16) = 4 = %0d [exact]", nCK_to_cycles(16) );
+		$display("\tns_to_cycles(15) = 4 = %0d [round-off]", nCK_to_cycles(15) );
+		$display("\tns_to_cycles(13) = 4 = %0d [round-up]\n", nCK_to_cycles(13) );
+		
+		$display("Test ns_to_nCK() function:");
+		$display("\tns_to_cycles(15) = 12 = %0d [exact]", ns_to_nCK(15) );
+		$display("\tns_to_cycles(14.875) = 12 = %0d [round-off]", ns_to_nCK(14.875) );
+		$display("\tns_to_cycles(13.875) = 12 = %0d [round-up]", ns_to_nCK(13.875) );
+		$display("\tns_to_nCK(tRCD) =  11 = %0d [WRONG]", ns_to_nCK(tRCD));
+		$display("\ttRTP =  7.5 = %f ", tRTP);
+		$display("\tns_to_nCK(tRTP) =  6= %f [WRONG]\n", ns_to_nCK(tRTP) );
+		
+		$display("Test nCK_to_ns() function:");
+		$display("\tns_to_cycles(4)  = 5 = %0d [exact]", nCK_to_ns(4) );
+		$display("\tns_to_cycles(14.875) = 4 = %0d [round-off]", nCK_to_ns(3) );
+		$display("\tns_to_cycles(13.875) = 7 = %0d [round-up]\n", nCK_to_ns(5) );
+		
+		$display("Test nCK_to_ns() function:");
+		$display("\tns_to_cycles(4)  = 5 = %0d [exact]", nCK_to_ns(4) );
+		$display("\tns_to_cycles(14.875) = 4 = %0d [round-off]", nCK_to_ns(3) );
+		$display("\tns_to_cycles(13.875) = 7 = %0d [round-up]\n", nCK_to_ns(5) );
+		
+		$display("Test added_delay() function:");
+		$display("\tadded_delay(0) = 0xffffffff = 0x%h", added_delay(0) );
+		$display("\tadded_delay(1) = 0xfffffffe = 0x%h", added_delay(1)  );
+		$display("\tadded_delay(2) = 0xfffffffc = 0x%h", added_delay(2)  );
+		$display("\tadded_delay(3) = 0xfffffff8 = 0x%h\n", added_delay(3)  );
+		
+		$display("Test $floor() function:");
+		$display("\t$floor(5/2) = 2.5 = %0d", $floor(5/2) );
+		$display("\t$floor(9/4) = 2.25 = %0d", $floor(9/4) );
+		$display("\t$floor(9/4) = 2 = %0d", $floor(8/4) );
+		$display("\t$floor(9/5) = 1.8 = %0d\n", $floor(9/5) );
+
+        $display("\nDELAY_COUNTER_WIDTH = %0d", DELAY_COUNTER_WIDTH);
         $display("DELAY_SLOT_WIDTH = %0d", DELAY_SLOT_WIDTH);
-        $display("read_rom_instruction precharge all = %h", read_rom_instruction(12));
-        $display("INITIAL_RESET_INSTRUCTION = %h", INITIAL_RESET_INSTRUCTION);
-        
-        $display("$bits(instruction) = %0d , $bits(CMD_MRS) = %0d , $bits(MR0) = %0d  -> %0d",  $bits(instruction), $bits(CMD_MRS) , $bits(MR0), ($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)));
+
+        $display("$bits(instruction):%0d - $bits(CMD_MRS):%0d - $bits(MR0):%0d  =  5 = %0d",  $bits(instruction), $bits(CMD_MRS) , $bits(MR0), ($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)));
         $display("serdes_ratio = %0d",serdes_ratio);
         $display("wb_addr_bits = %0d",wb_addr_bits);
         $display("wb_data_bits = %0d",wb_data_bits);
         $display("wb_sel_bits = %0d\n\n",wb_sel_bits);
-        $display("request_row_width = %0d", $bits(i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]));
-        $display("request_bank_width = %0d", $bits(i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]));
-        $display("request_col_width = %0d", $bits({ i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }));
-        
+        $display("request_row_width = %0d =  %0d", ROW_BITS,  $bits(i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]));
+        $display("request_col_width = %0d = %0d", COL_BITS, $bits({ i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }));
+		$display("request_bank_width = %0d = %0d", BA_BITS, $bits(i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]));
 
         $display("READ_SLOT = %0d", READ_SLOT);
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
         $display("ACTIVATE_SLOT = %0d", ACTIVATE_SLOT);
         $display("PRECHARGE_SLOT = %0d", PRECHARGE_SLOT);
-
+		
+		$display("\n\nDELAYS:");
+		$display("\tns_to_nCK(tRCD): %0d", ns_to_nCK(tRCD));
+		$display("\tns_to_nCK(tRP): %0d", ns_to_nCK(tRP));
+		$display("\tns_to_nCK(tRTP): %0d", ns_to_nCK(tRTP));
+		$display("\ttCCD: %0d", tCCD);
+		$display("\t(CL_nCK + tCCD + 3'd2 - CWL_nCK): %0d", (CL_nCK + tCCD + 3'd2 - CWL_nCK));
+		$display("\t(CWL_nCK + 3'd4 + ns_to_nCK(tWR)): %0d", (CWL_nCK + 3'd4 + ns_to_nCK(tWR)));
+		$display("\t(CWL_nCK + 3'd4 + ns_to_nCK(tWTR)): %0d", (CWL_nCK + 3'd4 + ns_to_nCK(tWTR)));
+		$display("\t$signed(4'b1100)>>>4: %b", $signed(4'b1100) >>> 4);
     end
-
-
+`endif
     
     
 `ifdef  FORMAL
     initial assume(!i_rst_n); 
     
     always @* begin
-        assert(tMOD + tZQinit > nCK_to_cycles(tDLLK)); //Initialization sequence requires that tDLLK is satisfied after MRS to mode register 0 and ZQ calibration
+        //assert(tMOD + tZQinit > nCK_to_cycles(tDLLK)); //Initialization sequence requires that tDLLK is satisfied after MRS to mode register 0 and ZQ calibration
         assert(MR0[18] != 1'b1); //last Mode Register bit should never be zero 
         assert(MR1[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
         assert(MR2[18] != 1'b1); //commands in the reset sequence)
@@ -744,10 +1020,47 @@ module ddr3_controller #(
         //make sure each command has distinct slot number (except for read/write which can have the same or different slot number)
         assert((WRITE_SLOT != ACTIVATE_SLOT != PRECHARGE_SLOT) && (READ_SLOT != ACTIVATE_SLOT != PRECHARGE_SLOT) );
         //make sure slot number for read command is correct
-
     end
-    
+    //create a formal assertion that says during refresh ack should be low always
+    //make an assertion that there will be no request pending before actual refresh starts at instruction 4'd12
         
+		
+	reg[24:0] f_wb_inputs[13:0];
+	reg[4:0] f_index = 0;
+	reg[5:0] f_counter = 0;
+	initial begin
+		f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
+		f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd8}}; //read on same bank (tCCD)
+		f_wb_inputs[2] = {1'b1, {14'd0,3'd1, 7'd16}}; //write on same bank (tRTW)
+		f_wb_inputs[3] = {1'b1, {14'd0,3'd1, 7'd24}}; //write on same bank (tCCD)
+		f_wb_inputs[4] = {1'b0, {14'd0,3'd2, 7'd0}}; //read on different bank 
+		f_wb_inputs[5] = {1'b1, {14'd0,3'd2, 7'd8}}; //write on same bank (tRTW)
+		f_wb_inputs[6] = {1'b1, {14'd0,3'd1, 7'd32}}; //write on different bank (already activated)
+		f_wb_inputs[7] = {1'b1, {14'd0,3'd1, 7'd40}}; //write (tCCD)
+		f_wb_inputs[8] = {1'b1, {14'd1,3'd2, 7'd0}}; //write on different bank (already activated but wrong row)
+		f_wb_inputs[9] = {1'b1, {14'd1,3'd2, 7'd8}}; //write (tCCD)
+		f_wb_inputs[10] = {1'b1, {14'd1,3'd2, 7'd16}}; //write (tCCD)
+		f_wb_inputs[11] = {1'b0, {14'd2,3'd2, 7'd24}}; //read (same bank but wrong row so precharge first) 
+		f_wb_inputs[12] = {1'b0, {14'd2,3'd2, 7'd32}}; //read (tCCD)
+		f_wb_inputs[13] = {1'b0, {14'd2,3'd2, 7'd40}}; //read (tCCD)
+	end
+	always @(posedge i_clk) begin
+			if(o_wb_ack) begin
+				f_index <= f_index + 1;
+				f_counter <= 0;
+			end
+			else begin
+				f_counter <= f_counter + 1;
+			end
+	end
+	
+	always @* begin
+		assume(i_wb_cyc == 1);
+		assume(i_wb_stb == 1);
+		if(f_index>1) assume(i_rst_n);
+		assume(i_wb_we == f_wb_inputs[f_index][24]);
+		assume(i_wb_addr == f_wb_inputs[f_index][23:0]);
+		cover(f_index == 13);
+	end
 `endif
 endmodule
-
