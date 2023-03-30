@@ -378,6 +378,12 @@ module ddr3_controller #(
             o_wb_stall <= 1'b1; 
             o_wb_ack <= 1'b0;
             request_pending_q <= 0;
+            request_we <= 0;
+            request_col <= 0;
+            request_bank <= 0;
+            request_row <= 0;
+            next_bank <= 0;
+            next_row <= 0;
             for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= 0;  
                 delay_before_activate_counter_q[index] <= 0;
@@ -389,19 +395,12 @@ module ddr3_controller #(
                 delay_before_write_mask_q[index] <= -1;
                 delay_before_read_mask_q[index] <= -1;
             end
-            cmd_q[0] <= -1;
-            cmd_q[1] <= -1;
-            cmd_q[2] <= -1;
-            cmd_q[3] <= -1;
+            for(integer index=0; index < (1<<4); index=index+1) begin
+                cmd_q[index] <= -1;
+            end
             for(integer index=0; index < (1<<BA_BITS); index=index+1) begin
                     bank_status_q[index] <= 0;  
             end
-            request_we <= 0;
-            request_col <= 0;
-            request_bank <= 0;
-            request_row <= 0;
-            next_bank <= 0;
-            next_row <= 0;
         end
         // can only start accepting requests  when reset is done
         else if(1/*reset_done*/) begin /////////////////////////////////////// else if(reset_done) begin
@@ -420,16 +419,13 @@ module ddr3_controller #(
                 delay_before_read_mask_q[index] <= delay_before_read_mask_d[index];
             end
 
-             for(integer index=0; index < (1<<4); index=index+1) begin
-                cmd_q[index] <= cmd_d[index];
-            end
             for(integer index=0; index < (1<<BA_BITS); index=index+1) begin
                 bank_status_q[index] <= bank_status_d[index];
                 bank_active_row_q[index] <= bank_active_row_d[index];
             end
 
             //refresh sequence is on-going 
-            if(0) begin ////////////////////////// if(!instruction[REF_IDLE])
+            if(/*!instruction[REF_IDLE]*/0) begin
                 //all banks will be in idle after refresh
                 for(integer index=0; index < (1<<BA_BITS); index=index+1) begin
                     bank_status_q[index] <= 0;  
@@ -452,7 +448,7 @@ module ddr3_controller #(
                 request_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
                 request_bank <=  i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
                 request_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                {next_row , next_bank} <= i_wb_addr[ (wb_addr_bits-1) : (wb_addr_bits - ROW_BITS - BA_BITS)+1 ]; //anticipated next row and bank to be accessed 
+                {next_row , next_bank} <= i_wb_addr[ (wb_addr_bits-1) : (wb_addr_bits - ROW_BITS - BA_BITS)] + 1; //anticipated next row and bank to be accessed 
             end
         end
     end
@@ -473,35 +469,7 @@ module ddr3_controller #(
             //note: all delays after write counts only after the data burst (except for write-to-write tCCD)
             //
             //
-            // Example scenario on how this works:
-            // Say we have done precharge this clock cycle, the delay before
-            // the next activate is dictated by tRP. Say tRP needs 12nCK (DD3
-            // clock cycles) and the slot number for precharge is 2:
-            //  0  1  2  3
-            // [ ][ ][P][0]
-            // [0][0][0][0]
-            // [0][0][0][0]
-            // [0][0][1][ ]
-            // [A][ ][ ][ ]
-            // The 0s represent the delay and the 1 represents the end of the
-            // tRP delay of 10nCK. Using shift register this is represented
-            // as:
-            // 1_0000000000 (10 zeroes, zeroes start from row after precharge 
-            // cmd since the precharge command itself covers the 1st row delay)
-            //
-            // This shift register will be shifted by 4 arithmetically so that
-            // the 1s on the MSB will be preserved. Now say the slot number of
-            // activate command (ACTIVATE_SLOT) is 0, we will wait until the 
-            // 1s in the thread reaches this slot WHICH MEANS THE DELAY IS OVER
-            // FOR tRP AND THUS CAN START ACTIVATE:
-            // 1_0000[0000] -> 11111_[0000] -> 1111111[1111]
-            //
-            // Notice how [1111] hits the slot 0 (assumed ACTIVATE_SLOT),
-            // this signifies that the activate command can start anytime.
-            // Notice also that since this is arithmetically right shifted the
-            // 1s are preserved and the thread will remain all 1s until it is
-            // overwritten
-        
+
     always @* begin
         request_pending_d = request_pending_q;
         o_wb_ack_d = 0;
@@ -999,6 +967,7 @@ module ddr3_controller #(
     reg[4:0] f_index = 0;
     reg[5:0] f_counter = 0;
     initial begin
+        /*
         f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
         f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd8}}; //read on same bank (tCCD)
         f_wb_inputs[2] = {1'b1, {14'd0,3'd1, 7'd16}}; //write on same bank (tRTW)
@@ -1013,6 +982,17 @@ module ddr3_controller #(
         f_wb_inputs[11] = {1'b0, {14'd2,3'd2, 7'd24}}; //read (same bank but wrong row so precharge first) 
         f_wb_inputs[12] = {1'b0, {14'd2,3'd2, 7'd32}}; //read (tCCD)
         f_wb_inputs[13] = {1'b0, {14'd2,3'd2, 7'd40}}; //read (tCCD)
+        */
+
+        f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
+        f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read on same bank (tCCD)
+        f_wb_inputs[2] = {1'b1, {14'd0,3'd2, 7'd0}}; //write on the anticipated bank 
+        f_wb_inputs[3] = {1'b1, {14'd0,3'd2, 7'd1}}; //write on same bank (tCCD)
+        f_wb_inputs[4] = {1'b0, {14'd0,3'd3, 7'd0}}; //read on the anticipated bank 
+        f_wb_inputs[5] = {1'b0, {14'd0,3'd3, 7'd1}}; //read on same bank (tCCD)
+        f_wb_inputs[6] = {1'b1, {14'd0,3'd7, 7'd0}}; //write on the un-anticipated idle bank (activate first) 
+        f_wb_inputs[7] = {1'b1, {14'd0,3'd1, 7'd1}}; //write on the un-anticipated active bank and row (write)
+        f_wb_inputs[8] = {1'b1, {14'd1,3'd7, 7'd0}}; //write on the un-anticipated active bank but wrong row (precharge first) 
     end
     always @(posedge i_clk) begin
             if(o_wb_ack) begin
@@ -1030,7 +1010,7 @@ module ddr3_controller #(
         if(f_index>1) assume(i_rst_n);
         assume(i_wb_we == f_wb_inputs[f_index][24]);
         assume(i_wb_addr == f_wb_inputs[f_index][23:0]);
-        cover(f_index == 3);
+        cover(f_index == 9);
     end
 `endif
 endmodule
