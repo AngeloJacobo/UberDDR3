@@ -10,3 +10,6 @@
 
 ## Random Access
 ![image](https://user-images.githubusercontent.com/87559347/230362722-256dafff-04c1-4052-b664-6b3d234d9089.png)
+
+## Sequential Read Until Next Bank
+![image](https://user-images.githubusercontent.com/87559347/230366265-a10b22b1-8113-46f7-9980-f8938a0b4a0c.png)
