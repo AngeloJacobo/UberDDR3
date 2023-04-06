@@ -8,3 +8,5 @@
 ![image](https://user-images.githubusercontent.com/87559347/230336798-619a629d-9f7d-431f-8887-a05965b1c70a.png)
 
 
+## Random Access
+![image](https://user-images.githubusercontent.com/87559347/230362722-256dafff-04c1-4052-b664-6b3d234d9089.png)
