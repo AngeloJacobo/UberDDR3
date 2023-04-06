@@ -646,15 +646,9 @@ module ddr3_controller #(
         
             
             
-            //////////////// TO BE ADDED APRIL6
-            // logic for every parameters like PRECHARGE_TO_ACTIVATE_DELAY
-            //you need to know direction stall since o_wb_stall will go high for changing direction 
-            //finalize formal verif with cover
-            //comment everything (how everythibng works with examples and script!)
-            //added direction stall
-            // SO LIKE: If biglang nagpalit ng bank or row yung current request (hindi anticipate), then stall the pipeline in advance since all act or precharge will take more tahn 1 or 2 clk cycle thus need to stall
-            //Original deisign in github: 613LUT, 356FF = 1.393ns (200MHz)
-            //SIr Dan: 402LUT, 892FF = 2.333ns (200Mhz)
+    // Vivado Benchmarking
+    //Old Design: 613LUT, 356FF, Slack=+1.393ns (200MHz)
+    //New Design: 447LUT, 355FF, Slack=+1.724ns (200MHz)
     end //end of always block
     
     
