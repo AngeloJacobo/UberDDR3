@@ -1059,20 +1059,17 @@ module ddr3_controller #(
         f_wb_inputs[10] = {1'b0, {14'd0,3'd1, 7'd10}}; //write 
         f_wb_inputs[11] = {1'b0, {14'd0,3'd1, 7'd11}}; //write 
         */
-         f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
-        f_wb_inputs[1] = {1'b0, {14'd1,3'd1, 7'd1}}; //read on same bank (tCCD)
-        f_wb_inputs[2] = {1'b0, {14'd2,3'd1, 7'd2}}; //write on same bank (tRTW)
-        f_wb_inputs[3] = {1'b0, {14'd3,3'd1, 7'd3}}; //write on same bank (tCCD)
-        f_wb_inputs[4] = {1'b0, {14'd4,3'd1, 7'd0}}; //read on different bank 
-        f_wb_inputs[5] = {1'b1, {14'd5,3'd1, 7'd1}}; //write on same bank (tRTW)
-        f_wb_inputs[6] = {1'b1, {14'd6,3'd1, 7'd4}}; //write on different bank (already activated)
-        f_wb_inputs[7] = {1'b1, {14'd0,3'd2, 7'd5}}; //write (tCCD)
-        f_wb_inputs[8] = {1'b1, {14'd1,3'd2, 7'd0}}; //write on different bank (already activated but wrong row)
-        f_wb_inputs[9] = {1'b1, {14'd2,3'd2, 7'd1}}; //write (tCCD)
-        f_wb_inputs[10] = {1'b1, {14'd3,3'd2, 7'd2}}; //write (tCCD)
-        f_wb_inputs[11] = {1'b0, {14'd4,3'd2, 7'd0}}; //read (same bank but wrong row so precharge first) 
-        f_wb_inputs[12] = {1'b0, {14'd5,3'd2, 7'd1}}; //read (tCCD)
-        f_wb_inputs[13] = {1'b0, {14'd6,3'd2, 7'd2}}; //read (tCCD)
+        f_wb_inputs[0] = {1'b0, {14'd1,3'd1, 7'd120}}; //write on same bank (tRTW)
+        f_wb_inputs[1] = {1'b0, {14'd1,3'd1, 7'd121}}; //write on different bank (already activated)
+        f_wb_inputs[2] = {1'b0, {14'd1,3'd1, 7'd122}}; //write (tCCD)
+        f_wb_inputs[3] = {1'b0, {14'd1,3'd1, 7'd123}}; //write on different bank (already activated but wrong row)
+        f_wb_inputs[4] = {1'b0, {14'd1,3'd1, 7'd124}}; //write (tCCD)
+        f_wb_inputs[5] = {1'b0, {14'd1,3'd1, 7'd125}}; //write (tCCD)
+        f_wb_inputs[6] = {1'b0, {14'd1,3'd1, 7'd126}}; //read (same bank but wrong row so precharge first) 
+        f_wb_inputs[7] = {1'b0, {14'd1,3'd1, 7'd127}}; //read (tCCD)
+        f_wb_inputs[8] = {1'b0, {14'd1,3'd2, 7'd0}}; //read (tCCD)
+        f_wb_inputs[9] = {1'b0, {14'd1,3'd2, 7'd1}}; //read (tCCD)
+        f_wb_inputs[10] = {1'b0, {14'd1,3'd2, 7'd2}}; //read (tCCD)
         
     end
     always @(posedge i_clk) begin
@@ -1095,7 +1092,7 @@ module ddr3_controller #(
         if(f_past_valid) assume(i_rst_n);
         assume(i_wb_we == f_wb_inputs[f_index][24]);
         assume(i_wb_addr == f_wb_inputs[f_index][23:0]);
-        cover(f_index == 5);
+        cover(f_index == 12);
         //cover(f_reset_counter == 10);
     end
     
