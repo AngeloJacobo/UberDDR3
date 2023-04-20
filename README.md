@@ -21,4 +21,5 @@
 
 ## Sequential Write
 
-![image](https://user-images.githubusercontent.com/87559347/233359538-eb3eed9c-ab84-497e-b353-952153f1eaad.png)
+
+![image](https://user-images.githubusercontent.com/87559347/233395320-66a16ad8-1d56-4850-b82e-39abda92366f.png)
