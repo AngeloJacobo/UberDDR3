@@ -19,3 +19,6 @@
 
 ![image](https://user-images.githubusercontent.com/87559347/233351111-10434e18-4c5c-4751-95c5-536288c514ed.png)
 
+## Sequential Write
+
+![image](https://user-images.githubusercontent.com/87559347/233359538-eb3eed9c-ab84-497e-b353-952153f1eaad.png)
