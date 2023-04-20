@@ -39,10 +39,11 @@ module ddr3_controller #(
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
-                wb_sel_bits = (DQ_BITS*LANES*serdes_ratio)*2 / 8
+                wb_sel_bits = wb_data_bits / 8
     ) 
     (
-        input wire i_clk, i_rst_n, //200MHz input clock
+        input wire i_controller_clk, i_ddr3_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
+        input wire i_rst_n, //200MHz input clock
         // Wishbone inputs
         input wire i_wb_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
         input wire i_wb_stb, //request a transfer
@@ -55,8 +56,19 @@ module ddr3_controller #(
         output reg o_wb_stall, //1 = busy, cannot accept requests
         output reg o_wb_ack, //1 = read/write request has completed
         output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-        output reg o_aux //for AXI-interface compatibility (returned upon ack)
+        output reg o_aux, //for AXI-interface compatibility (returned upon ack)
         // PHY Interface (to be added later)
+        output wire ck_en, // CKE
+        output wire cs_n, // chip select signal
+        output wire odt, // on-die termination
+        output wire ras_n, // RAS#
+        output wire cas_n, // CAS#
+        output wire we_n, // WE#
+        output wire reset_n,
+        output wire[ROW_BITS-1:0] addr,
+        output wire[BA_BITS-1:0] ba_addr,
+        output wire[(DQ_BITS*LANES)-1:0] dq,
+        output wire[(DQ_BITS*LANES)/8-1:0] dqs, dqs_n
         ////////////////////////////////////
     );
 
@@ -82,8 +94,14 @@ module ddr3_controller #(
                   RESET_N = 23; //Reset_n to DDR3
                          
                          // ddr3_metadata partitioning
-    localparam CMD_LEN = 4 + BA_BITS + ROW_BITS, //4 is the width of a single ddr3 command (precharge,actvate, etc.) plus bank bits plus row bits
+    localparam CMD_LEN = 4 + 3 + BA_BITS + ROW_BITS, //4 is the width of a single ddr3 command (precharge,actvate, etc.) plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
                CMD_CS_N = CMD_LEN - 1, 
+               CMD_RAS_N = CMD_LEN - 2,
+               CMD_CAS_N= CMD_LEN - 3,
+               CMD_WE_N = CMD_LEN - 4,
+               CMD_CK_EN = CMD_LEN - 5,
+               CMD_ODT = CMD_LEN - 6,
+               CMD_RESET_N = CMD_LEN - 7,
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ROW_ADDRESS_START = ROW_BITS - 1;
                
@@ -269,7 +287,7 @@ module ddr3_controller #(
     reg delay_counter_is_zero = (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0); //counter is now zero so retrieve next delay
     reg reset_done = 0; //high if reset has already finished
     
-    always @(posedge i_clk, negedge i_rst_n) begin
+    always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             instruction_address <= 0;
             instruction <= INITIAL_RESET_INSTRUCTION;
@@ -308,68 +326,6 @@ module ddr3_controller #(
     end
 
     //////////////////////////////////////////////////////// Track Bank Status and Active Row ////////////////////////////////////////////////////////
-
-    reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
-    reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; //bank_active_row[bank_number] = stores the active row address in the specified bank
-    
-     //clear bank_status and bank_active_row to zero
-    initial begin
-        for(integer index=0; index< (1<<BA_BITS); index=index+1) begin
-            bank_status_q[index] = 0;  
-            bank_status_d[index] = 0;
-            bank_active_row_q[index] = 0; 
-            bank_active_row_d[index] = 0; 
-        end
-    end
-
-    //pipeline stage 1 regs
-    reg stage1_pending = 0;
-    reg stage1_we = 0;
-    reg[COL_BITS-1:0] stage1_col = 0;
-    reg[BA_BITS-1:0] stage1_bank = 0;
-    reg[ROW_BITS-1:0] stage1_row = 0;
-    reg[COL_BITS-1:0] stage1_next_col = 0;
-    reg[BA_BITS-1:0] stage1_next_bank = 0;
-    reg[ROW_BITS-1:0] stage1_next_row = 0;
-    
-    //pipeline stage 2 regs
-    reg stage2_pending = 0;
-    reg stage2_we = 0;
-    reg[COL_BITS-1:0] stage2_col = 0;
-    reg[BA_BITS-1:0] stage2_bank = 0;
-    reg[ROW_BITS-1:0] stage2_row = 0;
-    
-    //delay counter for every banks
-    reg[3:0] delay_before_precharge_counter_q[(1<<BA_BITS)-1:0], delay_before_precharge_counter_d[(1<<BA_BITS)-1:0]; //delay counters
-    reg[3:0] delay_before_activate_counter_q[(1<<BA_BITS)-1:0], delay_before_activate_counter_d[(1<<BA_BITS)-1:0] ;
-    reg[3:0] delay_before_write_counter_q[(1<<BA_BITS)-1:0], delay_before_write_counter_d[(1<<BA_BITS)-1:0] ;
-    reg[3:0] delay_before_read_counter_q[(1<<BA_BITS)-1:0] , delay_before_read_counter_d[(1<<BA_BITS)-1:0] ;
-    
-    //set all delay counters to zero
-     initial begin
-        for(integer index=0; index<(1<<BA_BITS); index=index+1) begin
-            delay_before_precharge_counter_q[index] = 0;  
-            delay_before_activate_counter_q[index] = 0;
-            delay_before_write_counter_q[index] = 0; 
-            delay_before_read_counter_q[index] = 0; 
-        end
-    end
-    
-    //commands to be sent to PHY (4 slots per controller clk cycle)
-    (* keep *) reg[CMD_LEN-1:0] cmd_q[3:0], cmd_d[3:0];
-    //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
-    initial begin
-        for(integer index=0; index< 4; index=index+1) begin
-            cmd_q[index] = -1;
-            cmd_d[index] = -1;
-        end
-    end
-    
-    reg o_wb_stall_d;
-    reg o_wb_ack_d;
-    reg pipe_stall;
-    reg precharge_slot_busy;
-    reg activate_slot_busy;
     //delay constants    
     localparam PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ns_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
     localparam ACTIVATE_TO_WRITE_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
@@ -380,6 +336,7 @@ module ddr3_controller #(
     localparam WRITE_TO_WRITE_DELAY = 0;
     localparam WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
     localparam WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
+    localparam WRITE_TO_ODT_OFF = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
     
     //MARGIN_BEFORE_ANTICIPATE is the number of columns before the column
     //end when the anticipate can start
@@ -388,9 +345,84 @@ module ddr3_controller #(
     //Also, worscase is when the anticipated bank still has the leftover of the 
     //WRITE_TO_PRECHARGE_DELAY thus consider also this.
     localparam MARGIN_BEFORE_ANTICIPATE = PRECHARGE_TO_ACTIVATE_DELAY + ACTIVATE_TO_WRITE_DELAY + WRITE_TO_PRECHARGE_DELAY;
+    localparam STAGE2_DATA_DEPTH = ($rtoi($floor((CWL_nCK - (3 - WRITE_SLOT + 1))/4.0 )));
+    
+    
+    reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
+    reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; //bank_active_row[bank_number] = stores the active row address in the specified bank
     integer index;
+     //clear bank_status and bank_active_row to zero
+    initial begin
+        for(index=0; index< (1<<BA_BITS); index=index+1) begin
+            bank_status_q[index] = 0;  
+            bank_status_d[index] = 0;
+            bank_active_row_q[index] = 0; 
+            bank_active_row_d[index] = 0; 
+        end
+    end
+
+    //pipeline stage 1 regs
+    reg stage1_pending = 0;
+    reg stage1_we = 0;
+    reg[wb_data_bits - 1:0] stage1_data = 0;
+    reg[COL_BITS-1:0] stage1_col = 0;
+    reg[BA_BITS-1:0] stage1_bank = 0;
+    reg[ROW_BITS-1:0] stage1_row = 0;
+    reg[COL_BITS-1:0] stage1_next_col = 0;
+    reg[BA_BITS-1:0] stage1_next_bank = 0;
+    reg[ROW_BITS-1:0] stage1_next_row = 0;
+    
+    //pipeline stage 2 regs
+    reg stage2_pending = 0;
+    reg stage2_we = 0;
+    reg [wb_data_bits - 1:0] stage2_data [STAGE2_DATA_DEPTH:0];
+    //reset data
+    initial begin
+        for(index = 0; index <= STAGE2_DATA_DEPTH; index = index+1) begin
+            stage2_data[index] <=  0;               
+        end
+    end
+    reg[COL_BITS-1:0] stage2_col = 0;
+    reg[BA_BITS-1:0] stage2_bank = 0;
+    reg[ROW_BITS-1:0] stage2_row = 0;
+    
+    //delay counter for every banks
+    reg[3:0] delay_before_precharge_counter_q[(1<<BA_BITS)-1:0], delay_before_precharge_counter_d[(1<<BA_BITS)-1:0]; //delay counters
+    reg[3:0] delay_before_activate_counter_q[(1<<BA_BITS)-1:0], delay_before_activate_counter_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_write_counter_q[(1<<BA_BITS)-1:0], delay_before_write_counter_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_read_counter_q[(1<<BA_BITS)-1:0] , delay_before_read_counter_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_odt_off_q, delay_before_odt_off_d;
+    
+    //set all delay counters to zero
+     initial begin
+        for(index=0; index<(1<<BA_BITS); index=index+1) begin
+            delay_before_precharge_counter_q[index] = 0;  
+            delay_before_activate_counter_q[index] = 0;
+            delay_before_write_counter_q[index] = 0; 
+            delay_before_read_counter_q[index] = 0; 
+        end
+        delay_before_odt_off_q = 0;
+    end
+    
+    //commands to be sent to PHY (4 slots per controller clk cycle)
+    (* keep *) reg[CMD_LEN-1:0] cmd_q[3:0], cmd_d[3:0];
+    //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
+    initial begin
+        for(index=0; index< 4; index=index+1) begin
+            cmd_q[index] = -1;
+            cmd_d[index] = -1;
+        end
+    end
+    
+    reg o_wb_stall_d;
+    reg o_wb_ack_d;
+    reg pipe_stall;
+    reg precharge_slot_busy;
+    reg activate_slot_busy;
+    reg[(STAGE2_DATA_DEPTH+1)*4+8-1:0] write_dqs_q, write_dqs_d;
+    
     //process request transaction 
-    always @(posedge i_clk, negedge i_rst_n) begin
+    always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n ) begin
             o_wb_stall <= 1'b1; 
             o_wb_ack <= 1'b0;
@@ -409,6 +441,8 @@ module ddr3_controller #(
             stage2_col <= 0;
             stage2_bank <= 0;
             stage2_row <= 0;
+            delay_before_odt_off_q <= 0;
+            write_dqs_q <= 0;
             //set delay counters to 0
             for(index=0; index<(1<<BA_BITS); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= 0;  
@@ -416,14 +450,14 @@ module ddr3_controller #(
                 delay_before_write_counter_q[index] <= 0; 
                 delay_before_read_counter_q[index] <= 0; 
             end
-            //set cmd to NOP
-            for( index=0; index < (1<<4); index=index+1) begin
-                cmd_q[index] <= -1;
-            end
             //reset bank status and active row
             for( index=0; index < (1<<BA_BITS); index=index+1) begin
                     bank_status_q[index] <= 0;  
                     bank_active_row_q[index] <= 0; 
+            end
+            //reset data
+            for(index = 0; index <= STAGE2_DATA_DEPTH; index = index+1) begin
+                stage2_data[index] <=  0;               
             end
         end
         
@@ -431,6 +465,7 @@ module ddr3_controller #(
         else if(1/*reset_done*/) begin 
             o_wb_stall <= o_wb_stall_d;
             o_wb_ack <= o_wb_ack_d;
+            write_dqs_q <= write_dqs_d;
             //update delay counter 
             for(index=0; index< (1<<BA_BITS); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= delay_before_precharge_counter_d[index];  
@@ -438,10 +473,11 @@ module ddr3_controller #(
                 delay_before_write_counter_q[index] <= delay_before_write_counter_d[index]; 
                 delay_before_read_counter_q[index] <= delay_before_read_counter_d[index]; 
             end
+            delay_before_odt_off_q <= delay_before_odt_off_d;
             //update cmd
-            for( index=0; index < 4; index=index+1) begin
-                cmd_q[index] <= cmd_d[index];
-            end
+            //for( index=0; index < 4; index=index+1) begin
+            //    cmd_q[index] <= cmd_d[index];
+            //end
             //update bank status and active row
             for(index=0; index < (1<<BA_BITS); index=index+1) begin
                 bank_status_q[index] <= bank_status_d[index];
@@ -471,6 +507,9 @@ module ddr3_controller #(
                 stage2_col <= stage1_col;
                 stage2_bank <= stage1_bank;
                 stage2_row <= stage1_row;
+                stage2_data[0] <= stage1_data;
+
+                //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
             end
 
             // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall
@@ -489,6 +528,11 @@ module ddr3_controller #(
                 //current column with a margin dictated by
                 //MARGIN_BEFORE_ANTICIPATE  
                 {stage1_next_row , stage1_next_bank, stage1_next_col[COL_BITS-1:$clog2(serdes_ratio*2)] } <= i_wb_addr + MARGIN_BEFORE_ANTICIPATE; //anticipated next row and bank to be accessed 
+                stage1_data <= i_wb_data;
+            end
+                          
+            for(index = 1; index <= STAGE2_DATA_DEPTH; index = index+1) begin
+                stage2_data[index] <=  stage2_data[index-1];               
             end
         end
     end
@@ -517,6 +561,7 @@ module ddr3_controller #(
         pipe_stall = 0; //pipe_stall will follow i_wb_stall(so stall when stage 2 needs delay) but goes low after actual read/write request (move pipe forward when stage2 finishes request) 
         precharge_slot_busy = 0; //flag that determines if stage 2 is issuing precharge (thus stage 1 cannot issue precharge)
         activate_slot_busy = 0; //flag that determines if stage 2 is issuing activate (thus stage 1 cannot issue activate)
+        write_dqs_d = write_dqs_q>>4;
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
             bank_status_d[index] = bank_status_q[index];
             bank_active_row_d[index] = bank_active_row_q[index];
@@ -524,7 +569,9 @@ module ddr3_controller #(
         //set all cmd_d to NOP
         for(index=0; index < 4; index=index+1) begin
                 cmd_d[index] = -1;
+                cmd_d[index][CMD_ODT] = (delay_before_odt_off_q != 0)? 1'b1: 1'b0; //ODT remains the same value
         end
+   
             
         // decrement delay counters for every bank
         for(index=0; index< (1<<BA_BITS); index=index+1) begin
@@ -533,7 +580,7 @@ module ddr3_controller #(
             delay_before_write_counter_d[index] = (delay_before_write_counter_q[index] == 0)? 0:delay_before_write_counter_q[index] - 1;
             delay_before_read_counter_d[index] = (delay_before_read_counter_q[index] == 0)? 0:delay_before_read_counter_q[index] - 1;
         end
-        
+        delay_before_odt_off_d = (delay_before_odt_off_q == 0)? 0 : delay_before_odt_off_q - 1;
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
             o_wb_stall_d = o_wb_stall; 
@@ -549,6 +596,7 @@ module ddr3_controller #(
                     delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
                     delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
+                    delay_before_odt_off_d = STAGE2_DATA_DEPTH + 1;
                     //issue read command
                     if(COL_BITS <= 10) begin
                         cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
@@ -556,6 +604,13 @@ module ddr3_controller #(
                     else begin
                         cmd_d[WRITE_SLOT] =  {1'b0, CMD_WR[2:0], {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
                     end
+                    //add ODT bit, turn on odt at same time as write cmd
+                    cmd_d[0][CMD_ODT] = 1;
+                    cmd_d[1][CMD_ODT] = 1;
+                    cmd_d[2][CMD_ODT] = 1;
+                    cmd_d[3][CMD_ODT] = 1;
+                    write_dqs_d[(STAGE2_DATA_DEPTH+1)*4 +: 8] = 8'b0001_1111;
+                   // write_data = 1;
                 end
                 
                 //read request
@@ -647,12 +702,255 @@ module ddr3_controller #(
             
             
     // Vivado Benchmarking
-    //Old Design: 613LUT, 356FF, Slack=+1.393ns (200MHz)
-    //New Design: 447LUT, 355FF, Slack=+1.724ns (200MHz)
+    //Old Design: 447LUT, 355FF, Slack=+1.724ns (200MHz)
+    //New Design: 682LUT, 1932FF, Slack=+1.377ns (200MHz)
     end //end of always block
     
+   //////////////////////////////////////////////////////////////////////// PHY Interface ////////////////////////////////////////////////////////////////////////////////////////////////////
+    wire[(DQ_BITS*LANES)-1:0] oserdes_data, odelay_data, read_dq;
+    wire[LANES-1:0] odelay_dqs, read_dqs;
+    wire idelayctrl_rdy;
+    reg[LANES-1:0] odelay_ce=0, odelay_inc=0, odelay_ld=0;
+    reg write_data=0, write_dqs=0;
+    wire oserdes_dqs;
+    genvar gen_index;
+    reg[CMD_LEN-1:0] aligned_cmd;
+    wire[CMD_LEN-1:0] cmd;
+    reg[1:0] serial_index,serial_index_q;
+    always @(posedge i_ddr3_clk) begin
+        if(!i_rst_n) begin
+            serial_index <=0;
+            write_dqs_q <= 0;
+              //set cmd to NOP
+            for( index=0; index < (1<<4); index=index+1) begin
+                cmd_q[index] <= -1;
+            end
+        end
+        else begin 
+            case(serial_index)
+                0: begin
+                        //update cmd
+                        for( index=0; index < 4; index=index+1) begin
+                            cmd_q[index] <= cmd_d[index];
+                        end
+                        aligned_cmd <= cmd_d[0];
+                   end
+                1: aligned_cmd <= cmd_q[1];
+                2: aligned_cmd <= cmd_q[2];
+                3: aligned_cmd <= cmd_q[3];        
+            endcase
+            serial_index <= serial_index + 1;
+            serial_index_q <= serial_index;
+            write_dqs <= write_dqs_q[serial_index_q];
+        end
+    end
     
+    
+    for(gen_index = 0; gen_index < CMD_LEN; gen_index = gen_index + 1) begin
+        (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+        //Delay the DQ
+        // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
+        ODELAYE2 #(
+            .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
+            .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
+            .ODELAY_TYPE("FIXED"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+            .ODELAY_VALUE(0), // Output delay tap setting (0-31)
+            .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
+            .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
+        )
+        ODELAYE2_cmd (
+            .CNTVALUEOUT(), // 5-bit output: Counter value output
+            .DATAOUT(cmd[gen_index]), // 1-bit output: Delayed data/clock output
+            .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
+            .CE(0), // 1-bit input: Active high enable increment/decrement input
+            .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
+            .CLKIN(0), // 1-bit input: Clock delay input
+            .CNTVALUEIN(0), // 5-bit input: Counter value input
+            .INC(0), // 1-bit input: Increment / Decrement tap delay input
+            .LD(0), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                        // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
+            .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+            .ODATAIN(aligned_cmd[gen_index]), // 1-bit input: Output delay data input
+            .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+        );
+    end
+    assign  {cs_n, ras_n, cas_n, we_n, ck_en, reset_n, odt, ba_addr, addr} = cmd;
+            
+            
+    // End of OSERDESE2_inst instantiation
+    generate
+        // data: oserdes -> odelay -> iobuf
+        for(gen_index = 0; gen_index < (DQ_BITS*LANES); gen_index = gen_index + 1) begin
+            // OSERDESE2: Output SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OSERDESE2 #(
+                .DATA_RATE_OQ("DDR"), // DDR, SDR
+                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                .INIT_OQ(1'b0) // Initial value of OQ output (1'b0,1'b1)
+            )
+            OSERDESE2_data(
+                .OFB(oserdes_data[gen_index]), // 1-bit output: Feedback path for data
+                .OQ(), // 1-bit output: Data path output
+                .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*0]),
+                .D2(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*1]),
+                .D3(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*2]),
+                .D4(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*3]),
+                .D5(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*4]),
+                .D6(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*5]),
+                .D7(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*6]),
+                .D8(stage2_data[STAGE2_DATA_DEPTH][gen_index + (DQ_BITS*LANES)*7]),
+                .OCE(1), // 1-bit input: Output data clock enable
+                .RST(!i_rst_n) // 1-bit input: Reset
+            );
+            // End of OSERDESE2_inst instantiation
+            
+            
+            // ODELAYE2: Output Fixed or Variable Delay Element
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
+            
+            
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            //Delay the DQ
+            // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
+            ODELAYE2 #(
+                .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
+                .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
+                .ODELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .ODELAY_VALUE(4), // Output delay tap setting (0-31)
+                .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
+                .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
+            )
+            ODELAYE2_data (
+                .CNTVALUEOUT(), // 5-bit output: Counter value output
+                .DATAOUT(odelay_data[gen_index]), // 1-bit output: Delayed data/clock output
+                .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
+                .CE(odelay_ce[$rtoi($floor(gen_index/8))]), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
+                .CLKIN(0), // 1-bit input: Clock delay input
+                .CNTVALUEIN(0), // 5-bit input: Counter value input
+                .INC(odelay_inc[$rtoi($floor(gen_index/8))]), // 1-bit input: Increment / Decrement tap delay input
+                .LD(odelay_ld[$rtoi($floor(gen_index/8))]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                            // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
+                .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+                .ODATAIN(oserdes_data[gen_index]), // 1-bit input: Output delay data input
+                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+            );
 
+            // IOBUF: Single-ended Bi-directional Buffer
+            //All devices
+            // Xilinx HDL Libraries Guide, version 13.4
+            IOBUF #(
+                .DRIVE(12), // Specify the output drive strength
+                .IBUF_LOW_PWR("TRUE"), // Low Power - "TRUE", High Performance = "FALSE"
+                .IOSTANDARD("SSTL18"), // Specify the I/O standard
+                .SLEW("FAST") // Specify the output slew rate
+            ) IOBUF_data (
+                .O(read_dq[gen_index]),// Buffer output
+                .IO(dq[gen_index]), // Buffer inout port (connect directly to top-level port)
+                .I(odelay_data[gen_index]), // Buffer input
+                .T(write_data) // 3-state enable input, high=read, low=write
+            );
+            // End of IOBUF_inst instantiation            
+        end
+        //800MHz = 
+        // dqs: odelay -> iobuf
+        for(gen_index = 0; gen_index < LANES; gen_index = gen_index + 1) begin
+        
+            
+            // ODELAYE2: Output Fixed or Variable Delay Element
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            //Delay the DQ
+            ODELAYE2 #(
+                .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
+                .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
+                .ODELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .ODELAY_VALUE(8), // delay to align odelay_dqs to oserdes_dqs due to 600ps insertion delay: (1/800MHz - 600ps)/78.125ps = 8.32 taps
+                .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
+                .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
+            )
+            ODELAYE2_dqs (
+                .CNTVALUEOUT(), // 5-bit output: Counter value output
+                .DATAOUT(odelay_dqs[gen_index]), // 1-bit output: Delayed data/clock output
+                .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
+                .CE(odelay_ce[gen_index]), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
+                .CLKIN(0), // 1-bit input: Clock delay input
+                .CNTVALUEIN(0), // 5-bit input: Counter value input
+                .INC(odelay_inc[gen_index]), // 1-bit input: Increment / Decrement tap delay input
+                .LD(odelay_ld[gen_index]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                            // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
+                .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+                .ODATAIN(oserdes_dqs), // 1-bit input: Output delay data input
+                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+            );
+  
+            
+            // IOBUFDS: Differential Bi-directional Buffer
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            IOBUFDS #(
+                .DIFF_TERM("FALSE"), // Differential Termination ("TRUE"/"FALSE")
+                .IBUF_LOW_PWR("TRUE"), // Low Power - "TRUE", High Performance = "FALSE"
+                .IOSTANDARD("SSTL18"), // Specify the I/O standard. CONSULT WITH DATASHEET
+                .SLEW("FAST") // Specify the output slew rate
+            ) IOBUFDS_inst (
+                .O(read_dqs[gen_index]), // Buffer output
+                .IO(dqs[gen_index]), // Diff_p inout (connect directly to top-level port)
+                .IOB(dqs_n[gen_index]), // Diff_n inout (connect directly to top-level port)
+                .I(odelay_dqs[gen_index]), // Buffer input
+                .T(!write_dqs_q[serial_index_q]) // 3-state enable input, high=input, low=output
+            ); // End of IOBUFDS_inst instantiation
+        end
+     endgenerate 
+     
+    // OSERDESE2: Output SERial/DESerializer with bitslip
+    //7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    OSERDESE2 #(
+        .DATA_RATE_OQ("DDR"), // DDR, SDR
+        .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+        .INIT_OQ(1'b1) // Initial value of OQ output (1'b0,1'b1)
+    )
+    OSERDESE2_data(
+        .OFB(oserdes_dqs), // 1-bit output: Feedback path for data
+        .OQ(), // 1-bit output: Data path output
+        .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+        .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+        .D1(1'b1),
+        .D2(1'b0),
+        .D3(1'b1),
+        .D4(1'b0),
+        .D5(1'b1),
+        .D6(1'b0),
+        .D7(1'b1),
+        .D8(1'b0),
+        .OCE(1), // 1-bit input: Output data clock enable
+        .RST(!i_rst_n) // 1-bit input: Reset
+    );
+    // End of OSERDESE2_inst instantiation
+
+    // IDELAYCTRL: IDELAYE2/ODELAYE2 Tap Delay Value Control
+    // 7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+    IDELAYCTRL IDELAYCTRL_inst (
+        .RDY(idelayctrl_rdy), // 1-bit output: Ready output
+        .REFCLK(i_controller_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
+        .RST(!i_rst_n) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
+    );
+    // End of IDELAYCTRL_inst instantiation
+   //////////////////////////////////////////////////////////////////////// End of PHY Interface  //////////////////////////////////////////////////////////////////////// 
+   
+   
     //Good reference for intialization and ODT
     //https://www.systemverilog.io/design/ddr4-initialization-and-calibration/
     //notes:
@@ -810,14 +1108,14 @@ module ddr3_controller #(
         $display("\nDELAY_COUNTER_WIDTH = %0d", DELAY_COUNTER_WIDTH);
         $display("DELAY_SLOT_WIDTH = %0d", DELAY_SLOT_WIDTH);
 
-        $display("$bits(instruction):%0d - $bits(CMD_MRS):%0d - $bits(MR0):%0d  =  5 = %0d",  $bits(instruction), $bits(CMD_MRS) , $bits(MR0), ($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)));
+        //$display("$bits(instruction):%0d - $bits(CMD_MRS):%0d - $bits(MR0):%0d  =  5 = %0d",  $bits(instruction), $bits(CMD_MRS) , $bits(MR0), ($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)));
         $display("serdes_ratio = %0d",serdes_ratio);
         $display("wb_addr_bits = %0d",wb_addr_bits);
         $display("wb_data_bits = %0d",wb_data_bits);
         $display("wb_sel_bits = %0d\n\n",wb_sel_bits);
-        $display("request_row_width = %0d =  %0d", ROW_BITS,  $bits(i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]));
-        $display("request_col_width = %0d = %0d", COL_BITS, $bits({ i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }));
-        $display("request_bank_width = %0d = %0d", BA_BITS, $bits(i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]));
+        //$display("request_row_width = %0d =  %0d", ROW_BITS,  $bits(i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]));
+        //$display("request_col_width = %0d = %0d", COL_BITS, $bits({ i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }));
+        //$display("request_bank_width = %0d = %0d", BA_BITS, $bits(i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]));
 
         $display("READ_SLOT = %0d", READ_SLOT);
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
@@ -863,7 +1161,7 @@ module ddr3_controller #(
     end
     
     reg f_past_valid = 0; 
-    always @(posedge i_clk)  f_past_valid <= 1;
+    always @(posedge i_controller_clk)  f_past_valid <= 1;
     
     
     //The idea below is sourced from https://zipcpu.com/formal/2019/11/18/genuctrlr.html
@@ -873,7 +1171,7 @@ module ddr3_controller #(
     reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
     
     //pipeline stage logic: f_addr (update address)  ->  f_read (read instruction from rom)  
-    always @(posedge i_clk, negedge i_rst_n) begin
+    always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             f_addr <= 0;
             f_read <= 0;
@@ -896,7 +1194,7 @@ module ddr3_controller #(
     end
     
     // main assertions for the reset sequence 
-    always @(posedge i_clk) begin
+    always @(posedge i_controller_clk) begin
             if(!i_rst_n || !$past(i_rst_n)) begin
                 assert(f_addr == 0);
                 assert(f_read == 0);
@@ -989,10 +1287,10 @@ module ddr3_controller #(
     //cover statements
     `ifdef FORMAL_COVER
     reg[3:0] f_count_refreshes = 0; //count how many refresh cycles had already passed
-    always @(posedge i_clk) begin
+    always @(posedge i_controller_clk) begin
         if($past(f_read) == 15 && f_read == 12) f_count_refreshes = f_count_refreshes + 1; //every time address wrap around refresh is completed
     end
-    always @(posedge i_clk) begin
+    always @(posedge i_controller_clk) begin
         cover(f_count_refreshes == 5);
         //cover($past(instruction[RST_DONE]) && !instruction[RST_DONE] && i_rst_n); //MUST FAIL: find an instance where RST_DONE will go low after it already goes high (except when i_rst_n is activated)
     end
@@ -1066,7 +1364,7 @@ module ddr3_controller #(
         f_wb_inputs[10] = {1'b0, {14'd1,3'd2, 7'd2}}; //read (tCCD)
         
     end
-    always @(posedge i_clk) begin
+    always @(posedge i_controller_clk) begin
             if(!o_wb_stall) begin
                 f_index <= f_index + 1;
                 f_counter <= 0;
@@ -1090,74 +1388,7 @@ module ddr3_controller #(
         //cover(f_reset_counter == 10);
     end
     
-    /*
-    fifo #(.W(4), .B(8)) f_fifo
-    (
-    .clk(i_clk),
-    .rst_n(i_rst_n),
-    .wr(),
-    .rd(),
-    .wr_data(wr_data),
-    .rd_data(rd_data),
-    output reg full,empty
-    );
-    */
+
 `endif
-endmodule
-
-
-`timescale 1ns / 1ps
-
-module fifo
-    #(parameter W=4,B=8)
-    (
-    input clk,rst_n,
-    input wr,rd,
-    input[B-1:0] wr_data,
-    output[B-1:0] rd_data,
-    output reg full,empty
-    );
-     initial begin
-        full=0;
-        empty=1;
-     end
-     reg[W-1:0] rd_ptr=0,wr_ptr=0;
-     reg[B-1:0] array_reg[2**W-1:0];
-
-     
-     //register file operation
-     always @(posedge clk) begin
-        if(wr && !full && !(wr&&rd&&empty)) array_reg[wr_ptr]=wr_data;
-     end
-     assign rd_data=array_reg[rd_ptr];
-     
-     //fifo operation
-     always @(posedge clk,negedge rst_n) begin
-        if(!rst_n) begin
-            rd_ptr=0;
-            wr_ptr=0;
-            full=0;
-            empty=1;
-        end
-        else begin
-            case({rd,wr})
-                2'b01: if(!full) begin
-                            wr_ptr=wr_ptr+1;
-                            empty=0;
-                            full=(wr_ptr==rd_ptr);
-                         end
-                2'b10: if(!empty) begin
-                            rd_ptr=rd_ptr+1;
-                            full=0;
-                            empty=(rd_ptr==wr_ptr);
-                         end
-                2'b11: if(!empty && !full) begin
-                                rd_ptr=rd_ptr+1;
-                                wr_ptr=wr_ptr+1;
-                         end
-            endcase
-        end
-     end
-
 endmodule
 
