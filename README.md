@@ -13,3 +13,9 @@
 
 ## Sequential Read Until Next Bank
 ![image](https://user-images.githubusercontent.com/87559347/230366265-a10b22b1-8113-46f7-9980-f8938a0b4a0c.png)
+
+# PHY Interface    
+## WRITE OPERATION   
+
+![image](https://user-images.githubusercontent.com/87559347/233351111-10434e18-4c5c-4751-95c5-536288c514ed.png)
+
