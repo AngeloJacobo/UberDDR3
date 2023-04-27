@@ -28,4 +28,11 @@
 
 ![image](https://user-images.githubusercontent.com/87559347/234852977-21656591-5a52-4916-8546-caa929f273cc.png)
 
+## MPR_READ STATE:
+![image](https://user-images.githubusercontent.com/87559347/234854161-3d8ed26a-3ddf-4cf6-a440-616361ee5715.png)
+
+## BITSLIP_DQ_TRAIN STATE: 
+![image](https://user-images.githubusercontent.com/87559347/234854620-39d95493-ecc8-4b8f-b391-0f532fff5760.png)
+
+
 
