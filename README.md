@@ -23,3 +23,9 @@
 
 
 ![image](https://user-images.githubusercontent.com/87559347/233395320-66a16ad8-1d56-4850-b82e-39abda92366f.png)
+
+## BITSLIP_DQS_TRAIN STATE:
+
+![image](https://user-images.githubusercontent.com/87559347/234852977-21656591-5a52-4916-8546-caa929f273cc.png)
+
+
