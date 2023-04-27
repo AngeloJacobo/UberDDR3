@@ -8,8 +8,8 @@
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
 
 
-//`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
-//`define COVER_DELAY 3 //fixed delay used in formal cover for reset sequence
+`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
+`define COVER_DELAY 3 //fixed delay used in formal cover for reset sequence
 `default_nettype none
 
 
@@ -42,7 +42,14 @@ module ddr3_controller #(
                 wb_sel_bits = wb_data_bits / 8
     ) 
     (
-        input wire i_controller_clk, i_ddr3_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
+        input wire i_controller_clk, i_ddr3_clk, i_ddr3_clk_n, //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
+        // i_ddr3_clk_n is used for ISERDES
+        /* The only valid clocking arrangements for the ISERDESE2 block using the networking
+            interface type are:
+            • CLK driven by BUFIO, CLKDIV driven by BUFR
+            • CLK driven by MMCM or PLL, CLKDIV driven by CLKOUT[0:6] of same MMCM or
+        PLL
+        */
         input wire i_rst_n, //200MHz input clock
         // Wishbone inputs
         input wire i_wb_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -55,7 +62,7 @@ module ddr3_controller #(
         // Wishbone outputs
         output reg o_wb_stall, //1 = busy, cannot accept requests
         output reg o_wb_ack, //1 = read/write request has completed
-        output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         output reg o_aux, //for AXI-interface compatibility (returned upon ack)
         // PHY Interface (to be added later)
         output wire ck_en, // CKE
@@ -67,8 +74,8 @@ module ddr3_controller #(
         output wire reset_n,
         output wire[ROW_BITS-1:0] addr,
         output wire[BA_BITS-1:0] ba_addr,
-        output wire[(DQ_BITS*LANES)-1:0] dq,
-        output wire[(DQ_BITS*LANES)/8-1:0] dqs, dqs_n
+        input wire[(DQ_BITS*LANES)-1:0] dq,
+        input wire[(DQ_BITS*LANES)/8-1:0] dqs, dqs_n
         ////////////////////////////////////
     );
 
@@ -99,8 +106,8 @@ module ddr3_controller #(
                CMD_RAS_N = CMD_LEN - 2,
                CMD_CAS_N= CMD_LEN - 3,
                CMD_WE_N = CMD_LEN - 4,
-               CMD_CK_EN = CMD_LEN - 5,
-               CMD_ODT = CMD_LEN - 6,
+               CMD_ODT = CMD_LEN - 5,
+               CMD_CK_EN = CMD_LEN - 6, 
                CMD_RESET_N = CMD_LEN - 7,
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ROW_ADDRESS_START = ROW_BITS - 1;
@@ -128,8 +135,10 @@ module ddr3_controller #(
     localparam[1:0] MPR_LOC = 2'b00; //Data location for MPR Reads: Predefined Pattern 0_1_0_1_0_1_0_1
     localparam[0:0] MPR_EN = 1'b0; //MPR Enable: Enable MPR reads and calibration during initialization
     localparam[2:0] MR3_SEL = 3'b011; //MPR Selected
-    localparam[18:0] MR3 = {MR3_SEL, 13'b0_0000_0000_0000, MPR_EN, MPR_LOC}; 
-
+    localparam[18:0] MR3_EN = {MR3_SEL, 13'b0_0000_0000_0000, 1'b1, MPR_LOC}; 
+    localparam[18:0] MR3_DIS = {MR3_SEL, 13'b0_0000_0000_0000, 1'b0, MPR_LOC}; 
+    localparam[ROW_BITS+BA_BITS-1:0] MR3_RD_ADDR = 0;
+    
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
     localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control (IS THIS THE SAME WITH RTT_NOM???????????? Search later)
@@ -192,7 +201,7 @@ module ddr3_controller #(
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam DELAY_SLOT_WIDTH = 19; //Bitwidth of the delay slot and mode register slot on the reset/refresh rom will be at the same size as the Mode Register
-
+    localparam READ_CAL_DELAY = 100;
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     localparam PRE_STALL_DELAY = 10;
@@ -214,7 +223,7 @@ module ddr3_controller #(
         // Timer-Delay or MRS = 18:0 //timer delay and MRS shares same slot, thus MRS commands cannot have delays
         
         // NOTE: The timer delay is a delay in clock cycles AFTER EXECUTING COMMAND, not the ACTUAL CYCLES of the command (delay of 1 means 2 clock cycles of command execution)
-    function [27:0] read_rom_instruction(input[3:0] instruction_address);
+    function [27:0] read_rom_instruction(input[5:0] instruction_address);
         case(instruction_address) 
     
             4'd0: read_rom_instruction = {5'b01000 , CMD_NOP , ns_to_cycles(POWER_ON_RESET_HIGH)}; 
@@ -236,9 +245,8 @@ module ddr3_controller #(
             4'd4: read_rom_instruction = {5'b01011, CMD_NOP, nCK_to_cycles(tMRD)}; 
             //4. Delay of tMRD between MRS commands
             
-            4'd5: read_rom_instruction = {5'b00011, CMD_MRS, MR3}; 
-            //5. Issue MRS command to load MR3. Prior to enabling the MPR for read calibration, all banks must be in the idle state (all banks 
-                // precharged and tRP met). Once the MPR is enabled, any subsequent RD or RDA commands will be redirected to the MultiPurpose Register. 
+            4'd5: read_rom_instruction = {5'b00011, CMD_MRS, MR3_DIS}; 
+            //5. All banks must first be in the idle state (all banks precharged and tRP met) before doing MPR calibration, thus issue first disabled MR3
                 
             4'd6: read_rom_instruction = {5'b01011, CMD_NOP, nCK_to_cycles(tMRD)}; 
             //6. Delay of tMRD between MRS commands
@@ -260,18 +268,32 @@ module ddr3_controller #(
             //inside the DRAM and, once calibration is achieved, the calibrated values area transferred from the calibration engine to 
             //DRAM IO, which gets reflected as updated output driver
             
-             // Perform first refresh and any subsequent refresh (so instruction 12 to 15 will be re-used for the refresh sequence)
+             // Precharge all banks before enabling MPR
             4'd12: read_rom_instruction = {5'b01011, CMD_PRE, ns_to_cycles(tRP)}; 
             //12. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
-            4'd13: read_rom_instruction = {5'b01011, CMD_REF, ns_to_cycles(tRFC)};
+            4'd13: read_rom_instruction = {5'b00011, CMD_MRS, MR3_EN}; 
+            //13. Issue MRS command to load MR3. Prior to enabling the MPR for read calibration, all banks must be in the idle state (all banks 
+            // precharged and tRP met). Once the MPR is enabled, any subsequent RD or RDA commands will be redirected to the MultiPurpose Register. 
+            
+            4'd14: read_rom_instruction = {5'b01011, CMD_NOP, tMOD};
+            //14. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
+            
+            4'd15: read_rom_instruction = {5'b00011, CMD_NOP, READ_CAL_DELAY}; 
+            //15. Delay for read/write calibration
+            
+            // Perform first refresh and any subsequent refresh (so instruction 12 to 15 will be re-used for the refresh sequence)
+            4'd16: read_rom_instruction = {5'b01011, CMD_PRE, ns_to_cycles(tRP)}; 
+            //12. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
+            
+            4'd17: read_rom_instruction = {5'b01011, CMD_REF, ns_to_cycles(tRFC)};
             //13. A delay between the Refresh Command and the next valid command, except NOP or DES, must be greater than or equal to the minimum 
             //Refresh cycle time tRFC(min) 
             
-            4'd14: read_rom_instruction = {5'b11011, CMD_NOP, ns_to_cycles(tREFI)};
+            4'd18: read_rom_instruction = {5'b11011, CMD_NOP, ns_to_cycles(tREFI)};
             //14. Reset ends now. The refresh interval also starts to count.
             
-            4'd15: read_rom_instruction = {5'b01011, CMD_NOP, PRE_STALL_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
+            4'd19: read_rom_instruction = {5'b01011, CMD_NOP, PRE_STALL_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
             // 15. Extra delay needed before starting the refresh sequence. (this already sets the wishbone stall high to make sure no user request is on-going when refresh seqeunce starts)
             
             default: read_rom_instruction = {5'b00011, CMD_NOP, {(DELAY_SLOT_WIDTH){1'b0}}}; 
@@ -345,8 +367,8 @@ module ddr3_controller #(
     //Also, worscase is when the anticipated bank still has the leftover of the 
     //WRITE_TO_PRECHARGE_DELAY thus consider also this.
     localparam MARGIN_BEFORE_ANTICIPATE = PRECHARGE_TO_ACTIVATE_DELAY + ACTIVATE_TO_WRITE_DELAY + WRITE_TO_PRECHARGE_DELAY;
-    localparam STAGE2_DATA_DEPTH = ($rtoi($floor((CWL_nCK - (3 - WRITE_SLOT + 1))/4.0 )));
-    
+    localparam STAGE2_DATA_DEPTH = ($rtoi($floor((CWL_nCK - (3 - WRITE_SLOT + 1))/4.0 ))) + 1; //this is always >= 1
+    localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 ));
     
     reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
     reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; //bank_active_row[bank_number] = stores the active row address in the specified bank
@@ -392,7 +414,7 @@ module ddr3_controller #(
     reg[3:0] delay_before_write_counter_q[(1<<BA_BITS)-1:0], delay_before_write_counter_d[(1<<BA_BITS)-1:0] ;
     reg[3:0] delay_before_read_counter_q[(1<<BA_BITS)-1:0] , delay_before_read_counter_d[(1<<BA_BITS)-1:0] ;
     reg[3:0] delay_before_odt_off_q, delay_before_odt_off_d;
-    
+    reg[3:0] delay_before_read_ack_q, delay_before_read_ack_d;
     //set all delay counters to zero
      initial begin
         for(index=0; index<(1<<BA_BITS); index=index+1) begin
@@ -402,6 +424,7 @@ module ddr3_controller #(
             delay_before_read_counter_q[index] = 0; 
         end
         delay_before_odt_off_q = 0;
+        delay_before_read_ack_q = 0;
     end
     
     //commands to be sent to PHY (4 slots per controller clk cycle)
@@ -419,7 +442,8 @@ module ddr3_controller #(
     reg pipe_stall;
     reg precharge_slot_busy;
     reg activate_slot_busy;
-    reg[(STAGE2_DATA_DEPTH+1)*4+8-1:0] write_dqs_q, write_dqs_d;
+    reg write_dqs_q, write_dqs_d;
+    reg[STAGE2_DATA_DEPTH+1:0] write_dqs;
     
     //process request transaction 
     always @(posedge i_controller_clk, negedge i_rst_n) begin
@@ -442,7 +466,9 @@ module ddr3_controller #(
             stage2_bank <= 0;
             stage2_row <= 0;
             delay_before_odt_off_q <= 0;
+            delay_before_read_ack_q <= 0;
             write_dqs_q <= 0;
+            write_dqs <= 0;
             //set delay counters to 0
             for(index=0; index<(1<<BA_BITS); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= 0;  
@@ -465,7 +491,7 @@ module ddr3_controller #(
         else if(1/*reset_done*/) begin 
             o_wb_stall <= o_wb_stall_d;
             o_wb_ack <= o_wb_ack_d;
-            write_dqs_q <= write_dqs_d;
+            
             //update delay counter 
             for(index=0; index< (1<<BA_BITS); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= delay_before_precharge_counter_d[index];  
@@ -474,10 +500,11 @@ module ddr3_controller #(
                 delay_before_read_counter_q[index] <= delay_before_read_counter_d[index]; 
             end
             delay_before_odt_off_q <= delay_before_odt_off_d;
+            delay_before_read_ack_q <= delay_before_read_ack_d;
             //update cmd
-            //for( index=0; index < 4; index=index+1) begin
-            //    cmd_q[index] <= cmd_d[index];
-            //end
+            for( index=0; index < 4; index=index+1) begin
+                cmd_q[index] <= cmd_d[index];
+            end
             //update bank status and active row
             for(index=0; index < (1<<BA_BITS); index=index+1) begin
                 bank_status_q[index] <= bank_status_d[index];
@@ -508,7 +535,8 @@ module ddr3_controller #(
                 stage2_bank <= stage1_bank;
                 stage2_row <= stage1_row;
                 stage2_data[0] <= stage1_data;
-
+                write_dqs_q <= write_dqs_d;
+                write_dqs[0] <= write_dqs_d || write_dqs_q; //high for 2 clk cycles
                 //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
             end
 
@@ -532,7 +560,10 @@ module ddr3_controller #(
             end
                           
             for(index = 1; index <= STAGE2_DATA_DEPTH; index = index+1) begin
-                stage2_data[index] <=  stage2_data[index-1];               
+                stage2_data[index] <=  stage2_data[index-1];              
+            end
+            for(index = 1; index <= STAGE2_DATA_DEPTH+1; index = index+1) begin             
+                write_dqs[index] <= write_dqs[index-1]; 
             end
         end
     end
@@ -554,14 +585,19 @@ module ddr3_controller #(
             //
             //Pipeline Stages:
             //  wishbone inputs --> stage1 --> stage2 --> cmd
-            
+    reg cmd_odt, cmd_ck_en, cmd_reset_n;    
+ 
+    
     always @* begin
+        cmd_odt = 0;
+        cmd_ck_en = 1;
+        cmd_reset_n = 1;
         o_wb_ack_d = 0; //ack goes high for every r/w request
         o_wb_stall_d = 0; //wb_stall going high is determined on stage 1 (higher priority), wb_stall going low is determined at stage2 (lower priority)
         pipe_stall = 0; //pipe_stall will follow i_wb_stall(so stall when stage 2 needs delay) but goes low after actual read/write request (move pipe forward when stage2 finishes request) 
         precharge_slot_busy = 0; //flag that determines if stage 2 is issuing precharge (thus stage 1 cannot issue precharge)
         activate_slot_busy = 0; //flag that determines if stage 2 is issuing activate (thus stage 1 cannot issue activate)
-        write_dqs_d = write_dqs_q>>4;
+        write_dqs_d = 0;
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
             bank_status_d[index] = bank_status_q[index];
             bank_active_row_d[index] = bank_active_row_q[index];
@@ -581,6 +617,8 @@ module ddr3_controller #(
             delay_before_read_counter_d[index] = (delay_before_read_counter_q[index] == 0)? 0:delay_before_read_counter_q[index] - 1;
         end
         delay_before_odt_off_d = (delay_before_odt_off_q == 0)? 0 : delay_before_odt_off_q - 1;
+        delay_before_read_ack_d = (delay_before_read_ack_q == 0)? 0 : delay_before_read_ack_q - 1;
+        o_wb_ack_d = delay_before_read_ack_q == 1;
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
             o_wb_stall_d = o_wb_stall; 
@@ -592,42 +630,43 @@ module ddr3_controller #(
                     o_wb_stall_d = 0;         
                     o_wb_ack_d = 1;
                     pipe_stall = 0; //move pipeline forward since write access is already done
+                    cmd_odt = 1;
                     //set-up delay before precharge, read, and write
                     delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
                     delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
-                    delay_before_odt_off_d = STAGE2_DATA_DEPTH + 1;
+                    delay_before_odt_off_d = STAGE2_DATA_DEPTH;
                     //issue read command
                     if(COL_BITS <= 10) begin
-                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
                     else begin
-                        cmd_d[WRITE_SLOT] =  {1'b0, CMD_WR[2:0], {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[WRITE_SLOT] =  {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //add ODT bit, turn on odt at same time as write cmd
                     cmd_d[0][CMD_ODT] = 1;
                     cmd_d[1][CMD_ODT] = 1;
                     cmd_d[2][CMD_ODT] = 1;
                     cmd_d[3][CMD_ODT] = 1;
-                    write_dqs_d[(STAGE2_DATA_DEPTH+1)*4 +: 8] = 8'b0001_1111;
+                    write_dqs_d=1;
                    // write_data = 1;
                 end
                 
                 //read request
                 else if(!stage2_we && delay_before_read_counter_q[stage2_bank]==0) begin     
                     o_wb_stall_d = 0;     
-                    o_wb_ack_d = 1;
                     pipe_stall = 0; //move pipeline forward since read access is already done
                     //set-up delay before precharge, read, and write
                     delay_before_precharge_counter_d[stage2_bank] = READ_TO_PRECHARGE_DELAY;
                     delay_before_read_counter_d[stage2_bank] = READ_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY;
+                    delay_before_read_ack_d = READ_DELAY + 1 + 2 + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
                     //issue read command
                     if(COL_BITS <= 10) begin
-                        cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
                     else begin
-                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
                     end
                 end
             end
@@ -639,7 +678,7 @@ module ddr3_controller #(
                 delay_before_read_counter_d[stage2_bank] = ACTIVATE_TO_READ_DELAY;
                 delay_before_write_counter_d[stage2_bank] = ACTIVATE_TO_WRITE_DELAY;
                 //issue activate command
-                cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , stage2_bank , stage2_row};
+                cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b1;
                 bank_active_row_d[stage2_bank] = stage2_row;
@@ -651,7 +690,7 @@ module ddr3_controller #(
                 //set-up delay before activate
                 delay_before_activate_counter_d[stage2_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
                 //issue precharge command
-                cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], stage2_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
+                cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b0; 
             end
@@ -673,7 +712,7 @@ module ddr3_controller #(
                 //set-up delay before read and write
                 delay_before_read_counter_d[stage1_next_bank] = ACTIVATE_TO_READ_DELAY;
                 delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
-                cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], stage1_next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
+                cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
                 bank_status_d[stage1_next_bank] = 1'b0; 
             end //end of anticipate precharge
             
@@ -682,7 +721,7 @@ module ddr3_controller #(
                 //set-up delay before read and write
                 delay_before_read_counter_d[stage1_next_bank] = ACTIVATE_TO_READ_DELAY;
                 delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
-                cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , stage1_next_bank , stage1_next_row};
+                cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
                 bank_status_d[stage1_next_bank] = 1'b1;
                 bank_active_row_d[stage1_next_bank] = stage1_next_row;
             end //end of anticipate activate
@@ -707,46 +746,61 @@ module ddr3_controller #(
     end //end of always block
     
    //////////////////////////////////////////////////////////////////////// PHY Interface ////////////////////////////////////////////////////////////////////////////////////////////////////
-    wire[(DQ_BITS*LANES)-1:0] oserdes_data, odelay_data, read_dq;
-    wire[LANES-1:0] odelay_dqs, read_dqs;
+    wire[(DQ_BITS*LANES)-1:0] oserdes_data, odelay_data, idelay_data, read_dq;
+    wire[LANES-1:0] odelay_dqs, read_dqs, idelay_dqs;
+    wire[7:0] dqs_Q[LANES-1:0];//
     wire idelayctrl_rdy;
     reg[LANES-1:0] odelay_ce=0, odelay_inc=0, odelay_ld=0;
+    reg[LANES-1:0] idelay_ce=0, idelay_inc=0, idelay_ld=0;
     reg write_data=0, write_dqs=0;
     wire oserdes_dqs;
     genvar gen_index;
     reg[CMD_LEN-1:0] aligned_cmd;
+    wire[CMD_LEN-1:0] oserdes_cmd;
     wire[CMD_LEN-1:0] cmd;
     reg[1:0] serial_index,serial_index_q;
+    wire[DQ_BITS*LANES-1:0] Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8;
+    wire[7:0] test_Q[LANES-1:0];
+    wire test_OFB;
+    reg[LANES-1:0] bitslip;
+    /*
     always @(posedge i_ddr3_clk) begin
         if(!i_rst_n) begin
             serial_index <=0;
-            write_dqs_q <= 0;
-              //set cmd to NOP
-            for( index=0; index < (1<<4); index=index+1) begin
-                cmd_q[index] <= -1;
-            end
         end
         else begin 
-            case(serial_index)
-                0: begin
-                        //update cmd
-                        for( index=0; index < 4; index=index+1) begin
-                            cmd_q[index] <= cmd_d[index];
-                        end
-                        aligned_cmd <= cmd_d[0];
-                   end
-                1: aligned_cmd <= cmd_q[1];
-                2: aligned_cmd <= cmd_q[2];
-                3: aligned_cmd <= cmd_q[3];        
-            endcase
             serial_index <= serial_index + 1;
             serial_index_q <= serial_index;
-            write_dqs <= write_dqs_q[serial_index_q];
         end
     end
-    
-    
-    for(gen_index = 0; gen_index < CMD_LEN; gen_index = gen_index + 1) begin
+    */
+    //PHY cmd 
+    generate
+        for(gen_index = 0; gen_index < CMD_LEN; gen_index = gen_index + 1) begin
+            // OSERDESE2: Output SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OSERDESE2 #(
+                .DATA_RATE_OQ("SDR"), // DDR, SDR
+                .DATA_WIDTH(4), // Parallel data width (2-8,10,14)
+                .INIT_OQ(1'b0) // Initial value of OQ output (1'b0,1'b1)
+            )
+            OSERDESE2_cmd(
+                .OFB(oserdes_cmd[gen_index]), // 1-bit output: Feedback path for data
+                .OQ(), // 1-bit output: Data path output
+                .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1(cmd_d[0][gen_index]),
+                .D2(cmd_d[1][gen_index]),
+                .D3(cmd_d[2][gen_index]),
+                .D4(cmd_d[3][gen_index]),
+                .OCE(1), // 1-bit input: Output data clock enable
+                .RST(!i_rst_n) // 1-bit input: Reset
+            );
+            // End of OSERDESE2_inst instantiation
+        
+
         (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
         //Delay the DQ
         // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
@@ -770,14 +824,16 @@ module ddr3_controller #(
             .LD(0), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                         // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
             .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
-            .ODATAIN(aligned_cmd[gen_index]), // 1-bit input: Output delay data input
+            .ODATAIN(oserdes_cmd[gen_index]), // 1-bit input: Output delay data input
             .REGRST(0) // 1-bit input: Active-high reset tap-delay input
         );
-    end
-    assign  {cs_n, ras_n, cas_n, we_n, ck_en, reset_n, odt, ba_addr, addr} = cmd;
+        end
+    endgenerate 
+
+    assign  {cs_n, ras_n, cas_n, we_n, odt, ck_en, reset_n, ba_addr, addr} = cmd;
+    assign o_wb_data = {Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8};        
             
-            
-    // End of OSERDESE2_inst instantiation
+    // PHY data
     generate
         // data: oserdes -> odelay -> iobuf
         for(gen_index = 0; gen_index < (DQ_BITS*LANES); gen_index = gen_index + 1) begin
@@ -854,9 +910,109 @@ module ddr3_controller #(
                 .O(read_dq[gen_index]),// Buffer output
                 .IO(dq[gen_index]), // Buffer inout port (connect directly to top-level port)
                 .I(odelay_data[gen_index]), // Buffer input
-                .T(write_data) // 3-state enable input, high=read, low=write
+                .T(!write_dqs[STAGE2_DATA_DEPTH+1]) // 3-state enable input, high=read, low=write
             );
-            // End of IOBUF_inst instantiation            
+            
+            // IDELAYE2: Input Fixed or Variable Delay Element
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            IDELAYE2 #(
+                .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
+                .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
+                .IDELAY_TYPE("VARIABLE"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .IDELAY_VALUE(4), //Input delay tap setting (0-31)
+                .PIPE_SEL("FALSE"),  //Select pipelined mode, FALSE, TRUE
+                .REFCLK_FREQUENCY(200.0), //IDELAYCTRL clock input frequency in MHz (190.0-210.0).
+                .SIGNAL_PATTERN("DATA") //DATA, CLOCK input signal
+            )
+            IDELAYE2_data (
+                .CNTVALUEOUT(), // 5-bit output: Counter value output
+                .DATAOUT(idelay_data[gen_index]), // 1-bit output: Delayed data output
+                .C(i_controller_clk), // 1-bit input: Clock input
+                .CE(idelay_ce[$rtoi($floor(gen_index/8))]), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(0),// 1-bit input: Dynamic clock inversion input
+                .CNTVALUEIN(0), // 5-bit input: Counter value input
+                .DATAIN(), //1-bit input: Internal delay data input
+                .IDATAIN(read_dq[gen_index]), // 1-bit input: Data input from the I/O
+                .INC(idelay_inc[$rtoi($floor(gen_index/8))]), // 1-bit input: Increment / Decrement tap delay input
+                .LD(idelay_ld[$rtoi($floor(gen_index/8))]), // 1-bit input: Load IDELAY_VALUE input
+                .LDPIPEEN(0), // 1-bit input: Enable PIPELINE register to load data input
+                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+            );
+            // End of IDELAYE2_inst instantiation
+
+
+
+
+
+            // End of IOBUF_inst instantiation                 
+            // ISERDESE2: Input SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            ISERDESE2 #(
+                .DATA_RATE("DDR"), // DDR, SDR
+                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
+                .INIT_Q1(1'b0),
+                .INIT_Q2(1'b0),
+                .INIT_Q3(1'b0),
+                .INIT_Q4(1'b0),
+                .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
+                .IOBDELAY("NONE"), // NONE, BOTH, IBUF, IFD
+                .NUM_CE(1),// Number of clock enables (1,2)
+                .OFB_USED("FALSE"), // Select OFB path (FALSE, TRUE)
+                // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
+                .SRVAL_Q1(1'b0),
+                .SRVAL_Q2(1'b0),
+                .SRVAL_Q3(1'b0),
+                .SRVAL_Q4(1'b0)
+            )
+            ISERDESE2_data (
+                .O(),
+                // 1-bit output: Combinatorial output
+                // Q1 - Q8: 1-bit (each) output: Registered data outputs
+                .Q1(Q1[gen_index]),
+                .Q2(Q2[gen_index]),
+                .Q3(Q3[gen_index]),
+                .Q4(Q4[gen_index]),   
+                .Q5(Q5[gen_index]),
+                .Q6(Q6[gen_index]),
+                .Q7(Q7[gen_index]),
+                .Q8(Q8[gen_index]),
+                // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
+                .SHIFTOUT1(),
+                .SHIFTOUT2(),
+                .BITSLIP(bitslip[$rtoi($floor(gen_index/8))]),
+                // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
+                // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
+                // to Q8 output ports will shift, as in a barrel-shifter operation, one
+                // position every time Bitslip is invoked (DDR operation is different from
+                // SDR).
+                // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
+                .CE1(1),
+                .CE2(1),
+                .CLKDIVP(), // 1-bit input: TBD
+                // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
+                .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
+                .CLKB(!i_ddr3_clk), // 1-bit input: High-speed secondary clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                .OCLK(), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
+                // Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
+                .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
+                .DYNCLKSEL(), // 1-bit input: Dynamic CLK/CLKB inversion
+                // Input Data: 1-bit (each) input: ISERDESE2 data input ports
+                .D(idelay_data[gen_index]), // 1-bit input: Data input
+                .DDLY(), // 1-bit input: Serial data from IDELAYE2
+                .OFB(), // 1-bit input: Data feedback from OSERDESE2
+                .OCLKB(), // 1-bit input: High speed negative edge output clock
+                .RST(!i_rst_n), // 1-bit input: Active high asynchronous reset
+                // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
+                .SHIFTIN1(),
+                .SHIFTIN2()
+            );
+            // End of ISERDESE2_inst instantiation
+  
         end
         //800MHz = 
         // dqs: odelay -> iobuf
@@ -906,10 +1062,202 @@ module ddr3_controller #(
                 .IO(dqs[gen_index]), // Diff_p inout (connect directly to top-level port)
                 .IOB(dqs_n[gen_index]), // Diff_n inout (connect directly to top-level port)
                 .I(odelay_dqs[gen_index]), // Buffer input
-                .T(!write_dqs_q[serial_index_q]) // 3-state enable input, high=input, low=output
+                .T(!write_dqs[STAGE2_DATA_DEPTH+1]) // 3-state enable input, high=input, low=output
             ); // End of IOBUFDS_inst instantiation
+            
+            // IDELAYE2: Input Fixed or Variable Delay Element
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            IDELAYE2 #(
+                .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
+                .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
+                .IDELAY_TYPE("VARIABLE"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .IDELAY_VALUE(8), //Input delay tap setting (0-31)
+                .PIPE_SEL("FALSE"),  //Select pipelined mode, FALSE, TRUE
+                .REFCLK_FREQUENCY(200.0), //IDELAYCTRL clock input frequency in MHz (190.0-210.0).
+                .SIGNAL_PATTERN("DATA") //DATA, CLOCK input signal
+            )
+            IDELAYE2_dqs (
+                .CNTVALUEOUT(), // 5-bit output: Counter value output
+                .DATAOUT(idelay_dqs[gen_index]), // 1-bit output: Delayed data output
+                .C(i_controller_clk), // 1-bit input: Clock input
+                .CE(idelay_ce[gen_index]), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(0),// 1-bit input: Dynamic clock inversion input
+                .CNTVALUEIN(0), // 5-bit input: Counter value input
+                .DATAIN(), //1-bit input: Internal delay data input
+                .IDATAIN(read_dqs[gen_index]), // 1-bit input: Data input from the I/O
+                .INC(idelay_inc[gen_index]), // 1-bit input: Increment / Decrement tap delay input
+                .LD(idelay_ld[gen_index]), // 1-bit input: Load IDELAY_VALUE input
+                .LDPIPEEN(0), // 1-bit input: Enable PIPELINE register to load data input
+                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+            );
+            // End of IDELAYE2_inst instantiation
+            
+              // End of IOBUF_inst instantiation                 
+            // ISERDESE2: Input SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            ISERDESE2 #(
+                .DATA_RATE("DDR"), // DDR, SDR
+                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
+                .INIT_Q1(1'b0),
+                .INIT_Q2(1'b0),
+                .INIT_Q3(1'b0),
+                .INIT_Q4(1'b0),
+                .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
+                .IOBDELAY("NONE"), // NONE, BOTH, IBUF, IFD
+                .NUM_CE(1),// Number of clock enables (1,2)
+                .OFB_USED("FALSE"), // Select OFB path (FALSE, TRUE)
+                // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
+                .SRVAL_Q1(1'b0),
+                .SRVAL_Q2(1'b0),
+                .SRVAL_Q3(1'b0),
+                .SRVAL_Q4(1'b0)
+            )
+            ISERDESE2_dqs (
+                .O(),
+                // 1-bit output: Combinatorial output
+                // Q1 - Q8: 1-bit (each) output: Registered data outputs
+                .Q1(dqs_Q[gen_index][7]),
+                .Q2(dqs_Q[gen_index][6]),
+                .Q3(dqs_Q[gen_index][5]),
+                .Q4(dqs_Q[gen_index][4]),   
+                .Q5(dqs_Q[gen_index][3]),
+                .Q6(dqs_Q[gen_index][2]),
+                .Q7(dqs_Q[gen_index][1]),
+                .Q8(dqs_Q[gen_index][0]),
+                // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
+                .SHIFTOUT1(),
+                .SHIFTOUT2(),
+                .BITSLIP(bitslip),
+                // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
+                // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
+                // to Q8 output ports will shift, as in a barrel-shifter operation, one
+                // position every time Bitslip is invoked (DDR operation is different from
+                // SDR).
+                // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
+                .CE1(1),
+                .CE2(1),
+                .CLKDIVP(), // 1-bit input: TBD
+                // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
+                .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
+                .CLKB(!i_ddr3_clk), // 1-bit input: High-speed secondary clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                .OCLK(), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
+                // Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
+                .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
+                .DYNCLKSEL(), // 1-bit input: Dynamic CLK/CLKB inversion
+                // Input Data: 1-bit (each) input: ISERDESE2 data input ports
+                .D(idelay_dqs[gen_index]), // 1-bit input: Data input
+                .DDLY(), // 1-bit input: Serial data from IDELAYE2
+                .OFB(), // 1-bit input: Data feedback from OSERDESE2
+                .OCLKB(), // 1-bit input: High speed negative edge output clock
+                .RST(!i_rst_n), // 1-bit input: Active high asynchronous reset
+                // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
+                .SHIFTIN1(),
+                .SHIFTIN2()
+            );
+            // End of ISERDESE2_inst instantiation
+            
+                      
+            //ISERDES train
+            // End of IOBUF_inst instantiation                 
+            // ISERDESE2: Input SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            ISERDESE2 #(
+                .DATA_RATE("DDR"), // DDR, SDR
+                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
+                .INIT_Q1(1'b0),
+                .INIT_Q2(1'b0),
+                .INIT_Q3(1'b0),
+                .INIT_Q4(1'b0),
+                .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
+                .IOBDELAY("NONE"), // NONE, BOTH, IBUF, IFD
+                .NUM_CE(1),// Number of clock enables (1,2)
+                .OFB_USED("TRUE"), // Select OFB path (FALSE, TRUE)
+                // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
+                .SRVAL_Q1(1'b0),
+                .SRVAL_Q2(1'b0),
+                .SRVAL_Q3(1'b0),
+                .SRVAL_Q4(1'b0)
+            )
+            ISERDESE2_train (
+                .O(),
+                // 1-bit output: Combinatorial output
+                // Q1 - Q8: 1-bit (each) output: Registered data outputs
+                .Q1(test_Q[gen_index][7]),
+                .Q2(test_Q[gen_index][6]),
+                .Q3(test_Q[gen_index][5]),
+                .Q4(test_Q[gen_index][4]),   
+                .Q5(test_Q[gen_index][3]),
+                .Q6(test_Q[gen_index][2]),
+                .Q7(test_Q[gen_index][1]),
+                .Q8(test_Q[gen_index][0]),
+                // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
+                .SHIFTOUT1(),
+                .SHIFTOUT2(),
+                .BITSLIP(bitslip[gen_index]),
+                // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
+                // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
+                // to Q8 output ports will shift, as in a barrel-shifter operation, one
+                // position every time Bitslip is invoked (DDR operation is different from
+                // SDR).
+                // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
+                .CE1(1),
+                .CE2(1),
+                .CLKDIVP(), // 1-bit input: TBD
+                // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
+                .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
+                .CLKB(!i_ddr3_clk), // 1-bit input: High-speed secondary clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                .OCLK(), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
+                // Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
+                .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
+                .DYNCLKSEL(), // 1-bit input: Dynamic CLK/CLKB inversion
+                // Input Data: 1-bit (each) input: ISERDESE2 data input ports
+                .D(), // 1-bit input: Data input
+                .DDLY(), // 1-bit input: Serial data from IDELAYE2
+                .OFB(test_OFB), // 1-bit input: Data feedback from OSERDESE2
+                .OCLKB(), // 1-bit input: High speed negative edge output clock
+                .RST(!i_rst_n), // 1-bit input: Active high asynchronous reset
+                // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
+                .SHIFTIN1(),
+                .SHIFTIN2()
+            );
+            // End of ISERDESE2_inst instantiation
         end
      endgenerate 
+     
+    // OSERDESE2: Output SERial/DESerializer with bitslip
+    //7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    OSERDESE2 #(
+        .DATA_RATE_OQ("DDR"), // DDR, SDR
+        .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+        .INIT_OQ(1'b1) // Initial value of OQ output (1'b0,1'b1)
+    )
+    OSERDESE2_train(
+        .OFB(test_OFB), // 1-bit output: Feedback path for data
+        .OQ(), // 1-bit output: Data path output
+        .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+        .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+        .D1(1'b0),
+        .D2(1'b0),
+        .D3(1'b0),
+        .D4(1'b0),
+        .D5(1'b1),
+        .D6(1'b1),
+        .D7(1'b1),
+        .D8(1'b1),
+        .OCE(1), // 1-bit input: Output data clock enable
+        .RST(!i_rst_n) // 1-bit input: Reset
+    );
+    // End of OSERDESE2_inst instantiation  
      
     // OSERDESE2: Output SERial/DESerializer with bitslip
     //7 Series
@@ -948,6 +1296,152 @@ module ddr3_controller #(
         .RST(!i_rst_n) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
     );
     // End of IDELAYCTRL_inst instantiation
+    
+    reg[3:0] state_calibrate;
+    localparam IDLE = 0,
+                BITSLIP_DQS_TRAIN = 1,
+                MPR_READ = 2,
+                READ_DQS = 3,
+                BITSLIP_DQ_TRAIN = 4,
+                DONE_CALIBRATE = 5;
+                
+                
+                
+                
+
+    reg[1:0] train_delay;
+    reg initial_read = 1;
+    reg[CMD_LEN-1:0] cmd_reset_seq[3:0];
+    reg[3:0] delay_before_read_data = 0;
+    reg[7:0] initial_dqs[LANES-1:0];
+    reg[7:0] calibrated_dqs[LANES-1:0];
+    reg[7:0] bitslip_pattern;
+    reg[LANES-1:0] lane = 0;
+    //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
+    initial begin
+        for(index=0; index< 4; index=index+1) begin
+            cmd_reset_seq[index] = -1;
+            cmd_reset_seq[index][CMD_ODT] = 0;
+        end
+    end
+     
+    always @(posedge i_controller_clk, negedge i_rst_n) begin
+        if(!i_rst_n) begin
+            state_calibrate <= IDLE;
+            train_delay <= 0;
+            for(index = 0; index < LANES; index = index + 1) begin
+                bitslip[index] <= 0;
+            end
+            
+            initial_read <= 1;
+            lane <= 0;
+        end
+        else begin
+            train_delay <= (train_delay==0)? 0:(train_delay - 1);
+            delay_before_read_data <= (delay_before_read_data == 0)? 0: delay_before_read_data - 1;
+            for(index=0; index < LANES; index=index+1) begin
+                idelay_ce[index] <= 0;
+                idelay_inc[index] <= 0;
+            end
+            for(index=0; index < LANES; index=index+1) begin
+                    cmd_reset_seq[index] <= -1;
+                    cmd_reset_seq[index][CMD_ODT] <= 0;
+            end
+
+            //set all cmd_d to NOP
+            for(index=0; index < 4; index=index+1) begin
+                    cmd_reset_seq[index] <= -1;
+                    cmd_reset_seq[index][CMD_ODT] <= 0;
+            end
+            case(state_calibrate) 
+                IDLE: if(idelayctrl_rdy) begin
+                        state_calibrate <= BITSLIP_DQS_TRAIN;
+                        lane <= 0;
+                      end
+   BITSLIP_DQS_TRAIN: begin
+                        /* Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
+                        deasserted for at least one CLKDIV cycle between two Bitslip assertions.The user 
+                        logic should wait for at least two CLKDIV cycles in SDR mode or three CLKDIV cycles 
+                        in DDR mode, before analyzing the received data pattern and potentially issuing 
+                        another Bitslip command. If the ISERDESE2 is reset, the Bitslip logic is also reset
+                        and returns back to its initial state.
+                        */
+                        bitslip[lane] <= 0;
+                        if(test_Q[lane] != 8'b0111_1000 && train_delay == 0) begin
+                            bitslip[lane] <= 1;
+                            train_delay <= 3;
+                        end
+                        if(test_Q[lane] == 8'b0111_1000) begin
+                            if(lane == 7) begin
+                                state_calibrate <= MPR_READ;
+                                lane <= 0;
+                            end
+                            else begin
+                                lane <= lane + 1;
+                            end
+                        end                        
+                      end
+            MPR_READ: if(instruction_address == 15) begin //align the incoming DQS during reads to the controller clock 
+                             cmd_reset_seq[0] <=  {1'b0, CMD_RD[2:0], 1'b0, 1'b1, 1'b1, MR3_RD_ADDR}; //read command
+                             delay_before_read_data <= READ_DELAY + 1 + 2 + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+                             state_calibrate <= READ_DQS;
+                      end    
+            READ_DQS: if(delay_before_read_data == 0) begin
+                        initial_read <= 0;
+                        if(initial_read) begin
+                            initial_dqs[lane] <= dqs_Q[lane];
+                            state_calibrate <= MPR_READ;
+                        end
+                        else begin
+                            //unless we match one of these conditions, continue delaying. It is possible that due to irreularities in tDQSL and tDQSH (0.45tCk - 0.55tCK), the captured DQS
+                            //might be irregular so we need specific patterns to match so that we can be sure that the calibrated DQS is a regular and is aligned with clock
+                            if((dqs_Q[lane] == 8'b10_10_10_00 || dqs_Q[lane] == 8'b10_10_00_00 || dqs_Q[lane] == 8'b10_00_00_00) && (dqs_Q[lane] != initial_dqs[lane])) begin
+                                if(lane == 7) begin
+                                    state_calibrate <= BITSLIP_DQ_TRAIN;
+                                    for(index = 0; index < LANES; index = index + 1) begin
+                                        calibrated_dqs[index] <= dqs_Q[index]; //update the new dqs
+                                    end
+                                    lane <= 0;
+                                 end
+                                 else begin
+                                    initial_read <= 1;
+                                    lane <= lane + 1;
+                                    state_calibrate <= MPR_READ;
+                                 end
+                            end
+                            else begin
+                                idelay_ce[lane] <= 1;
+                                idelay_inc[lane] <= 1;
+                                state_calibrate <= MPR_READ;
+                            end
+                        end
+      
+                       end
+     BITSLIP_DQ_TRAIN: begin //train again the ISERDES to capture the DQ correctly
+                            case(calibrated_dqs[lane])
+                                 8'b10_10_10_00:  bitslip_pattern = 8'b0001_1110;
+                                 8'b10_10_00_00:  bitslip_pattern = 8'b1000_0111;  
+                                 8'b10_00_00_00:  bitslip_pattern = 8'b1110_0001;
+                                 default: bitslip_pattern = 8'b0000_0000;
+                            endcase
+                            bitslip[lane] <= 0;
+                            if(test_Q[lane]!= bitslip_pattern && train_delay == 0) begin
+                                bitslip[lane] <= 1;
+                                train_delay <= 3;
+                            end
+                            if(test_Q[lane] == bitslip_pattern) begin
+                                if(lane == 7) begin
+                                    state_calibrate <= DONE_CALIBRATE;
+                                 end
+                                 else begin
+                                     lane <= lane + 1;
+                                 end
+                            end
+                       end
+       DONE_CALIBRATE: state_calibrate <= DONE_CALIBRATE;
+            endcase
+        end
+    end      
    //////////////////////////////////////////////////////////////////////// End of PHY Interface  //////////////////////////////////////////////////////////////////////// 
    
    
