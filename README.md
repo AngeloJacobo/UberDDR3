@@ -35,4 +35,6 @@
 ![image](https://user-images.githubusercontent.com/87559347/234854620-39d95493-ecc8-4b8f-b391-0f532fff5760.png)
 
 
+## Sequential Read:
+![image](https://user-images.githubusercontent.com/87559347/234856001-ab9056fe-cee1-47b6-a7b7-347ee5138c4f.png)
 
