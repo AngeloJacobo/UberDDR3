@@ -62,7 +62,7 @@ module ddr3_controller #(
         // Wishbone outputs
         output reg o_wb_stall, //1 = busy, cannot accept requests
         output reg o_wb_ack, //1 = read/write request has completed
-        output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         output reg o_aux, //for AXI-interface compatibility (returned upon ack)
         // PHY Interface (to be added later)
         output wire ck_en, // CKE
@@ -444,7 +444,54 @@ module ddr3_controller #(
     reg activate_slot_busy;
     reg write_dqs_q, write_dqs_d;
     reg[STAGE2_DATA_DEPTH+1:0] write_dqs;
+    // FOR PHY INTERFACE
+    localparam IDLE = 0,
+                BITSLIP_DQS_TRAIN_1 = 1,
+                MPR_READ = 2,
+                COLLECT_DQS = 3,
+                ANALYZE_DQS = 4,
+                CALIBRATE_DQS = 5,
+                BITSLIP_DQS_TRAIN_2 = 6,
+                DONE_CALIBRATE = 7;
+     localparam REPEAT_DQS = 3; //must be >= 2           
+                
+    wire[(DQ_BITS*LANES)-1:0] oserdes_data, odelay_data, idelay_data, read_dq;
+    wire[LANES-1:0] odelay_dqs, read_dqs, idelay_dqs;
+    wire[7:0] dqs_Q[LANES-1:0];//
+    wire idelayctrl_rdy;
+    reg[LANES-1:0] odelay_ce=0, odelay_inc=0, odelay_ld=0;
+    reg[LANES-1:0] idelay_ce=0, idelay_inc=0, idelay_ld=0;
+    wire oserdes_dqs;
+    genvar gen_index;
+    reg[CMD_LEN-1:0] aligned_cmd;
+    wire[CMD_LEN-1:0] oserdes_cmd;
+    wire[CMD_LEN-1:0] cmd;
+    reg[1:0] serial_index,serial_index_q;
+    wire[DQ_BITS*LANES*8-1:0] iserdes_data;
+    wire[7:0] test_Q[LANES-1:0];
+    wire test_OFB;
+    reg[LANES-1:0] bitslip;
     
+    reg[3:0] state_calibrate;
+    reg[REPEAT_DQS*8-1:0] dqs_store = 0;
+    reg[$clog2(REPEAT_DQS)-1:0] dqs_count_repeat = 0;
+    reg[$clog2(REPEAT_DQS*8)-1:0] dqs_start_index = 0;
+    reg[$clog2(REPEAT_DQS*8)-1:0] dqs_target_index = 0;
+    reg[1:0] train_delay;
+    reg[CMD_LEN-1:0] cmd_reset_seq[3:0];
+    reg[3:0] delay_before_read_data = 0;
+    reg initial_dqs = 0;
+    reg[$clog2(LANES)-1:0] lane = 0;
+    reg[7:0] dqs_bitslip_arrangement = 0;
+    reg[3:0] added_read_pipe_max = 0;
+    reg[3:0] added_read_pipe[LANES - 1:0];
+    
+    reg[(READ_DELAY + 1 + 2):0] shift_reg_read_pipe_q, shift_reg_read_pipe_d; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+    reg index_read_pipe; //tells which delay_read_pipe will be updated 
+    reg[1:0] index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
+    reg[3:0] delay_read_pipe[1:0]; //delay when each lane will retrieve iserdes_data
+    reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from iserdes_data to be sent to o_wb_data
+    reg[15:0] o_wb_ack_read_q;
     //process request transaction 
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n ) begin
@@ -562,12 +609,74 @@ module ddr3_controller #(
             for(index = 1; index <= STAGE2_DATA_DEPTH; index = index+1) begin
                 stage2_data[index] <=  stage2_data[index-1];              
             end
+            
             for(index = 1; index <= STAGE2_DATA_DEPTH+1; index = index+1) begin             
                 write_dqs[index] <= write_dqs[index-1]; 
-            end
+            end 
         end
     end
     
+
+    
+    always @(posedge i_controller_clk, negedge i_rst_n) begin
+        if(!i_rst_n ) begin
+            shift_reg_read_pipe_q <= 0;
+            index_read_pipe <= 0;
+            index_wb_data <= 0;
+            for(index = 0; index < 3; index = index + 1) begin
+                delay_read_pipe[index] <= 0;
+            end
+            for(index = 0; index < 2; index = index + 1) begin
+                o_wb_data_q[index] <= 0;
+            end
+            o_wb_ack <= 0;
+            o_wb_data <= 0;
+        end
+        else begin
+            shift_reg_read_pipe_q <= shift_reg_read_pipe_d;
+            if(shift_reg_read_pipe_q[1]) begin //delay is over and data is now strating to release from iserdes BUT NOT YET ALIGNED
+                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 3 pipe to store read data)
+                delay_read_pipe[index_read_pipe] <= added_read_pipe_max; //update delay_read_pipe
+            end
+            for(index = 0; index < 2; index = index + 1) begin
+                delay_read_pipe[index] <= (delay_read_pipe[index] == 0)? 0 : (delay_read_pipe[index] - 1);
+            end
+            
+            for(index = 0; index < LANES; index = index + 1) begin
+                //if(delay_before_read_ack_q == (added_read_pipe_max - added_read_pipe[index] + 1)) begin //same lane
+                if(delay_read_pipe[0] == (added_read_pipe_max != added_read_pipe[index])) begin //same lane
+                    o_wb_data_q[0][(64*0 + 8*index) +: 8] <= iserdes_data[(64*0 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*1 + 8*index) +: 8] <= iserdes_data[(64*1 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*2 + 8*index) +: 8] <= iserdes_data[(64*2 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*3 + 8*index) +: 8] <= iserdes_data[(64*3 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*4 + 8*index) +: 8] <= iserdes_data[(64*4 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*5 + 8*index) +: 8] <= iserdes_data[(64*5 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*6 + 8*index) +: 8] <= iserdes_data[(64*6 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][(64*7 + 8*index) +: 8] <= iserdes_data[(64*7 + 8*index) +: 8]; //update each lane of the burst
+                end
+                if(delay_read_pipe[1] == (added_read_pipe_max != added_read_pipe[index])) begin
+                    o_wb_data_q[1][(64*0 + 8*index) +: 8] <= iserdes_data[(64*0 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*1 + 8*index) +: 8] <= iserdes_data[(64*1 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*2 + 8*index) +: 8] <= iserdes_data[(64*2 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*3 + 8*index) +: 8] <= iserdes_data[(64*3 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*4 + 8*index) +: 8] <= iserdes_data[(64*4 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*5 + 8*index) +: 8] <= iserdes_data[(64*5 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*6 + 8*index) +: 8] <= iserdes_data[(64*6 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[1][(64*7 + 8*index) +: 8] <= iserdes_data[(64*7 + 8*index) +: 8]; //update each lane of the burst
+                end
+
+                if(o_wb_ack_read_q[0]) begin 
+                    index_wb_data <= !index_wb_data;
+                end
+                for(index = 0; index < 16; index = index + 1) begin
+                    o_wb_ack_read_q[index] <= o_wb_ack_read_q[index+1];
+                end
+                o_wb_ack_read_q[added_read_pipe_max] <= shift_reg_read_pipe_q[0];
+                o_wb_ack = o_wb_ack_read_q[0];
+                o_wb_data = o_wb_data_q[index_wb_data];
+            end
+       end
+    end
             // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
             //
             //                          tRTP
@@ -607,7 +716,6 @@ module ddr3_controller #(
                 cmd_d[index] = -1;
                 cmd_d[index][CMD_ODT] = (delay_before_odt_off_q != 0)? 1'b1: 1'b0; //ODT remains the same value
         end
-   
             
         // decrement delay counters for every bank
         for(index=0; index< (1<<BA_BITS); index=index+1) begin
@@ -619,6 +727,8 @@ module ddr3_controller #(
         delay_before_odt_off_d = (delay_before_odt_off_q == 0)? 0 : delay_before_odt_off_q - 1;
         delay_before_read_ack_d = (delay_before_read_ack_q == 0)? 0 : delay_before_read_ack_q - 1;
         o_wb_ack_d = delay_before_read_ack_q == 1;
+
+        shift_reg_read_pipe_d = shift_reg_read_pipe_q>>1;
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
             o_wb_stall_d = o_wb_stall; 
@@ -660,7 +770,10 @@ module ddr3_controller #(
                     delay_before_precharge_counter_d[stage2_bank] = READ_TO_PRECHARGE_DELAY;
                     delay_before_read_counter_d[stage2_bank] = READ_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY;
-                    delay_before_read_ack_d = READ_DELAY + 1 + 2 + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+                    //delay_before_read_ack_d = READ_DELAY + 1 + 2 + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+                    delay_before_read_ack_d = READ_DELAY + 1 + 2 + 1 + added_read_pipe_max + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay, 1 = to register output
+                 
+                    shift_reg_read_pipe_d[READ_DELAY + 1 + 2] = 1'b1; 
                     //issue read command
                     if(COL_BITS <= 10) begin
                         cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
@@ -746,23 +859,7 @@ module ddr3_controller #(
     end //end of always block
     
    //////////////////////////////////////////////////////////////////////// PHY Interface ////////////////////////////////////////////////////////////////////////////////////////////////////
-    wire[(DQ_BITS*LANES)-1:0] oserdes_data, odelay_data, idelay_data, read_dq;
-    wire[LANES-1:0] odelay_dqs, read_dqs, idelay_dqs;
-    wire[7:0] dqs_Q[LANES-1:0];//
-    wire idelayctrl_rdy;
-    reg[LANES-1:0] odelay_ce=0, odelay_inc=0, odelay_ld=0;
-    reg[LANES-1:0] idelay_ce=0, idelay_inc=0, idelay_ld=0;
-    reg write_data=0, write_dqs=0;
-    wire oserdes_dqs;
-    genvar gen_index;
-    reg[CMD_LEN-1:0] aligned_cmd;
-    wire[CMD_LEN-1:0] oserdes_cmd;
-    wire[CMD_LEN-1:0] cmd;
-    reg[1:0] serial_index,serial_index_q;
-    wire[DQ_BITS*LANES-1:0] Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8;
-    wire[7:0] test_Q[LANES-1:0];
-    wire test_OFB;
-    reg[LANES-1:0] bitslip;
+
     /*
     always @(posedge i_ddr3_clk) begin
         if(!i_rst_n) begin
@@ -831,7 +928,7 @@ module ddr3_controller #(
     endgenerate 
 
     assign  {cs_n, ras_n, cas_n, we_n, odt, ck_en, reset_n, ba_addr, addr} = cmd;
-    assign o_wb_data = {Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8};        
+
             
     // PHY data
     generate
@@ -972,14 +1069,14 @@ module ddr3_controller #(
                 .O(),
                 // 1-bit output: Combinatorial output
                 // Q1 - Q8: 1-bit (each) output: Registered data outputs
-                .Q1(Q1[gen_index]),
-                .Q2(Q2[gen_index]),
-                .Q3(Q3[gen_index]),
-                .Q4(Q4[gen_index]),   
-                .Q5(Q5[gen_index]),
-                .Q6(Q6[gen_index]),
-                .Q7(Q7[gen_index]),
-                .Q8(Q8[gen_index]),
+                .Q1(iserdes_data[64*7 + gen_index]),
+                .Q2(iserdes_data[64*6 + gen_index]),
+                .Q3(iserdes_data[64*5 + gen_index]),
+                .Q4(iserdes_data[64*4 + gen_index]),   
+                .Q5(iserdes_data[64*3 + gen_index]),
+                .Q6(iserdes_data[64*2 + gen_index]),
+                .Q7(iserdes_data[64*1 + gen_index]),
+                .Q8(iserdes_data[64*0 + gen_index]),
                 // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
                 .SHIFTOUT1(),
                 .SHIFTOUT2(),
@@ -1131,7 +1228,7 @@ module ddr3_controller #(
                 // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
                 .SHIFTOUT1(),
                 .SHIFTOUT2(),
-                .BITSLIP(bitslip),
+                .BITSLIP(bitslip[gen_index]),
                 // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
                 // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
                 // to Q8 output ports will shift, as in a barrel-shifter operation, one
@@ -1296,27 +1393,9 @@ module ddr3_controller #(
         .RST(!i_rst_n) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
     );
     // End of IDELAYCTRL_inst instantiation
-    
-    reg[3:0] state_calibrate;
-    localparam IDLE = 0,
-                BITSLIP_DQS_TRAIN = 1,
-                MPR_READ = 2,
-                READ_DQS = 3,
-                BITSLIP_DQ_TRAIN = 4,
-                DONE_CALIBRATE = 5;
-                
-                
-                
-                
 
-    reg[1:0] train_delay;
-    reg initial_read = 1;
-    reg[CMD_LEN-1:0] cmd_reset_seq[3:0];
-    reg[3:0] delay_before_read_data = 0;
-    reg[7:0] initial_dqs[LANES-1:0];
-    reg[7:0] calibrated_dqs[LANES-1:0];
-    reg[7:0] bitslip_pattern;
-    reg[LANES-1:0] lane = 0;
+         
+
     //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
     initial begin
         for(index=0; index< 4; index=index+1) begin
@@ -1329,12 +1408,16 @@ module ddr3_controller #(
         if(!i_rst_n) begin
             state_calibrate <= IDLE;
             train_delay <= 0;
+            dqs_store <= 0;
+            dqs_count_repeat <= 0;
+            dqs_start_index <= 0;
+            dqs_target_index <= 0;
             for(index = 0; index < LANES; index = index + 1) begin
                 bitslip[index] <= 0;
             end
-            
-            initial_read <= 1;
+            initial_dqs <= 1;
             lane <= 0;
+            dqs_bitslip_arrangement <= 0;
         end
         else begin
             train_delay <= (train_delay==0)? 0:(train_delay - 1);
@@ -1342,6 +1425,7 @@ module ddr3_controller #(
             for(index=0; index < LANES; index=index+1) begin
                 idelay_ce[index] <= 0;
                 idelay_inc[index] <= 0;
+                bitslip[index] <= 0;
             end
             for(index=0; index < LANES; index=index+1) begin
                     cmd_reset_seq[index] <= -1;
@@ -1353,12 +1437,14 @@ module ddr3_controller #(
                     cmd_reset_seq[index] <= -1;
                     cmd_reset_seq[index][CMD_ODT] <= 0;
             end
+            
+            // FSM
             case(state_calibrate) 
                 IDLE: if(idelayctrl_rdy) begin
-                        state_calibrate <= BITSLIP_DQS_TRAIN;
+                        state_calibrate <= BITSLIP_DQS_TRAIN_1;
                         lane <= 0;
                       end
-   BITSLIP_DQS_TRAIN: begin
+  BITSLIP_DQS_TRAIN_1: if(train_delay == 0) begin
                         /* Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
                         deasserted for at least one CLKDIV cycle between two Bitslip assertions.The user 
                         logic should wait for at least two CLKDIV cycles in SDR mode or three CLKDIV cycles 
@@ -1366,76 +1452,66 @@ module ddr3_controller #(
                         another Bitslip command. If the ISERDESE2 is reset, the Bitslip logic is also reset
                         and returns back to its initial state.
                         */
-                        bitslip[lane] <= 0;
-                        if(test_Q[lane] != 8'b0111_1000 && train_delay == 0) begin
+                        if(test_Q[lane] == 8'b0111_1000) begin //initial arrangement
+                            state_calibrate <= MPR_READ;
+                            initial_dqs <= 1;
+                        end                
+                        else begin
                             bitslip[lane] <= 1;
                             train_delay <= 3;
-                        end
-                        if(test_Q[lane] == 8'b0111_1000) begin
-                            if(lane == 7) begin
-                                state_calibrate <= MPR_READ;
-                                lane <= 0;
-                            end
-                            else begin
-                                lane <= lane + 1;
-                            end
-                        end                        
+                        end        
                       end
+                      
             MPR_READ: if(instruction_address == 15) begin //align the incoming DQS during reads to the controller clock 
                              cmd_reset_seq[0] <=  {1'b0, CMD_RD[2:0], 1'b0, 1'b1, 1'b1, MR3_RD_ADDR}; //read command
                              delay_before_read_data <= READ_DELAY + 1 + 2 + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
-                             state_calibrate <= READ_DQS;
+                             state_calibrate <= COLLECT_DQS;
+                             dqs_count_repeat <= 0;
                       end    
-            READ_DQS: if(delay_before_read_data == 0) begin
-                        initial_read <= 0;
-                        if(initial_read) begin
-                            initial_dqs[lane] <= dqs_Q[lane];
-                            state_calibrate <= MPR_READ;
+                      
+        COLLECT_DQS: if(delay_before_read_data == 0) begin
+                        dqs_store <= {dqs_Q[lane], dqs_store[(REPEAT_DQS*8-1):8]}; 
+                        dqs_count_repeat = dqs_count_repeat + 1;
+                        if(dqs_count_repeat == REPEAT_DQS) begin
+                            state_calibrate <= ANALYZE_DQS;
+                            dqs_start_index <= 0;
                         end
-                        else begin
-                            //unless we match one of these conditions, continue delaying. It is possible that due to irreularities in tDQSL and tDQSH (0.45tCk - 0.55tCK), the captured DQS
-                            //might be irregular so we need specific patterns to match so that we can be sure that the calibrated DQS is a regular and is aligned with clock
-                            if((dqs_Q[lane] == 8'b10_10_10_00 || dqs_Q[lane] == 8'b10_10_00_00 || dqs_Q[lane] == 8'b10_00_00_00) && (dqs_Q[lane] != initial_dqs[lane])) begin
-                                if(lane == 7) begin
-                                    state_calibrate <= BITSLIP_DQ_TRAIN;
-                                    for(index = 0; index < LANES; index = index + 1) begin
-                                        calibrated_dqs[index] <= dqs_Q[index]; //update the new dqs
-                                    end
-                                    lane <= 0;
-                                 end
-                                 else begin
-                                    initial_read <= 1;
-                                    lane <= lane + 1;
-                                    state_calibrate <= MPR_READ;
-                                 end
-                            end
-                            else begin
-                                idelay_ce[lane] <= 1;
-                                idelay_inc[lane] <= 1;
-                                state_calibrate <= MPR_READ;
-                            end
-                        end
-      
+                      end
+                      
+         ANALYZE_DQS: if(dqs_store[dqs_start_index +: 10] == 10'b01_01_01_01_00) begin
+                        if(initial_dqs) dqs_target_index <= dqs_start_index[0]? dqs_start_index + 2: dqs_start_index + 1;
+                        initial_dqs <= 0;
+                        state_calibrate <= CALIBRATE_DQS;
+                      end 
+                      else begin
+                        dqs_start_index <= dqs_start_index + 1;
+                      end
+
+        CALIBRATE_DQS: if(dqs_start_index == dqs_target_index) begin
+                            added_read_pipe[lane] = dqs_target_index[$clog2(REPEAT_DQS*8)-1:3] + (dqs_target_index[2:0] >= 5);
+                            dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dqs_target_index[2:0];
+                            state_calibrate <= BITSLIP_DQS_TRAIN_2;
                        end
-     BITSLIP_DQ_TRAIN: begin //train again the ISERDES to capture the DQ correctly
-                            case(calibrated_dqs[lane])
-                                 8'b10_10_10_00:  bitslip_pattern = 8'b0001_1110;
-                                 8'b10_10_00_00:  bitslip_pattern = 8'b1000_0111;  
-                                 8'b10_00_00_00:  bitslip_pattern = 8'b1110_0001;
-                                 default: bitslip_pattern = 8'b0000_0000;
-                            endcase
-                            bitslip[lane] <= 0;
-                            if(test_Q[lane]!= bitslip_pattern && train_delay == 0) begin
-                                bitslip[lane] <= 1;
-                                train_delay <= 3;
-                            end
-                            if(test_Q[lane] == bitslip_pattern) begin
+                       else begin
+                            idelay_ce[lane] <= 1;
+                            idelay_inc[lane] <= 1;
+                            state_calibrate <= MPR_READ;
+                       end
+
+  BITSLIP_DQS_TRAIN_2: if(train_delay == 0) begin //train again the ISERDES to capture the DQ correctly
+                            if(test_Q[lane] == dqs_bitslip_arrangement) begin
                                 if(lane == 7) begin
                                     state_calibrate <= DONE_CALIBRATE;
                                  end
                                  else begin
                                      lane <= lane + 1;
+                                     added_read_pipe_max <= added_read_pipe_max > added_read_pipe[lane]? added_read_pipe_max:added_read_pipe[lane];
+                                     state_calibrate <= BITSLIP_DQS_TRAIN_1;
                                  end
+                            end
+                            else begin
+                                bitslip[lane] <= 1;
+                                train_delay <= 3;
                             end
                        end
        DONE_CALIBRATE: state_calibrate <= DONE_CALIBRATE;
