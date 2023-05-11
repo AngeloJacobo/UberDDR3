@@ -499,7 +499,7 @@ module ddr3_controller #(
     reg[(READ_DELAY + 1 + 2 + 1):0] shift_reg_read_pipe_q, shift_reg_read_pipe_d; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
     reg index_read_pipe; //tells which delay_read_pipe will be updated 
     reg[1:0] index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
-    reg[3:0] delay_read_pipe[1:0]; //delay when each lane will retrieve iserdes_data
+    reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve iserdes_data
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from iserdes_data to be sent to o_wb_data
     reg[15:0] o_wb_ack_read_q;
     //process request transaction 
@@ -625,13 +625,12 @@ module ddr3_controller #(
     end
 
                   
-    
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n ) begin
             shift_reg_read_pipe_q <= 0;
             index_read_pipe <= 0;
             index_wb_data <= 0;
-            for(index = 0; index < 3; index = index + 1) begin
+            for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= 0;
             end
             for(index = 0; index < 2; index = index + 1) begin
@@ -641,15 +640,15 @@ module ddr3_controller #(
         else begin
             shift_reg_read_pipe_q <= shift_reg_read_pipe_d;
             for(index = 0; index < 2; index = index + 1) begin
-                delay_read_pipe[index] <= (delay_read_pipe[index] == 0)? 0 : (delay_read_pipe[index] - 1);
+                delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
             if(shift_reg_read_pipe_q[1]) begin //delay is over and data is now strating to release from iserdes BUT NOT YET ALIGNED
-                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 3 pipe to store read data)
-                delay_read_pipe[index_read_pipe] <= added_read_pipe_max; //update delay_read_pipe
+                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 3 pipe to store read data)ss
+                delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
             end
             for(index = 0; index < LANES; index = index + 1) begin
                 //if(delay_before_read_ack_q == (added_read_pipe_max - added_read_pipe[index] + 1)) begin //same lane
-                if(delay_read_pipe[0] == (added_read_pipe_max != added_read_pipe[index])) begin //same lane
+                if(delay_read_pipe[0][added_read_pipe_max != added_read_pipe[index]]) begin //same lane
                     o_wb_data_q[0][(64*0 + 8*index) +: 8] <= iserdes_data[(64*0 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[0][(64*1 + 8*index) +: 8] <= iserdes_data[(64*1 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[0][(64*2 + 8*index) +: 8] <= iserdes_data[(64*2 + 8*index) +: 8]; //update each lane of the burst
@@ -659,7 +658,7 @@ module ddr3_controller #(
                     o_wb_data_q[0][(64*6 + 8*index) +: 8] <= iserdes_data[(64*6 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[0][(64*7 + 8*index) +: 8] <= iserdes_data[(64*7 + 8*index) +: 8]; //update each lane of the burst
                 end
-                if(delay_read_pipe[1] == (added_read_pipe_max != added_read_pipe[index])) begin
+                if(delay_read_pipe[1][added_read_pipe_max != added_read_pipe[index]]) begin
                     o_wb_data_q[1][(64*0 + 8*index) +: 8] <= iserdes_data[(64*0 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[1][(64*1 + 8*index) +: 8] <= iserdes_data[(64*1 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[1][(64*2 + 8*index) +: 8] <= iserdes_data[(64*2 + 8*index) +: 8]; //update each lane of the burst
@@ -864,8 +863,8 @@ module ddr3_controller #(
             
             
     // Vivado Benchmarking
-    //Old Design: 447LUT, 355FF, Slack=+1.724ns (200MHz)
-    //New Design: 682LUT, 1932FF, Slack=+1.377ns (200MHz)
+    // LUT = 1254, FF = 2878
+    // WNS = 0.924 ns (200MHz clk)
     end //end of always block
     
    //////////////////////////////////////////////////////////////////////// PHY Interface ////////////////////////////////////////////////////////////////////////////////////////////////////
