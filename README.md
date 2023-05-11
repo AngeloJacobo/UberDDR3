@@ -47,6 +47,9 @@
 ## LANES NOT IN SYNC
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/a4ccc6fb-3a07-4f09-adc5-b7d45b430323)
 
-## SAMPLE READ (UNIFORM DELAY DIFFERENCE, 0 ABSOLUTE DELAY)
+## SAMPLE READ 1 
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/37147480-339b-41fb-8e00-77218c4c7ad1)
+
+## SAMPLE READ 2 (UNIFORM DELAY DIFFERENCE, 0 ABSOLUTE DELAY)
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/7b27e335-0854-49fe-bd68-9b18aae21abd)
 
