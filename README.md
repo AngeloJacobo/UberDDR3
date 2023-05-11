@@ -38,3 +38,8 @@
 ## Sequential Read:
 ![image](https://user-images.githubusercontent.com/87559347/234856001-ab9056fe-cee1-47b6-a7b7-347ee5138c4f.png)
 
+## PER LANE READ CALIBRATION 
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/26b8c7cb-627c-4fe0-860b-2b4a7dac8041)
+
+## AFTER READ CALIBRATION
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/02128baa-19d0-4268-9cfd-93ab70ae2288)
