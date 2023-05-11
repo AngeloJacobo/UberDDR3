@@ -57,6 +57,9 @@
 ## SAMPLE READ 3 (UNIFORM DELAY DIFFERENCE, 2 slow_clk ABSOLUTE DELAY)
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/330aa43e-baaa-4201-bc46-990662c18156)
 
-## SAMPLE READ 3 (RANDOM DELAY DIFFERENCE, 0 slow_clk ABSOLUTE DELAY)
+## SAMPLE READ 4 (RANDOM DELAY DIFFERENCE, 0 slow_clk ABSOLUTE DELAY)
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/cfe39227-d5ea-4ccd-b943-3ee07dbb9b23)
+
+## SAMPLE READ 5 (RANDOM DELAY DIFFERENCE, 2 slow_clk ABSOLUTE DELAY)
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/cf50d5d1-91bb-4581-9d5e-bd4f05aee53d)
 
