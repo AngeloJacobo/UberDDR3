@@ -43,3 +43,6 @@
 
 ## AFTER READ CALIBRATION
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/02128baa-19d0-4268-9cfd-93ab70ae2288)
+
+## LANES NOT IN SYNC
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/a4ccc6fb-3a07-4f09-adc5-b7d45b430323)
