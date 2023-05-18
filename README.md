@@ -63,3 +63,6 @@
 ## SAMPLE READ 5 (RANDOM DELAY DIFFERENCE, 2 slow_clk ABSOLUTE DELAY)
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/cf50d5d1-91bb-4581-9d5e-bd4f05aee53d)
 
+
+## Autofpga "make autofpga"
+![Screenshot from 2023-05-18 11-49-19](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/0144ca4c-616e-420c-b464-6e71bf540041)
