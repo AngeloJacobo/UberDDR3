@@ -66,3 +66,12 @@
 
 ## Autofpga "make autofpga"
 ![Screenshot from 2023-05-18 11-49-19](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/0144ca4c-616e-420c-b464-6e71bf540041)
+
+
+## Implementation!!
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/763eea4b-a330-4f45-8d0a-672c5643b5dc)
+
+![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/ef9af6cc-3a9a-47ec-a45c-f21d30edc9d5)
+
+
+
