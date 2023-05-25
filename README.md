@@ -73,5 +73,9 @@
 
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/ef9af6cc-3a9a-47ec-a45c-f21d30edc9d5)
 
+## Successful Synthesis-to-Bitstream Generation
+![Screenshot from 2023-05-25 19-38-39](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/eb89a6a3-2aab-4c1b-8fbc-f9ecfe508ebd)
+![Screenshot from 2023-05-25 19-38-50](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/d6bf96db-6aa5-48b0-a9e4-2288306c0ef7)
+
 
 
