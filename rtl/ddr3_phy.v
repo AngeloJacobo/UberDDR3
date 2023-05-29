@@ -28,6 +28,7 @@ module ddr3_phy #(
         output wire[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
         output wire o_controller_idelayctrl_rdy,
         // DDR3 I/O Interface
+        output wire o_ddr3_clk_p,o_ddr3_clk_n,
         output wire o_ddr3_reset_n,
         output wire o_ddr3_cke, // CKE
         output wire o_ddr3_cs_n, // chip select signal
@@ -51,7 +52,7 @@ module ddr3_phy #(
                CMD_RESET_N = cmd_len - 7,
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ADDRESS_START = ROW_BITS - 1;
-    localparam SYNC_RESET_DELAY = $ceil(52/CONTROLLER_CLK_PERIOD); //52 ns of reset pulse width required for IDELAYCTRL 
+    localparam SYNC_RESET_DELAY = $rtoi($ceil(52/CONTROLLER_CLK_PERIOD)); //52 ns of reset pulse width required for IDELAYCTRL 
     genvar gen_index;
     wire[cmd_len-1:0] oserdes_cmd, //serialized(4:1) i_controller_cmd_slot_x 
                       cmd;//delayed oserdes_cmd
@@ -63,7 +64,7 @@ module ddr3_phy #(
     wire[LANES-1:0] oserdes_bitslip_reference;
     reg[$clog2(SYNC_RESET_DELAY):0] delay_before_release_reset;
     reg sync_rst = 0;
-
+    wire ddr3_clk;
     //synchronous reset
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
@@ -104,7 +105,7 @@ module ddr3_phy #(
             );
             // End of OSERDESE2_inst instantiation
         
-
+            
         (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
         //Delay the DQ
         // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
@@ -144,6 +145,44 @@ module ddr3_phy #(
            o_ddr3_ba_addr = cmd[CMD_BANK_START:CMD_ADDRESS_START+1],
            o_ddr3_addr = cmd[CMD_ADDRESS_START:0];
 
+    // OSERDESE2: Output SERial/DESerializer with bitslip
+    //7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    OSERDESE2 #(
+        .DATA_RATE_OQ("DDR"), // DDR, SDR
+        .DATA_RATE_TQ("SDR"), // DDR, SDR
+        .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+        .INIT_OQ(1'b0), // Initial value of OQ output (1'b0,1'b1)
+        .TRISTATE_WIDTH(1)
+    )
+    OSERDESE2_clk(
+        .OFB(), // 1-bit output: Feedback path for data
+        .OQ(ddr3_clk), // 1-bit output: Data path output
+        .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+        .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+        .D1(1'b1),
+        .D2(1'b0),
+        .D3(1'b1),
+        .D4(1'b0),
+        .D5(1'b1),
+        .D6(1'b0),
+        .D7(1'b1),
+        .D8(1'b0),
+        .OCE(1), // 1-bit input: Output data clock enable
+        .RST(sync_rst) // 1-bit input: Reset
+    );
+    // End of OSERDESE2_inst instantiation
+
+    // OBUFDS: Differential Output Buffer
+    // 7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    OBUFDS OBUFDS_inst (
+    .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
+    .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
+    .I(ddr3_clk) // Buffer input
+    );
+    // End of OBUFDS_inst instantiation
             
     // PHY data
     generate
