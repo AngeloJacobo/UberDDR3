@@ -1106,14 +1106,14 @@ module ddr3_controller #(
                         write_calib_stb <= 1;//actual request flag
                         write_calib_we <= 1; //write-enable
                         write_calib_col <= 0;
-                        write_calib_data <= 64'h77_66_55_44_33_22_11_00; 
+                        write_calib_data <= 64'h9177298cd0ad51c1; 
                         state_calibrate <= ISSUE_WRITE_2;
                        end    
         ISSUE_WRITE_2: begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_we <= 1; //write-enable
                         write_calib_col <= 8;
-                        write_calib_data <= 64'hff_ee_dd_cc_bb_aa_99_88;
+                        write_calib_data <= 64'h80dbcfd275f12c3d;
                         state_calibrate <= ISSUE_READ;
                        end    
                                     
@@ -1127,7 +1127,12 @@ module ddr3_controller #(
                          read_data_store <= o_wb_data;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index <= 0;
-                         write_pattern <= 128'hff_ee_dd_cc_bb_aa_99_88_77_66_55_44_33_22_11_00;
+                         // Possible Patterns (strong autocorrel stat)
+                         //0x80dbcfd275f12c3d   
+                         //0x9177298cd0ad51c1
+                         //0x01b79fa4ebe2587b
+                         //0x22ee5319a15aa382
+                         write_pattern <= 128'h80dbcfd275f12c3d_9177298cd0ad51c1;
                       end              
                         
         ANALYZE_DATA: if(write_pattern[data_start_index +: 64] == read_data_store) begin            
