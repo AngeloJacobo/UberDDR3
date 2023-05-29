@@ -51,6 +51,7 @@ module ddr3_phy #(
                CMD_RESET_N = cmd_len - 7,
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ADDRESS_START = ROW_BITS - 1;
+    localparam SYNC_RESET_DELAY = $ceil(52/CONTROLLER_CLK_PERIOD); //52 ns of reset pulse width required for IDELAYCTRL 
     genvar gen_index;
     wire[cmd_len-1:0] oserdes_cmd, //serialized(4:1) i_controller_cmd_slot_x 
                       cmd;//delayed oserdes_cmd
@@ -60,6 +61,21 @@ module ddr3_phy #(
     wire[LANES-1:0] oserdes_dqs;
     wire[LANES-1:0] oserdes_dqs_tri_control;
     wire[LANES-1:0] oserdes_bitslip_reference;
+    reg[$clog2(SYNC_RESET_DELAY):0] delay_before_release_reset;
+    reg sync_rst = 0;
+
+    //synchronous reset
+    always @(posedge i_controller_clk, negedge i_rst_n) begin
+        if(!i_rst_n) begin
+            sync_rst <= 1'b1;
+            delay_before_release_reset <= SYNC_RESET_DELAY;
+        end
+        else begin
+            delay_before_release_reset <= (delay_before_release_reset == 0)? 0: delay_before_release_reset - 1;
+            sync_rst <= !(delay_before_release_reset == 0);
+        end
+    end
+
     //PHY cmd 
     generate
         for(gen_index = 0; gen_index < cmd_len; gen_index = gen_index + 1) begin
@@ -84,7 +100,7 @@ module ddr3_phy #(
                 .D3(i_controller_cmd[cmd_len*2 + gen_index]),
                 .D4(i_controller_cmd[cmd_len*3 + gen_index]),
                 .OCE(1), // 1-bit input: Output data clock enable
-                .RST(!i_rst_n) // 1-bit input: Reset
+                .RST(sync_rst) // 1-bit input: Reset
             );
             // End of OSERDESE2_inst instantiation
         
@@ -161,7 +177,7 @@ module ddr3_phy #(
                 .T1(i_controller_dq_tri_control),
                 .TCE(1'b1),
                 .OCE(1), // 1-bit input: Output data clock enable
-                .RST(!i_rst_n) // 1-bit input: Reset
+                .RST(sync_rst) // 1-bit input: Reset
             );
             // End of OSERDESE2_inst instantiation
             
@@ -307,7 +323,7 @@ module ddr3_phy #(
                 .DDLY(idelay_data[gen_index]), // 1-bit input: Serial data from IDELAYE2
                 .OFB(), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(!i_rst_n), // 1-bit input: Active high asynchronous reset
+                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -377,7 +393,7 @@ module ddr3_phy #(
                 .T1(i_controller_dqs_tri_control),
                 .TCE(1'b1),
                 .OCE(1), // 1-bit input: Output data clock enable
-                .RST(!i_rst_n) // 1-bit input: Reset
+                .RST(sync_rst) // 1-bit input: Reset
             );
             // End of OSERDESE2_inst instantiation
             
@@ -486,7 +502,7 @@ module ddr3_phy #(
                 .DDLY(idelay_dqs[gen_index]), // 1-bit input: Serial data from IDELAYE2
                 .OFB(), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(!i_rst_n), // 1-bit input: Active high asynchronous reset
+                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -555,7 +571,7 @@ module ddr3_phy #(
                 .DDLY(), // 1-bit input: Serial data from IDELAYE2
                 .OFB(oserdes_bitslip_reference[gen_index]), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(!i_rst_n), // 1-bit input: Active high asynchronous reset
+                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -587,7 +603,7 @@ module ddr3_phy #(
                     .D7(1'b1),
                     .D8(1'b1),
                     .OCE(1), // 1-bit input: Output data clock enable
-                    .RST(!i_rst_n) // 1-bit input: Reset
+                    .RST(sync_rst) // 1-bit input: Reset
                 );
                 // End of OSERDESE2_inst instantiation  
     
@@ -619,7 +635,7 @@ module ddr3_phy #(
         .D7(1'b1),
         .D8(1'b1),
         .OCE(1), // 1-bit input: Output data clock enable
-        .RST(!i_rst_n) // 1-bit input: Reset
+        .RST(sync_rst) // 1-bit input: Reset
     );
     // End of OSERDESE2_inst instantiation  
      */
@@ -647,7 +663,7 @@ module ddr3_phy #(
         .D7(1'b1 && i_controller_toggle_dqs),
         .D8(1'b0 && i_controller_toggle_dqs),
         .OCE(1), // 1-bit input: Output data clock enable
-        .RST(!i_rst_n) // 1-bit input: Reset
+        .RST(sync_rst) // 1-bit input: Reset
     );
     // End of OSERDESE2_inst instantiation
     */
@@ -658,7 +674,7 @@ module ddr3_phy #(
     IDELAYCTRL IDELAYCTRL_inst (
         .RDY(o_controller_idelayctrl_rdy), // 1-bit output: Ready output
         .REFCLK(i_ref_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
-        .RST(!i_rst_n) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
+        .RST(sync_rst) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
     );
     // End of IDELAYCTRL_inst instantiation
 
