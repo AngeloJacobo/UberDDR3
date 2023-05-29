@@ -36,6 +36,7 @@ module ddr3_top #(
         output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         output wire o_aux, //for AXI-interface compatibility (returned upon ack)
         // DDR3 I/O Interface
+        output wire o_ddr3_clk_p, o_ddr3_clk_n,
         output wire o_ddr3_reset_n,
         output wire o_ddr3_cke, // CKE
         output wire o_ddr3_cs_n, // chip select signal
@@ -133,6 +134,8 @@ module ddr3_top #(
             .o_controller_iserdes_bitslip_reference(iserdes_bitslip_reference),
             .o_controller_idelayctrl_rdy(idelayctrl_rdy),
             // DDR3 I/O Interface
+            .o_ddr3_clk_p(o_ddr3_clk_p),
+            .o_ddr3_clk_n(o_ddr3_clk_n),
             .o_ddr3_reset_n(o_ddr3_reset_n),
             .o_ddr3_cke(o_ddr3_cke), // CKE
             .o_ddr3_cs_n(o_ddr3_cs_n), // chip select signal
