@@ -857,9 +857,6 @@ module ddr3_controller #(
             write_dq_q <= 0;
             write_dq <= 0;
             o_wb_ack_read_q <= 0;
-            for(index = 0; index < LANES; index = index + 1) begin
-                added_read_pipe[index] <= 0;
-            end
             for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= 0;
             end
@@ -964,6 +961,9 @@ module ddr3_controller #(
             dqs_start_index_repeat <= 0;
             delay_before_write_level_feedback <= 0;
             delay_before_read_data <= 0;
+            for(index = 0; index < LANES; index = index + 1) begin
+                added_read_pipe[index] <= 0;
+            end
         end
         else begin
             write_calib_stb <= 0;//actual request flag
