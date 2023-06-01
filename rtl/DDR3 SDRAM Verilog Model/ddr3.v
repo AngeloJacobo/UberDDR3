@@ -1440,7 +1440,7 @@ module ddr3 (
                             end
                             if (DEBUG) begin 
                                 $display ("%m: at time %t INFO: %s bank %d row %h", $time, cmd_string[cmd], bank, addr);
-                                $display("\n\nprev_cmd=%s, prev_time=%0d ps, difference=%0d ps\n\n", prev_cmd,prev_time, $time-prev_time);
+                                $display("\tprev_cmd=%s, prev_time=%0d ps, difference=%0d ps", prev_cmd,prev_time, $time-prev_time);
                                 prev_time = $time;
                                 prev_cmd = cmd_string[cmd];
                                 
@@ -1506,7 +1506,7 @@ module ddr3 (
                             end
                             if (DEBUG) begin
                                 $display ("%m: at time %t INFO: %s bank %d col %h, auto precharge %d", $time, cmd_string[cmd], bank, col, addr[AP]);
-                                $display("\n\nprev_cmd=%s, prev_time=%0d ps, difference=%0d ps\n\n", prev_cmd,prev_time, $time-prev_time);
+                                $display("\tprev_cmd=%s, prev_time=%0d ps, difference=%0d ps", prev_cmd,prev_time, $time-prev_time);
                                 prev_time = $time;
                                 prev_cmd = cmd_string[cmd];
                             end
@@ -1566,7 +1566,7 @@ module ddr3 (
                             end
                             if (DEBUG) begin
                                 $display ("%m: at time %t INFO: %s bank %d col %h, auto precharge %d", $time, cmd_string[cmd], bank, col, addr[AP]);
-                                 $display("\n\nprev_cmd=%s, prev_time=%0d ps, difference=%0d ps\n\n", prev_cmd,prev_time, $time-prev_time);
+                                 $display("\tprev_cmd=%s, prev_time=%0d ps, difference=%0d ps", prev_cmd,prev_time, $time-prev_time);
                                 prev_time = $time;
                                 prev_cmd = cmd_string[cmd];
                             end
