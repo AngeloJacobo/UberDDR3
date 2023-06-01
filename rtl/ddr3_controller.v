@@ -146,8 +146,8 @@ module ddr3_controller #(
     localparam tCCD = 4; //nCK CAS to CAS command delay
     localparam[DELAY_SLOT_WIDTH - 1:0] tMOD = max(nCK_to_cycles(12), ns_to_cycles(15)); //cycles (controller)  Mode Register Set command update delay
     localparam[DELAY_SLOT_WIDTH - 1:0] tZQinit = max(nCK_to_cycles(512), ns_to_cycles(640));//cycles (controller)  Power-up and RESET calibration time
-    localparam CL_nCK = 11; //create a function for this
-    localparam CWL_nCK = 8; //create a function for this
+    localparam CL_nCK = 6; //create a function for this
+    localparam CWL_nCK = 5; //create a function for this
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam READ_CAL_DELAY = 100;
@@ -197,7 +197,7 @@ module ddr3_controller #(
                 ANALYZE_DATA = 13, 
                 DONE_CALIBRATE = 14;
      localparam STORED_DQS_SIZE = 5, //must be >= 2           
-                REPEAT_DQS_ANALYZE = 5; // repeat DQS read to find the accurate starting position of DQS
+                REPEAT_DQS_ANALYZE = 1; // repeat DQS read to find the accurate starting position of DQS
 
     /*********************************************************************************************************************************************/
 
@@ -205,7 +205,7 @@ module ddr3_controller #(
     /************************************************************* Set Mode Registers Parameters *************************************************************/
     // MR2 (JEDEC DDR3 doc pg. 30)
     localparam[2:0] PASR = 3'b000; //Partial Array Self-Refresh: Full Array
-    localparam[2:0] CWL = 3'b011; //CAS write Latency: 8 (1.5 ns > tCK(avg) >= 1.25 ns) CREATE A FUNCTION FOR THIS
+    localparam[2:0] CWL = 3'b000; //CAS write Latency: 8 (1.5 ns > tCK(avg) >= 1.25 ns) CREATE A FUNCTION FOR THIS
     localparam[0:0] ASR = 1'b1; //Auto Self-Refresh: on
     localparam[0:0] SRT = 1'b0; //Self-Refresh Temperature Range:0 (If ASR = 1, SRT bit must be set to 0)
     localparam[1:0] RTT_WR = 2'b00; //Dynamic ODT: off
@@ -238,7 +238,7 @@ module ddr3_controller #(
 
     //MR0 (JEDEC DDR3 doc pg. 24)
     localparam[1:0] BL = 2'b00; //Burst Length: 8 (Fixed)
-    localparam[3:0] CL = 4'b1110; //CAS Read Latency: 10, can support DDR-1600 speedbin 8-8-8, 9-9-9, and 10-10-10 (Check JEDEC DDR doc pg. 162) CREATE A FUNCTION FOR THIS
+    localparam[3:0] CL = 4'b0100; //CAS Read Latency: 10, can support DDR-1600 speedbin 8-8-8, 9-9-9, and 10-10-10 (Check JEDEC DDR doc pg. 162) CREATE A FUNCTION FOR THIS
     localparam[0:0] RBT = 1'b0; //Read Burst Type: Nibble Sequential
     localparam[0:0] DLL_RST = 1'b1; //DLL Reset: Yes (this is self-clearing and must be applied after DLL enable)
     localparam[2:0] WR = WRA_mode_register_value($ceil(tWR/DDR3_CLK_PERIOD)); //Write recovery for autoprecharge (
@@ -286,8 +286,8 @@ module ddr3_controller #(
     reg stage2_pending = 0;
     reg stage2_we = 0;
     reg [wb_data_bits - 1:0] stage2_data [STAGE2_DATA_DEPTH-1:0];
-    reg [wb_data_bits*2 - 1:0] stage2_data_unaligned = 0;
-    reg [wb_data_bits - 1:0] unaligned_data = 0;
+    reg [wb_data_bits - 1:0] stage2_data_unaligned = 0;
+    reg [DQ_BITS*8 - 1:0] unaligned_data[LANES-1:0];
     //reset data
     initial begin
         for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin
@@ -372,14 +372,14 @@ module ddr3_controller #(
     reg write_calib_stb = 0;
     reg write_calib_we = 0;
     reg[3:0] write_calib_col = 0;
-    reg[63:0] write_calib_data = 0;
+    reg[wb_data_bits-1:0] write_calib_data = 0;
     reg write_calib_odt = 0;
     reg write_calib_dqs = 0;
     reg write_calib_dq = 0;
     reg prev_write_level_feedback = 1;
-    reg[63:0] read_data_store = 0;
+    reg[wb_data_bits-1:0] read_data_store = 0;
     reg[127:0] write_pattern = 0;
-    reg[$clog2(64):0] data_start_index = 0;       
+    reg[$clog2(64):0] data_start_index[LANES-1:0];       
     /*********************************************************************************************************************************************/
 
     
@@ -560,7 +560,9 @@ module ddr3_controller #(
             stage2_row <= 0;
             cmd_odt_q <= 0;
             stage2_data_unaligned <= 0;
-            unaligned_data <= 0;
+            for(index=0; index<LANES; index=index+1) begin
+                unaligned_data[index] <= 0;
+            end
             //set delay counters to 0
             for(index=0; index<(1<<BA_BITS); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= 0;  
@@ -657,7 +659,17 @@ module ddr3_controller #(
                 {stage1_next_row , stage1_next_bank, stage1_next_col[COL_BITS-1:$clog2(serdes_ratio*2)] } <= 0; //anticipated next row and bank to be accessed 
                 stage1_data <= write_calib_data;
             end
-            {unaligned_data, stage2_data[0]} <= (stage2_data_unaligned << data_start_index) | unaligned_data;
+            
+            for(index = 0; index < LANES; index = index + 1) begin
+                {unaligned_data[index], { stage2_data[0][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*6 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*5 + 8*index) +: 8],
+                stage2_data[0][((DQ_BITS*LANES)*4 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*2 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*1 + 8*index) +: 8],
+                stage2_data[0][((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
+                <= ( {stage2_data_unaligned[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*6 + 8*index) +: 8],
+                        stage2_data_unaligned[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*4 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8],
+                        stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],stage2_data_unaligned[((DQ_BITS*LANES)*1 + 8*index) +: 8],stage2_data_unaligned[((DQ_BITS*LANES)*0 + 8*index) +: 8] }
+                        << data_start_index[index]) | unaligned_data[index];
+            end
+            //{unaligned_data, stage2_data[0]} <= (stage2_data_unaligned << data_start_index) | unaligned_data;
             for(index = 1; index < STAGE2_DATA_DEPTH; index = index+1) begin
                 stage2_data[index] <=  stage2_data[index-1];              
             end
@@ -955,7 +967,6 @@ module ddr3_controller #(
             skip_reset_seq_delay <= 0;
             read_data_store <= 0;
             write_pattern <= 0;
-            data_start_index <= 0;
             added_read_pipe_max <= 0;
             dqs_start_index_stored <= 0;
             dqs_start_index_repeat <= 0;
@@ -963,6 +974,7 @@ module ddr3_controller #(
             delay_before_read_data <= 0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
+                data_start_index[index] <= 0;
             end
         end
         else begin
@@ -1087,6 +1099,7 @@ module ddr3_controller #(
                                 if(lane == LANES - 1) begin
                                     write_calib_odt <= 0;
                                     skip_reset_seq_delay <= 1;
+                                    lane <= 0;
                                     state_calibrate <= ISSUE_WRITE_1;
                                 end
                                 else begin
@@ -1106,14 +1119,14 @@ module ddr3_controller #(
                         write_calib_stb <= 1;//actual request flag
                         write_calib_we <= 1; //write-enable
                         write_calib_col <= 0;
-                        write_calib_data <= 64'h9177298cd0ad51c1; 
+                        write_calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
                         state_calibrate <= ISSUE_WRITE_2;
                        end    
         ISSUE_WRITE_2: begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_we <= 1; //write-enable
                         write_calib_col <= 8;
-                        write_calib_data <= 64'h80dbcfd275f12c3d;
+                        write_calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
                         state_calibrate <= ISSUE_READ;
                        end    
                                     
@@ -1126,7 +1139,7 @@ module ddr3_controller #(
            READ_DATA: if(o_wb_ack_read_q[0]) begin
                          read_data_store <= o_wb_data;
                          state_calibrate <= ANALYZE_DATA;
-                         data_start_index <= 0;
+                         data_start_index[lane] <= 0;
                          // Possible Patterns (strong autocorrel stat)
                          //0x80dbcfd275f12c3d   
                          //0x9177298cd0ad51c1
@@ -1135,11 +1148,20 @@ module ddr3_controller #(
                          write_pattern <= 128'h80dbcfd275f12c3d_9177298cd0ad51c1;
                       end              
                         
-        ANALYZE_DATA: if(write_pattern[data_start_index +: 64] == read_data_store) begin            
-                        state_calibrate <= DONE_CALIBRATE;
+        //ANALYZE_DATA: if(write_pattern[data_start_index[lane] +: 64] == read_data_store[lane*DQ_BITS*8 +: DQ_BITS*8]) begin   
+        ANALYZE_DATA: if(write_pattern[data_start_index[lane] +: 64] == {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                        read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                        read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] }) begin   
+                        if(lane == LANES - 1) begin
+                            state_calibrate <= DONE_CALIBRATE;
+                        end        
+                        else begin
+                            lane <= lane + 1;
+                            data_start_index[lane+1] <= 0;
+                        end
                       end 
                       else begin
-                        data_start_index <= data_start_index + 8;
+                        data_start_index[lane] <= data_start_index[lane] + 8;
                       end             
        DONE_CALIBRATE: state_calibrate <= DONE_CALIBRATE;
 
