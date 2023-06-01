@@ -77,5 +77,6 @@
 ![Screenshot from 2023-05-25 19-38-39](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/eb89a6a3-2aab-4c1b-8fbc-f9ecfe508ebd)
 ![Screenshot from 2023-05-25 19-38-50](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/d6bf96db-6aa5-48b0-a9e4-2288306c0ef7)
 
+## Model Test  
 
-
+![Screenshot from 2023-06-01 18-49-13](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/cfc3c4bb-f66b-4464-9ab3-0084531fdcca)
