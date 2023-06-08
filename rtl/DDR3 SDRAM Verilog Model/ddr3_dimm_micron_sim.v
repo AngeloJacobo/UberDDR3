@@ -46,11 +46,11 @@ module ddr3_dimm_micron_sim;
  reg i_wb_cyc; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
  reg i_wb_stb; //request a transfer
  reg i_wb_we; //write-enable (1 = write, 0 = read)
- reg[$bits(ddr3_controller.i_wb_addr)-1:0] i_wb_addr; //burst-addressable {row,bank,col} 
- reg[$bits(ddr3_controller.i_wb_data)-1:0] i_wb_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+ reg[$bits(ddr3_top.i_wb_addr)-1:0] i_wb_addr; //burst-addressable {row,bank,col} 
+ reg[$bits(ddr3_top.i_wb_data)-1:0] i_wb_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
  wire o_wb_stall; //1 = busy, cannot accept requests
  wire o_wb_ack; //1 = read/write request has completed
- wire[$bits(ddr3_controller.o_wb_data)-1:0] o_wb_data; //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+ wire[$bits(ddr3_top.o_wb_data)-1:0] o_wb_data; //read data, for a 4:1 controller data width is 8 times the number of pins on the device
  // PHY Interface to DDR3 Device
   wire ck_en; // CKE
   wire cs_n; // chip select signal
@@ -65,7 +65,7 @@ module ddr3_dimm_micron_sim;
   wire[$bits(ddr3_top.io_ddr3_dqs)-1:0] dqs;
   wire[$bits(ddr3_top.io_ddr3_dqs_n)-1:0] dqs_n;
   wire o_ddr3_clk_p, o_ddr3_clk_n;
-  
+  integer index;
   
 // DDR3 Controller 
 ddr3_top #(
@@ -162,7 +162,13 @@ ddr3_top #(
         .dqs_n(dqs_n),
         .dq(dq)
     );
+    integer start_of_test = 0;
+    reg[511:0] write_data = 0, expected_read_data = 0;
+    integer address = 0, read_address = 0;
+    integer number_of_writes=0, number_of_reads=0, number_of_successful=0, number_of_failed=0;
+    localparam MAX_READS = 64;
       initial begin
+        start_of_test = 0;
         //toggle reset for 1 slow clk 
         @(negedge i_controller_clk)
         i_rst_n = 0;
@@ -173,21 +179,75 @@ ddr3_top #(
         i_wb_data = 0;
         @(negedge i_controller_clk)
         i_rst_n = 1;
-        wait(ddr3_controller.state_calibrate == ddr3_controller.DONE_CALIBRATE);
+        wait(ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE);
         
+        // test 1 phase 1: Write random word sequentially
+        start_of_test = 1;
+        address = 0;
+        while(address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+            @(negedge i_controller_clk);
+            if(!o_wb_stall) begin 
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+                end
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 1; 
+                i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
+                i_wb_data = write_data;
+                $display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                number_of_writes = number_of_writes + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+            else begin
+                i_wb_cyc = 1;
+                i_wb_stb = 0;
+                i_wb_we = 0; 
+                i_wb_addr = 0;
+                i_wb_data = 0;
+            end
+        end
+        
+        // test 1 phase 2: Read sequentially
+        start_of_test = 2;
+        address = 0;
+        while(address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(negedge i_controller_clk);
+           if(!o_wb_stall) begin 
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 0; 
+                i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
+                $display("Read: Address = %0d", i_wb_addr);
+                number_of_reads = number_of_reads + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+            else begin
+                i_wb_cyc = 1;
+                i_wb_stb = 0;
+                i_wb_we = 0; 
+                i_wb_addr = 0;
+            end
+        end
+        @(negedge i_controller_clk);
+        i_wb_stb = 0;
+        
+        
+        /*
         // write
+        //wait until ready to access
         wait(!o_wb_stall);
         @(negedge i_controller_clk);
         i_wb_cyc = 1;
         i_wb_stb = 1;
         i_wb_we = 1;
         i_wb_addr = 0;
-        //i_wb_data = "BURST_8 BURST_7 BURST_6 BURST_5 BURST_4 BURST_3 BURST_2 BURST_1 ";
-        i_wb_data = 512'h77777777_77777777__66666666_66666666__55555555_55555555__44444444_44444444__33333333_33333333__22222222_22222222__11111111_11111111__00000000_00000000;
+        i_wb_data = "BURST_8 BURST_7 BURST_6 BURST_5 BURST_4 BURST_3 BURST_2 BURST_1 ";
+        //i_wb_data = 512'h77777777_77777777__66666666_66666666__55555555_55555555__44444444_44444444__33333333_33333333__22222222_22222222__11111111_11111111__00000000_00000000;
         @(negedge i_controller_clk);
         i_wb_addr = 1;
-        //i_wb_data = "SAMPLE8 SAMPLE7 SAMPLE6 SAMPLE5 SAMPLE4 SAMPLE3 SAMPLE2 SAMPLE1 SAMPLE0";
-        i_wb_data = 512'h77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100;
+        i_wb_data = "SAMPLE8 SAMPLE7 SAMPLE6 SAMPLE5 SAMPLE4 SAMPLE3 SAMPLE2 SAMPLE1 SAMPLE0";
+        //i_wb_data = 512'h77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100;
         @(negedge i_controller_clk);
         i_wb_stb = 0;
         i_wb_data = 0;
@@ -202,14 +262,34 @@ ddr3_top #(
         i_wb_addr = 1;
         @(negedge i_controller_clk);
         i_wb_stb = 0;
+        */
       
-      
-        #100_000;
+        #1000_000;
+        $display("\n\n------- SUMMARY -------\nNumber of Writes = %0d\nNumber of Reads = %0d\nNumber of Success = %0d\nNumber of Fails = %0d\n", number_of_writes, number_of_reads,number_of_successful, number_of_failed); 
         $stop;
     end
-  
-
-
+    
+    //check read data
+    initial begin
+        read_address = 0;
+        while(read_address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(negedge i_controller_clk);
+           if(o_wb_ack && start_of_test) begin
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                end
+                if(expected_read_data == o_wb_data) begin
+                    $display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_successful = number_of_successful + 1;
+                end
+                else begin
+                    $display("FAILED: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_failed = number_of_failed + 1;
+                end            
+                read_address = read_address + ($bits(ddr3_top.i_wb_data)/32); 
+           end
+        end
+    end
 
 
 endmodule
