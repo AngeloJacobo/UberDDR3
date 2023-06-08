@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="55,535.400 ns"></ZoomStartTime>
-      <ZoomEndTime time="55,594.601 ns"></ZoomEndTime>
-      <Cursor1Time time="55,547.300 ns"></Cursor1Time>
+      <ZoomStartTime time="66,452.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="67,580.001 ns"></ZoomEndTime>
+      <Cursor1Time time="66,970.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="247"></NameColumnWidth>
-      <ValueColumnWidth column_width="66"></ValueColumnWidth>
+      <NameColumnWidth column_width="268"></NameColumnWidth>
+      <ValueColumnWidth column_width="101"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="40" />
+   <WVObjectSize size="70" />
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Model File</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -73,17 +73,23 @@
       <obj_property name="ObjectShortName">o_wb_data[511:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_data_q">
+      <obj_property name="ElementShortName">o_wb_data_q[1:0][511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_wb_data_q[1:0][511:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ck_en">
       <obj_property name="ElementShortName">ck_en</obj_property>
       <obj_property name="ObjectShortName">ck_en</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/cs_n">
-      <obj_property name="ElementShortName">cs_n</obj_property>
-      <obj_property name="ObjectShortName">cs_n</obj_property>
-   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/odt">
       <obj_property name="ElementShortName">odt</obj_property>
       <obj_property name="ObjectShortName">odt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/cs_n">
+      <obj_property name="ElementShortName">cs_n</obj_property>
+      <obj_property name="ObjectShortName">cs_n</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ras_n">
       <obj_property name="ElementShortName">ras_n</obj_property>
@@ -112,6 +118,7 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dq">
       <obj_property name="ElementShortName">dq[63:0]</obj_property>
       <obj_property name="ObjectShortName">dq[63:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
       <obj_property name="ElementShortName">i_controller_clk</obj_property>
@@ -163,6 +170,18 @@
       <obj_property name="ElementShortName">dqs_start_index[5:0]</obj_property>
       <obj_property name="ObjectShortName">dqs_start_index[5:0]</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_target_index">
+      <obj_property name="ElementShortName">dqs_target_index[5:0]</obj_property>
+      <obj_property name="ObjectShortName">dqs_target_index[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dq_target_index">
+      <obj_property name="ElementShortName">dq_target_index[5:0]</obj_property>
+      <obj_property name="ObjectShortName">dq_target_index[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_target_index_orig">
+      <obj_property name="ElementShortName">dqs_target_index_orig[5:0]</obj_property>
+      <obj_property name="ObjectShortName">dqs_target_index_orig[5:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_start_index_repeat">
       <obj_property name="ElementShortName">dqs_start_index_repeat[0:0]</obj_property>
       <obj_property name="ObjectShortName">dqs_start_index_repeat[0:0]</obj_property>
@@ -184,5 +203,127 @@
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_idelayctrl_rdy">
       <obj_property name="ElementShortName">i_phy_idelayctrl_rdy</obj_property>
       <obj_property name="ObjectShortName">i_phy_idelayctrl_rdy</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/idelay_dqs">
+      <obj_property name="ElementShortName">idelay_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_dqs[7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/idelay_data">
+      <obj_property name="ElementShortName">idelay_data[63:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_data[63:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/odelay_data">
+      <obj_property name="ElementShortName">odelay_data[63:0]</obj_property>
+      <obj_property name="ObjectShortName">odelay_data[63:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/odelay_dqs">
+      <obj_property name="ElementShortName">odelay_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">odelay_dqs[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider136" type="divider">
+      <obj_property name="label">CMD</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
+      <obj_property name="ElementShortName">i_controller_clk</obj_property>
+      <obj_property name="ObjectShortName">i_controller_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_ddr3_clk">
+      <obj_property name="ElementShortName">i_ddr3_clk</obj_property>
+      <obj_property name="ObjectShortName">i_ddr3_clk</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d">
+      <obj_property name="ElementShortName">cmd_d[3:0][23:0]</obj_property>
+      <obj_property name="ObjectShortName">cmd_d[3:0][23:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/oserdes_cmd[23]">
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="ElementShortName">[23]</obj_property>
+      <obj_property name="ObjectShortName">[23]</obj_property>
+      <obj_property name="label">oserdes</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/cmd[23]">
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="ElementShortName">[23]</obj_property>
+      <obj_property name="ObjectShortName">[23]</obj_property>
+      <obj_property name="label">cmd</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider143" type="divider">
+      <obj_property name="label">DQS</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_dqs_d">
+      <obj_property name="ElementShortName">write_dqs_d</obj_property>
+      <obj_property name="ObjectShortName">write_dqs_d</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_dqs">
+      <obj_property name="ElementShortName">write_dqs[2:0]</obj_property>
+      <obj_property name="ObjectShortName">write_dqs[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_dqs_val">
+      <obj_property name="ElementShortName">write_dqs_val[2:0]</obj_property>
+      <obj_property name="ObjectShortName">write_dqs_val[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/oserdes_dqs">
+      <obj_property name="ElementShortName">oserdes_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">oserdes_dqs[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/odelay_dqs">
+      <obj_property name="ElementShortName">odelay_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">odelay_dqs[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject fp_name="divider163" type="divider">
+      <obj_property name="label">DELAYS</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_odelay_data_cntvaluein">
+      <obj_property name="ElementShortName">o_phy_odelay_data_cntvaluein[4:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_odelay_data_cntvaluein[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_odelay_dqs_cntvaluein">
+      <obj_property name="ElementShortName">o_phy_odelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_odelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_idelay_data_cntvaluein">
+      <obj_property name="ElementShortName">o_phy_idelay_data_cntvaluein[4:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_idelay_data_cntvaluein[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein_prev">
+      <obj_property name="ElementShortName">idelay_data_cntvaluein_prev[4:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_data_cntvaluein_prev[4:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_idelay_dqs_cntvaluein">
+      <obj_property name="ElementShortName">o_phy_idelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_idelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_odelay_data_ld">
+      <obj_property name="ElementShortName">o_phy_odelay_data_ld[7:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_odelay_data_ld[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_odelay_dqs_ld">
+      <obj_property name="ElementShortName">o_phy_odelay_dqs_ld[7:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_odelay_dqs_ld[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_idelay_data_ld">
+      <obj_property name="ElementShortName">o_phy_idelay_data_ld[7:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_idelay_data_ld[7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_idelay_dqs_ld">
+      <obj_property name="ElementShortName">o_phy_idelay_dqs_ld[7:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_idelay_dqs_ld[7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
 </wave_config>
