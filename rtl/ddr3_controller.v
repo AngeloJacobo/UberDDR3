@@ -68,8 +68,10 @@ module ddr3_controller #(
         output wire o_phy_dqs_tri_control, o_phy_dq_tri_control,
         output wire o_phy_toggle_dqs,
         output wire[wb_data_bits-1:0] o_phy_data,
-        output reg[LANES-1:0] o_phy_odelay_ce, o_phy_odelay_inc,
-        output reg[LANES-1:0] o_phy_idelay_ce, o_phy_idelay_inc,
+        output wire[4:0] o_phy_odelay_data_cntvaluein, o_phy_odelay_dqs_cntvaluein,
+        output wire[4:0] o_phy_idelay_data_cntvaluein, o_phy_idelay_dqs_cntvaluein,
+        output reg[LANES-1:0] o_phy_odelay_data_ld, o_phy_odelay_dqs_ld,
+        output reg[LANES-1:0] o_phy_idelay_data_ld, o_phy_idelay_dqs_ld,
         output reg[LANES-1:0] o_phy_bitslip
     );
 
@@ -112,6 +114,28 @@ module ddr3_controller #(
                 ACTIVATE_SLOT = get_slot(CMD_ACT),
                 PRECHARGE_SLOT = get_slot(CMD_PRE);
                 
+    //cmd needs to be center-aligned to the positive edge of the 
+    //ddr3_clk. This means cmd needs to be delayed by half the ddr3
+    //clk period. Subtract by 600ps to include the IODELAY insertion
+    //delay. Divide by a delay resolution of 78.125ps per tap to get 
+    //the needed tap value.
+    localparam CMD_INITIAL_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/2) - 600)/78.125;
+
+    // Data does not have to be delayed (DQS is the on that has to be
+    // delayed and center-aligned to the center eye of data)
+    localparam DATA_INITIAL_ODELAY_TAP = 0; 
+
+    //DQS needs to be edge-aligned to the center eye of the data. 
+    //This means DQS needs to be delayed by a quarter of the ddr3
+    //clk period relative to the data. Subtract by 600ps to include
+    //the IODELAY insertion delay. Divide by a delay resolution of 
+    //78.125ps per tap to get the needed tap value. Then add the tap
+    //value used in data to have the delay relative to the data.
+    localparam DQS_INITIAL_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_ODELAY_TAP;
+    
+    //Incoming DQS should be 90 degree delayed relative to incoming data
+    localparam DATA_INITIAL_IDELAY_TAP = 0; //600ps delay
+    localparam DQS_INITIAL_IDELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_IDELAY_TAP;
     /*********************************************************************************************************************************************/
 
 
@@ -323,10 +347,6 @@ module ddr3_controller #(
         end
     end
     initial begin
-        o_phy_odelay_ce = 0;
-        o_phy_odelay_inc = 0;
-        o_phy_idelay_ce = 0;
-        o_phy_idelay_inc = 0;
         o_phy_bitslip = 0;
     end
     reg cmd_odt_q = 0, cmd_odt, cmd_ck_en, cmd_reset_n;  
@@ -337,7 +357,7 @@ module ddr3_controller #(
     reg[1:0] write_dqs_q;
     reg write_dqs_d;
     reg[STAGE2_DATA_DEPTH:0] write_dqs;
-    reg write_dqs_val;
+    reg[STAGE2_DATA_DEPTH:0] write_dqs_val;
     reg write_dq_q, write_dq_d;
     reg[STAGE2_DATA_DEPTH+1:0] write_dq;
                 
@@ -351,7 +371,8 @@ module ddr3_controller #(
     reg[$clog2(STORED_DQS_SIZE):0] dqs_count_repeat = 0;
     reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
     reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
-    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
+    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0, dqs_target_index_orig = 0, dq_target_index = 0;
+    wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
     reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
     reg[1:0] train_delay;
     reg[3:0] delay_before_read_data = 0;
@@ -380,6 +401,21 @@ module ddr3_controller #(
     reg[wb_data_bits-1:0] read_data_store = 0;
     reg[127:0] write_pattern = 0;
     reg[$clog2(64):0] data_start_index[LANES-1:0];       
+    reg[4:0] odelay_data_cntvaluein[LANES-1:0]; 
+    reg[4:0] odelay_dqs_cntvaluein[LANES-1:0];
+    reg[4:0] idelay_data_cntvaluein[LANES-1:0];
+    reg[4:0] idelay_data_cntvaluein_prev;
+    reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
+
+
+    initial begin
+        for(index = 0; index < LANES; index = index + 1) begin
+            odelay_data_cntvaluein[index] = DATA_INITIAL_ODELAY_TAP;
+            odelay_dqs_cntvaluein[index] = DQS_INITIAL_ODELAY_TAP;
+            idelay_data_cntvaluein[index] = DATA_INITIAL_IDELAY_TAP;
+            idelay_dqs_cntvaluein[index] = DQS_INITIAL_IDELAY_TAP;
+        end
+    end
     /*********************************************************************************************************************************************/
 
     
@@ -877,7 +913,7 @@ module ddr3_controller #(
             end
         end
         else begin
-            write_dqs_val <= write_dqs_d || write_dqs_q[0];
+            write_dqs_val[0] <= write_dqs_d || write_dqs_q[0];
             write_dqs_q[0] <= write_dqs_d;
             write_dqs_q[1] <= write_dqs_q[0];
             write_dqs[0] <= write_dqs_d || write_dqs_q[1] || write_dqs_q[0]; //high for 3 clk cycles
@@ -886,6 +922,7 @@ module ddr3_controller #(
             write_dq[0] <= write_dq_d || write_dq_q; //high for 2 clk cycles
             for(index = 1; index <= STAGE2_DATA_DEPTH; index = index+1) begin //increase by 1 to accomodate postamble            
                 write_dqs[index] <= write_dqs[index-1]; 
+                write_dqs_val[index] <= write_dqs_val[index-1];
             end 
             for(index = 1; index <= STAGE2_DATA_DEPTH+1; index = index+1) begin //increase by 1 to accomodate postamble            
                 write_dq[index] <= write_dq[index-1]; 
@@ -895,7 +932,7 @@ module ddr3_controller #(
             for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
-            if(shift_reg_read_pipe_q[1]) begin //delay is over and data is now strating to release from iserdes BUT NOT YET ALIGNED
+            if(shift_reg_read_pipe_q[1]) begin //delay is over and data is now starting to release from iserdes BUT NOT YET ALIGNED
                 index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 3 pipe to store read data)ss
                 delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
             end
@@ -935,7 +972,7 @@ module ddr3_controller #(
     assign o_wb_data = o_wb_data_q[index_wb_data];
     assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH];
     assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH+1];
-    assign o_phy_toggle_dqs = write_dqs_val; 
+    assign o_phy_toggle_dqs = write_dqs_val[STAGE2_DATA_DEPTH-2]; 
     /*********************************************************************************************************************************************/
     
 
@@ -948,10 +985,7 @@ module ddr3_controller #(
             dqs_count_repeat <= 0;
             dqs_start_index <= 0;
             dqs_target_index <= 0;
-            o_phy_odelay_ce <= 0;
-            o_phy_odelay_inc <= 0;
-            o_phy_idelay_ce <= 0;
-            o_phy_idelay_inc <= 0;
+            dqs_target_index_orig <= 0;
             o_phy_bitslip <= 0;
             initial_dqs <= 1;
             lane <= 0;
@@ -975,6 +1009,10 @@ module ddr3_controller #(
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
+                odelay_data_cntvaluein[index] = DATA_INITIAL_ODELAY_TAP;
+                odelay_dqs_cntvaluein[index] = DQS_INITIAL_ODELAY_TAP;
+                idelay_data_cntvaluein[index] = DATA_INITIAL_IDELAY_TAP;
+                idelay_dqs_cntvaluein[index] = DQS_INITIAL_IDELAY_TAP;
             end
         end
         else begin
@@ -988,18 +1026,39 @@ module ddr3_controller #(
             train_delay <= (train_delay==0)? 0:(train_delay - 1);
             delay_before_read_data <= (delay_before_read_data == 0)? 0: delay_before_read_data - 1;
             delay_before_write_level_feedback <= (delay_before_write_level_feedback == 0)? 0: delay_before_write_level_feedback - 1;
-            o_phy_odelay_ce <= 0;
-            o_phy_odelay_inc <= 0;
-            o_phy_idelay_ce <= 0;
-            o_phy_idelay_inc <= 0;
             o_phy_bitslip <= 0;
-            if(initial_dqs) dqs_target_index <= dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1;
+            o_phy_odelay_data_ld <= 0;
+            o_phy_odelay_dqs_ld <= 0;
+            o_phy_idelay_data_ld <= 0;
+            o_phy_idelay_dqs_ld <= 0;
+            idelay_data_cntvaluein_prev <= idelay_data_cntvaluein[lane];
+            // increase cntvalue every load to prepare for possible next load
+            odelay_data_cntvaluein[lane] <= o_phy_odelay_data_ld[lane]? odelay_data_cntvaluein[lane] + 1: odelay_data_cntvaluein[lane];
+            odelay_dqs_cntvaluein[lane] <= o_phy_odelay_dqs_ld[lane]? odelay_dqs_cntvaluein[lane] + 1: odelay_dqs_cntvaluein[lane];
+            idelay_data_cntvaluein[lane] <= o_phy_idelay_data_ld[lane]? idelay_data_cntvaluein[lane] + 1: idelay_data_cntvaluein[lane];
+            idelay_dqs_cntvaluein[lane] <= o_phy_idelay_dqs_ld[lane]? idelay_dqs_cntvaluein[lane] + 1: idelay_dqs_cntvaluein[lane];
+
+            if(initial_dqs) begin
+                dqs_target_index <= dqs_target_index_value;
+                dq_target_index <= dqs_target_index_value;
+                dqs_target_index_orig <= dqs_target_index_value;
+            end
+            if(idelay_dqs_cntvaluein[lane] == 0) begin //go back to previous odd
+                dqs_target_index <= dqs_target_index_orig - 2;
+            end
+            if(idelay_data_cntvaluein[lane] == 0 && idelay_data_cntvaluein_prev == 31) begin
+                dq_target_index <= dqs_target_index_orig - 2;
+            end
             
             // FSM
             case(state_calibrate) 
                 IDLE: if(i_phy_idelayctrl_rdy && instruction_address == 13) begin //we are now inside instruction 15 with maximum delay
                         state_calibrate <= BITSLIP_DQS_TRAIN_1;
                         lane <= 0;
+                        o_phy_odelay_data_ld <= {LANES{1'b1}};
+                        o_phy_odelay_dqs_ld <= {LANES{1'b1}};
+                        o_phy_idelay_data_ld <= {LANES{1'b1}};
+                        o_phy_idelay_dqs_ld <= {LANES{1'b1}};
                       end
   BITSLIP_DQS_TRAIN_1: if(train_delay == 0) begin
                         /* Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
@@ -1024,7 +1083,7 @@ module ddr3_controller #(
             MPR_READ: begin //align the incoming DQS during reads to the controller clock 
                              //skip_reset_seq_delay = 1;
                              //issue_read_command = 1;
-                             delay_before_read_data <= READ_DELAY + 1 + 2 + 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+                             delay_before_read_data <= READ_DELAY + 1 + 2 + 1 /*- 1*/; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
                              state_calibrate <= COLLECT_DQS;
                              dqs_count_repeat <= 0;
                       end    
@@ -1044,10 +1103,10 @@ module ddr3_controller #(
                          if(dqs_start_index_repeat == REPEAT_DQS_ANALYZE) begin //the same index appeared  REPEAT_DQS_ANALYZE times in a row, thus can proceed to CALIBRATE_DQS 
                             initial_dqs <= 0;
                             dqs_start_index_repeat <= 0;
+
                             state_calibrate <= CALIBRATE_DQS;
                          end
                         else begin
-                            //dqs_start_index_stored <= dqs_start_index;
                             state_calibrate <= MPR_READ;
                         end
                       end 
@@ -1056,13 +1115,13 @@ module ddr3_controller #(
                       end
 
         CALIBRATE_DQS: if(dqs_start_index_stored == dqs_target_index) begin
-                            added_read_pipe[lane] <= dqs_target_index[$clog2(STORED_DQS_SIZE*8)-1:3] + (dqs_target_index[2:0] >= 5);
-                            dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dqs_target_index[2:0];
+                            added_read_pipe[lane] <= dq_target_index[$clog2(STORED_DQS_SIZE*8)-1:3] + (dq_target_index[2:0] >= 5);
+                            dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[2:0];
                             state_calibrate <= BITSLIP_DQS_TRAIN_2;
                        end
                        else begin
-                            o_phy_idelay_ce[lane] <= 1;
-                            o_phy_idelay_inc[lane] <= 1;
+                            o_phy_idelay_data_ld[lane] <= 1;
+                            o_phy_idelay_dqs_ld[lane] <= 1;
                             state_calibrate <= MPR_READ;
                        end
                        
@@ -1109,8 +1168,8 @@ module ddr3_controller #(
                                 end
                             end
                             else begin
-                                o_phy_odelay_ce[lane] <= 1'b1;
-                                o_phy_odelay_inc[lane] <= 1'b1;
+                                o_phy_odelay_data_ld[lane] <= 1;
+                                o_phy_odelay_dqs_ld[lane] <= 1;
                                 state_calibrate <= START_WRITE_LEVEL; 
                             end
                         end     
@@ -1170,6 +1229,12 @@ module ddr3_controller #(
     end      
     assign issue_read_command = (state_calibrate == MPR_READ);
     assign issue_write_command = 0;
+    assign o_phy_odelay_data_cntvaluein = odelay_data_cntvaluein[lane]; 
+    assign o_phy_odelay_dqs_cntvaluein = odelay_dqs_cntvaluein[lane];
+    assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
+    assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
+    assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1;
+
     /*********************************************************************************************************************************************/
 
 
