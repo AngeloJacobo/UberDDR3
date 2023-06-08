@@ -62,7 +62,10 @@ module ddr3_top #(
     wire[LANES*8-1:0] iserdes_dqs;
     wire[LANES*8-1:0] iserdes_bitslip_reference;
     wire idelayctrl_rdy;
-    
+    wire[4:0] odelay_data_cntvaluein, odelay_dqs_cntvaluein;
+    wire[4:0] idelay_data_cntvaluein, idelay_dqs_cntvaluein;
+    wire[LANES-1:0] odelay_data_ld, odelay_dqs_ld;
+    wire[LANES-1:0] idelay_data_ld, idelay_dqs_ld;
     //module instantiations
     ddr3_controller #(
             .ROW_BITS(ROW_BITS), //width of row address
@@ -100,10 +103,14 @@ module ddr3_top #(
             .o_phy_dq_tri_control(dq_tri_control),
             .o_phy_toggle_dqs(toggle_dqs),
             .o_phy_data(data),
-            .o_phy_odelay_ce(odelay_ce), 
-            .o_phy_odelay_inc(odelay_inc),
-            .o_phy_idelay_ce(idelay_ce), 
-            .o_phy_idelay_inc(idelay_inc),
+            .o_phy_odelay_data_cntvaluein(odelay_data_cntvaluein),
+            .o_phy_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
+            .o_phy_idelay_data_cntvaluein(idelay_data_cntvaluein), 
+            .o_phy_idelay_dqs_cntvaluein(idelay_dqs_cntvaluein),
+            .o_phy_odelay_data_ld(odelay_data_ld),
+            .o_phy_odelay_dqs_ld(odelay_dqs_ld),
+            .o_phy_idelay_data_ld(idelay_data_ld), 
+            .o_phy_idelay_dqs_ld(idelay_dqs_ld),
             .o_phy_bitslip(bitslip)
         );
     ddr3_phy #(
@@ -124,10 +131,14 @@ module ddr3_top #(
             .i_controller_dq_tri_control(dq_tri_control),
             .i_controller_toggle_dqs(toggle_dqs),
             .i_controller_data(data),
-            .i_controller_odelay_ce(odelay_ce),
-            .i_controller_odelay_inc(odelay_inc),
-            .i_controller_idelay_ce(idelay_ce), 
-            .i_controller_idelay_inc(idelay_inc),
+            .i_controller_odelay_data_cntvaluein(odelay_data_cntvaluein),
+            .i_controller_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
+            .i_controller_idelay_data_cntvaluein(idelay_data_cntvaluein),
+            .i_controller_idelay_dqs_cntvaluein(idelay_dqs_cntvaluein),
+            .i_controller_odelay_data_ld(odelay_data_ld), 
+            .i_controller_odelay_dqs_ld(odelay_dqs_ld),
+            .i_controller_idelay_data_ld(idelay_data_ld), 
+            .i_controller_idelay_dqs_ld(idelay_dqs_ld),
             .i_controller_bitslip(bitslip),
             .o_controller_iserdes_data(iserdes_data),
             .o_controller_iserdes_dqs(iserdes_dqs),
