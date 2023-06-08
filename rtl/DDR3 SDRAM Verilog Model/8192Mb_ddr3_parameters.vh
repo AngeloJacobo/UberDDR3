@@ -424,9 +424,9 @@
     parameter RZQ              =     240; // termination resistance
     parameter PRE_DEF_PAT      =   8'hAA; // value returned during mpr pre-defined pattern readout
     parameter STOP_ON_ERROR    =       1; // If set to 1, the model will halt on command sequence/major errors
-    parameter DEBUG            =       1; // Turn on Debug messages
-    parameter BUS_DELAY        =       0; // delay in nanoseconds
-    parameter FLY_BY_DELAY     =       600; // delay in nanoseconds
+    parameter DEBUG            =       0; // Turn on Debug messages
+    parameter BUS_DELAY        =       0; // delay in nanoseconds (0(66775 ns) -> 625(50775 ns) -> 1250(105405 ns) -> 1875 (185165 ns) -> 2500(73575 ns) -> 3125 (55015 ns) -> 3750 (117385 ns) -> 4375 (99647 ns)        
+    parameter FLY_BY_DELAY     =       0; // delay in nanoseconds
     parameter RANDOM_OUT_DELAY =       0; // If set to 1, the model will put a random amount of delay on DQ/DQS during reads
     parameter RANDOM_SEED      =   31913; //seed value for random generator.
 
