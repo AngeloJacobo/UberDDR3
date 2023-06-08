@@ -20,8 +20,10 @@ module ddr3_phy #(
         input wire i_controller_dqs_tri_control, i_controller_dq_tri_control,
         input wire i_controller_toggle_dqs,
         input wire[wb_data_bits-1:0] i_controller_data,
-        input wire[LANES-1:0] i_controller_odelay_ce, i_controller_odelay_inc,
-        input wire[LANES-1:0] i_controller_idelay_ce, i_controller_idelay_inc,
+        input wire[4:0] i_controller_odelay_data_cntvaluein,i_controller_odelay_dqs_cntvaluein,
+        input wire[4:0] i_controller_idelay_data_cntvaluein,i_controller_idelay_dqs_cntvaluein,
+        input wire[LANES-1:0] i_controller_odelay_data_ld, i_controller_odelay_dqs_ld,
+        input wire[LANES-1:0] i_controller_idelay_data_ld, i_controller_idelay_dqs_ld,
         input wire[LANES-1:0] i_controller_bitslip,
         output wire[DQ_BITS*LANES*8-1:0] o_controller_iserdes_data,
         output wire[LANES*8-1:0] o_controller_iserdes_dqs,
@@ -53,6 +55,29 @@ module ddr3_phy #(
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ADDRESS_START = ROW_BITS - 1;
     localparam SYNC_RESET_DELAY = $rtoi($ceil(52/CONTROLLER_CLK_PERIOD)); //52 ns of reset pulse width required for IDELAYCTRL 
+    //cmd needs to be center-aligned to the positive edge of the 
+    //ddr3_clk. This means cmd needs to be delayed by half the ddr3
+    //clk period. Subtract by 600ps to include the IODELAY insertion
+    //delay. Divide by a delay resolution of 78.125ps per tap to get 
+    //the needed tap value.
+    localparam CMD_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/2) - 600)/78.125;
+
+    // Data does not have to be delayed (DQS is the on that has to be
+    // delayed and center-aligned to the center eye of data)
+    localparam DATA_ODELAY_TAP = 0; 
+
+    //DQS needs to be edge-aligned to the center eye of the data. 
+    //This means DQS needs to be delayed by a quarter of the ddr3
+    //clk period relative to the data. Subtract by 600ps to include
+    //the IODELAY insertion delay. Divide by a delay resolution of 
+    //78.125ps per tap to get the needed tap value. Then add the tap
+    //value used in data to have the delay relative to the data.
+    localparam DQS_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_ODELAY_TAP;
+    
+    //Incoming DQS should be 90 degree delayed relative to incoming data
+    localparam DATA_IDELAY_TAP = 0; //600ps delay
+    localparam DQS_IDELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_IDELAY_TAP;
+    
     genvar gen_index;
     wire[cmd_len-1:0] oserdes_cmd, //serialized(4:1) i_controller_cmd_slot_x 
                       cmd;//delayed oserdes_cmd
@@ -105,7 +130,7 @@ module ddr3_phy #(
             );
             // End of OSERDESE2_inst instantiation
         
-            
+
         (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
         //Delay the DQ
         // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
@@ -113,7 +138,7 @@ module ddr3_phy #(
             .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
             .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
             .ODELAY_TYPE("FIXED"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-            .ODELAY_VALUE(0), // Output delay tap setting (0-31)
+            .ODELAY_VALUE(CMD_ODELAY_TAP), // Output delay tap setting (0-31)
             .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
             .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
         )
@@ -220,21 +245,19 @@ module ddr3_phy #(
             );
             // End of OSERDESE2_inst instantiation
             
-            
+
             // ODELAYE2: Output Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
             //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
-            
-            
             (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             //Delay the DQ
             // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
             ODELAYE2 #(
                 .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
-                .ODELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-                .ODELAY_VALUE(4), // Output delay tap setting (0-31)
+                .ODELAY_TYPE("VAR_LOAD"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .ODELAY_VALUE(DATA_ODELAY_TAP), // Output delay tap setting (0-31)
                 .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
                 .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
             )
@@ -242,12 +265,12 @@ module ddr3_phy #(
                 .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(odelay_data[gen_index]), // 1-bit output: Delayed data/clock output
                 .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
-                .CE(i_controller_odelay_ce[$rtoi($floor(gen_index/8))]), // 1-bit input: Active high enable increment/decrement input
+                .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
                 .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
                 .CLKIN(0), // 1-bit input: Clock delay input
-                .CNTVALUEIN(0), // 5-bit input: Counter value input
-                .INC(i_controller_odelay_inc[$rtoi($floor(gen_index/8))]), // 1-bit input: Increment / Decrement tap delay input
-                .LD(0), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                .CNTVALUEIN(i_controller_odelay_data_cntvaluein), // 5-bit input: Counter value input
+                .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
+                .LD(i_controller_odelay_data_ld[$rtoi($floor(gen_index/8))]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                             // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
                 .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
                 .ODATAIN(oserdes_data[gen_index]), // 1-bit input: Output delay data input
@@ -276,8 +299,8 @@ module ddr3_phy #(
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
-                .IDELAY_TYPE("VARIABLE"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-                .IDELAY_VALUE(4), //Input delay tap setting (0-31)
+                .IDELAY_TYPE("VAR_LOAD"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .IDELAY_VALUE(DATA_IDELAY_TAP), //Input delay tap setting (0-31)
                 .PIPE_SEL("FALSE"),  //Select pipelined mode, FALSE, TRUE
                 .REFCLK_FREQUENCY(200.0), //IDELAYCTRL clock input frequency in MHz (190.0-210.0).
                 .SIGNAL_PATTERN("DATA") //DATA, CLOCK input signal
@@ -286,13 +309,13 @@ module ddr3_phy #(
                 .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(idelay_data[gen_index]), // 1-bit output: Delayed data output
                 .C(i_controller_clk), // 1-bit input: Clock input
-                .CE(i_controller_idelay_ce[$rtoi($floor(gen_index/8))]), // 1-bit input: Active high enable increment/decrement input
+                .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
                 .CINVCTRL(0),// 1-bit input: Dynamic clock inversion input
-                .CNTVALUEIN(0), // 5-bit input: Counter value input
+                .CNTVALUEIN(i_controller_idelay_data_cntvaluein), // 5-bit input: Counter value input
                 .DATAIN(), //1-bit input: Internal delay data input
                 .IDATAIN(read_dq[gen_index]), // 1-bit input: Data input from the I/O
-                .INC(i_controller_idelay_inc[$rtoi($floor(gen_index/8))]), // 1-bit input: Increment / Decrement tap delay input
-                .LD(0), // 1-bit input: Load IDELAY_VALUE input
+                .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
+                .LD(i_controller_idelay_data_ld[$rtoi($floor(gen_index/8))]), // 1-bit input: Load IDELAY_VALUE input
                 .LDPIPEEN(0), // 1-bit input: Enable PIPELINE register to load data input
                 .REGRST(0) // 1-bit input: Active-high reset tap-delay input
             );
@@ -375,6 +398,7 @@ module ddr3_phy #(
         for(gen_index = 0; gen_index < LANES; gen_index = gen_index + 1) begin
         
             
+        
             // ODELAYE2: Output Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -383,8 +407,8 @@ module ddr3_phy #(
             ODELAYE2 #(
                 .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
-                .ODELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-                .ODELAY_VALUE(8), // delay to align odelay_dqs to oserdes_dqs due to 600ps insertion delay: (1/800MHz - 600ps)/78.125ps = 8.32 taps
+                .ODELAY_TYPE("VAR_LOAD"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .ODELAY_VALUE(DQS_ODELAY_TAP), // delay to align odelay_dqs to oserdes_dqs due to 600ps insertion delay: (1/800MHz - 600ps)/78.125ps = 8.32 taps
                 .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
                 .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
             )
@@ -392,18 +416,18 @@ module ddr3_phy #(
                 .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(odelay_dqs[gen_index]), // 1-bit output: Delayed data/clock output
                 .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
-                .CE(i_controller_odelay_ce[gen_index]), // 1-bit input: Active high enable increment/decrement input
+                .CE(0), // 1-bit input: Active high enable increment/decrement input
                 .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
                 .CLKIN(0), // 1-bit input: Clock delay input
-                .CNTVALUEIN(0), // 5-bit input: Counter value input
-                .INC(i_controller_odelay_inc[gen_index]), // 1-bit input: Increment / Decrement tap delay input
-                .LD(0), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                .CNTVALUEIN(i_controller_odelay_dqs_cntvaluein), // 5-bit input: Counter value input
+                .INC(0), // 1-bit input: Increment / Decrement tap delay input
+                .LD(i_controller_odelay_dqs_ld[gen_index]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                             // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
                 .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
                 .ODATAIN(oserdes_dqs[gen_index]), // 1-bit input: Output delay data input
                 .REGRST(0) // 1-bit input: Active-high reset tap-delay input
             );
-            
+
             // OSERDESE2: Output SERial/DESerializer with bitslip
             //7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -452,6 +476,7 @@ module ddr3_phy #(
                 .T(/*!dqs_tri_control[gen_index]*/oserdes_dqs_tri_control[gen_index]) // 3-state enable input, high=input, low=output
             ); // End of IOBUFDS_inst instantiation
             
+
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -459,8 +484,8 @@ module ddr3_phy #(
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
-                .IDELAY_TYPE("VARIABLE"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-                .IDELAY_VALUE(8), //Input delay tap setting (0-31)
+                .IDELAY_TYPE("VAR_LOAD"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .IDELAY_VALUE(DQS_IDELAY_TAP), //Input delay tap setting (0-31)
                 .PIPE_SEL("FALSE"),  //Select pipelined mode, FALSE, TRUE
                 .REFCLK_FREQUENCY(200.0), //IDELAYCTRL clock input frequency in MHz (190.0-210.0).
                 .SIGNAL_PATTERN("DATA") //DATA, CLOCK input signal
@@ -469,13 +494,13 @@ module ddr3_phy #(
                 .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(idelay_dqs[gen_index]), // 1-bit output: Delayed data output
                 .C(i_controller_clk), // 1-bit input: Clock input
-                .CE(i_controller_idelay_ce[gen_index]), // 1-bit input: Active high enable increment/decrement input
+                .CE(0), // 1-bit input: Active high enable increment/decrement input
                 .CINVCTRL(0),// 1-bit input: Dynamic clock inversion input
-                .CNTVALUEIN(0), // 5-bit input: Counter value input
+                .CNTVALUEIN(i_controller_idelay_dqs_cntvaluein), // 5-bit input: Counter value input
                 .DATAIN(), //1-bit input: Internal delay data input
                 .IDATAIN(read_dqs[gen_index]), // 1-bit input: Data input from the I/O
-                .INC(i_controller_idelay_inc[gen_index]), // 1-bit input: Increment / Decrement tap delay input
-                .LD(0), // 1-bit input: Load IDELAY_VALUE input
+                .INC(0), // 1-bit input: Increment / Decrement tap delay input
+                .LD(i_controller_idelay_dqs_ld[gen_index]), // 1-bit input: Load IDELAY_VALUE input
                 .LDPIPEEN(0), // 1-bit input: Enable PIPELINE register to load data input
                 .REGRST(0) // 1-bit input: Active-high reset tap-delay input
             );
