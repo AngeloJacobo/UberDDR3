@@ -80,3 +80,9 @@
 ## Model Test  
 
 ![Screenshot from 2023-06-01 18-49-13](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/cfc3c4bb-f66b-4464-9ab3-0084531fdcca)
+
+![Screenshot from 2023-06-08 09-10-27](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/e2da7d28-bf0e-4b19-9ef0-0c928ff902bf)
+
+![Screenshot from 2023-06-08 09-58-16](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/6bc4845c-cfe4-463a-a4d5-910bbf65edc8)
+
+
