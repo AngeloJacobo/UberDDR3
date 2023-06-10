@@ -189,7 +189,6 @@ module ddr3_controller #(
     localparam WRITE_TO_WRITE_DELAY = 0;
     localparam WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
     localparam WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
-    localparam WRITE_TO_ODT_OFF = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
     //MARGIN_BEFORE_ANTICIPATE is the number of columns before the column
     //end when the anticipate can start
     //the worst case scenario is when the anticipated bank needs to be precharged
@@ -774,14 +773,17 @@ module ddr3_controller #(
                     cmd_odt = 1'b1;
                     //set-up delay before precharge, read, and write
                     delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
+                    for(index=0; index < (1<<BA_BITS); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
+                        delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY;
+                    end
                     delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
                     //issue read command
                     if(COL_BITS <= 10) begin
-                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
                     else begin
-                        cmd_d[WRITE_SLOT] =  {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[WRITE_SLOT] =  {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //turn on odt at same time as write cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -806,10 +808,10 @@ module ddr3_controller #(
                     shift_reg_read_pipe_d[READ_DELAY + 1 + 2 + 1] = 1'b1; 
                     //issue read command
                     if(COL_BITS <= 10) begin
-                        cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
                     else begin
-                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
+                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-4'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //turn off odt at same time as read cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -961,9 +963,12 @@ module ddr3_controller #(
                 if(o_wb_ack_read_q[0]) begin 
                     index_wb_data <= !index_wb_data;
                 end
+                /*
                 for(index = 0; index < 15; index = index + 1) begin
                     o_wb_ack_read_q[index] <= o_wb_ack_read_q[index+1];
                 end
+                */
+                o_wb_ack_read_q <= o_wb_ack_read_q >> 1;
                 o_wb_ack_read_q[added_read_pipe_max] <= shift_reg_read_pipe_q[0];
             end
        end
@@ -1423,7 +1428,6 @@ module ddr3_controller #(
         $display("WRITE_TO_WRITE_DELAY = 0 = %0d", WRITE_TO_WRITE_DELAY);
         $display("WRITE_TO_READ_DELAY = 4 = %0d", WRITE_TO_READ_DELAY);
         $display("WRITE_TO_PRECHARGE_DELAY = 5 = %0d", WRITE_TO_PRECHARGE_DELAY);
-        
     end
 `endif
     
@@ -1434,9 +1438,11 @@ module ddr3_controller #(
     always @* begin
         //assert(tMOD + tZQinit > nCK_to_cycles(tDLLK)); //Initialization sequence requires that tDLLK is satisfied after MRS to mode register 0 and ZQ calibration
         assert(MR0[18] != 1'b1); //last Mode Register bit should never be zero 
-        assert(MR1[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
+        assert(MR1_WL_EN[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
+        assert(MR1_WL_DIS[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
         assert(MR2[18] != 1'b1); //commands in the reset sequence)
-        assert(MR3[18] != 1'b1);
+        assert(MR3_MPR_EN[18] != 1'b1);
+        assert(MR3_MPR_DIS[18] != 1'b1);
         assert(DELAY_COUNTER_WIDTH <= $bits(MR0)); //bitwidth of mode register should be enough for the delay counter
         assert(($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)) == 5 ); //sanity checking to ensure 5 bits is allotted for extra instruction {reset_finished, use_timer , stay_command , cke , reset_n } 
         assert(DELAY_SLOT_WIDTH >= DELAY_COUNTER_WIDTH); //width occupied by delay timer slot on the reset rom must be able to occupy the maximum possible delay value on the reset sequence
