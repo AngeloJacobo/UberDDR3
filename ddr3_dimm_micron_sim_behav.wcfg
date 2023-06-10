@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="66,452.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="67,580.001 ns"></ZoomEndTime>
-      <Cursor1Time time="66,970.000 ns"></Cursor1Time>
+      <ZoomStartTime time="69,245.080 ns"></ZoomStartTime>
+      <ZoomEndTime time="69,267.821 ns"></ZoomEndTime>
+      <Cursor1Time time="69,248.900 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="268"></NameColumnWidth>
-      <ValueColumnWidth column_width="101"></ValueColumnWidth>
+      <NameColumnWidth column_width="267"></NameColumnWidth>
+      <ValueColumnWidth column_width="93"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="70" />
+   <WVObjectSize size="82" />
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Model File</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -87,6 +87,11 @@
       <obj_property name="ElementShortName">odt</obj_property>
       <obj_property name="ObjectShortName">odt</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/command_used">
+      <obj_property name="ElementShortName">command_used[63:0]</obj_property>
+      <obj_property name="ObjectShortName">command_used[63:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/cs_n">
       <obj_property name="ElementShortName">cs_n</obj_property>
       <obj_property name="ObjectShortName">cs_n</obj_property>
@@ -144,6 +149,50 @@
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/o_ddr3_clk_n">
       <obj_property name="ElementShortName">o_ddr3_clk_n</obj_property>
       <obj_property name="ObjectShortName">o_ddr3_clk_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider251" type="divider">
+      <obj_property name="label">Bank Track</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_read_counter_q">
+      <obj_property name="ElementShortName">delay_before_read_counter_q[7:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_read_counter_q[7:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_precharge_counter_q">
+      <obj_property name="ElementShortName">delay_before_precharge_counter_q[7:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_precharge_counter_q[7:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_activate_counter_q">
+      <obj_property name="ElementShortName">delay_before_activate_counter_q[7:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_activate_counter_q[7:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_write_counter_q">
+      <obj_property name="ElementShortName">delay_before_write_counter_q[7:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_write_counter_q[7:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/bank_status_q">
+      <obj_property name="ElementShortName">bank_status_q[7:0]</obj_property>
+      <obj_property name="ObjectShortName">bank_status_q[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/bank_active_row_q">
+      <obj_property name="ElementShortName">bank_active_row_q[7:0][13:0]</obj_property>
+      <obj_property name="ObjectShortName">bank_active_row_q[7:0][13:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_pending">
+      <obj_property name="ElementShortName">stage1_pending</obj_property>
+      <obj_property name="ObjectShortName">stage1_pending</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_pending">
+      <obj_property name="ElementShortName">stage2_pending</obj_property>
+      <obj_property name="ObjectShortName">stage2_pending</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_we">
+      <obj_property name="ElementShortName">stage1_we</obj_property>
+      <obj_property name="ObjectShortName">stage1_we</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_we">
+      <obj_property name="ElementShortName">stage2_we</obj_property>
+      <obj_property name="ObjectShortName">stage2_we</obj_property>
    </wvobject>
    <wvobject fp_name="divider870" type="divider">
       <obj_property name="label">DDR3 Controller</obj_property>
