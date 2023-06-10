@@ -124,8 +124,25 @@ ddr3_top #(
         i_ddr3_clk = 1;
         i_ref_clk = 1;
     end
-/*
     
+    reg[8*3-1:0] command_used; //store command in ASCII
+    always begin    
+        case({cs_n, ras_n, cas_n, we_n})
+             4'b0000: command_used = "MRS";
+             4'b0001: command_used = "REF";
+             4'b0010: command_used = "PRE";
+             4'b0011: command_used = "ACT";
+             4'b0100: command_used = "WR";
+             4'b0101: command_used = "RD";
+             4'b0111: command_used = "NOP";
+             4'b1000: command_used = "DES";
+             4'b0110: command_used = "ZQC";
+             default: command_used = "???";
+        endcase
+        #1000;
+    end
+/*
+    // 1 lane DDR3
     ddr3 ddr3_0(
         .rst_n(reset_n),
         .ck(o_ddr3_clk_p),
@@ -166,18 +183,18 @@ ddr3_top #(
     reg[511:0] write_data = 0, expected_read_data = 0;
     integer address = 0, read_address = 0;
     integer number_of_writes=0, number_of_reads=0, number_of_successful=0, number_of_failed=0;
-    localparam MAX_READS = 64;
+    localparam MAX_READS = 256;
       initial begin
         start_of_test = 0;
         //toggle reset for 1 slow clk 
-        @(negedge i_controller_clk)
+        @(posedge i_controller_clk)
         i_rst_n = 0;
         i_wb_cyc = 0;
         i_wb_stb = 0;
         i_wb_we = 0;
         i_wb_addr = 0;
         i_wb_data = 0;
-        @(negedge i_controller_clk)
+        @(posedge i_controller_clk)
         i_rst_n = 1;
         wait(ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE);
         
@@ -185,7 +202,7 @@ ddr3_top #(
         start_of_test = 1;
         address = 0;
         while(address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-            @(negedge i_controller_clk);
+            @(posedge i_controller_clk);
             if(!o_wb_stall) begin 
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                   write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
@@ -212,7 +229,7 @@ ddr3_top #(
         start_of_test = 2;
         address = 0;
         while(address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-           @(negedge i_controller_clk);
+           @(posedge i_controller_clk);
            if(!o_wb_stall) begin 
                 i_wb_cyc = 1;
                 i_wb_stb = 1;
@@ -229,7 +246,7 @@ ddr3_top #(
                 i_wb_addr = 0;
             end
         end
-        @(negedge i_controller_clk);
+        @(posedge i_controller_clk);
         i_wb_stb = 0;
         
         
@@ -273,7 +290,7 @@ ddr3_top #(
     initial begin
         read_address = 0;
         while(read_address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-           @(negedge i_controller_clk);
+           @(posedge i_controller_clk);
            if(o_wb_ack && start_of_test) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
