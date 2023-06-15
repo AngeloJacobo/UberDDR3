@@ -85,4 +85,5 @@
 
 ![Screenshot from 2023-06-08 09-58-16](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/6bc4845c-cfe4-463a-a4d5-910bbf65edc8)
 
+![Screenshot from 2023-06-10 22-40-12](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/9d304b48-bd28-4167-88b8-cda3339ec861)
 
