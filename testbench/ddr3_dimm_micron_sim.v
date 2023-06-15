@@ -38,7 +38,11 @@ module ddr3_dimm_micron_sim;
     ERROR: You must specify component density with +define+den____Mb.
 `endif
 
-
+ localparam CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
+            DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+            LANES = 8, //8 lanes of DQ
+            OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
+            OPT_BUS_ABORT = 1;
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk;
  reg i_rst_n;
@@ -69,15 +73,15 @@ module ddr3_dimm_micron_sim;
   
 // DDR3 Controller 
 ddr3_top #(
-    .ROW_BITS(14),   //width of row address
-    .COL_BITS(10), //width of column address
-    .BA_BITS(3), //width of bank address
-    .DQ_BITS(8),  //width of DQ
-    .CONTROLLER_CLK_PERIOD(10), //ns, period of clock input to this DDR3 controller module
-    .DDR3_CLK_PERIOD(2.5), //ns, period of clock input to DDR3 RAM device 
-    .LANES(8), //8 lanes of DQ
-    .OPT_LOWPOWER(1), //1 = low power, 0 = low logic
-    .OPT_BUS_ABORT(1)  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+    .ROW_BITS(ROW_BITS),   //width of row address
+    .COL_BITS(COL_BITS), //width of column address
+    .BA_BITS(BA_BITS), //width of bank address
+    .DQ_BITS(DQ_BITS),  //width of DQ
+    .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
+    .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+    .LANES(LANES), //8 lanes of DQ
+    .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
+    .OPT_BUS_ABORT(OPT_BUS_ABORT)  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
     ) ddr3_top
     (
         //clock and reset
@@ -125,22 +129,7 @@ ddr3_top #(
         i_ref_clk = 1;
     end
     
-    reg[8*3-1:0] command_used; //store command in ASCII
-    always begin    
-        case({cs_n, ras_n, cas_n, we_n})
-             4'b0000: command_used = "MRS";
-             4'b0001: command_used = "REF";
-             4'b0010: command_used = "PRE";
-             4'b0011: command_used = "ACT";
-             4'b0100: command_used = "WR";
-             4'b0101: command_used = "RD";
-             4'b0111: command_used = "NOP";
-             4'b1000: command_used = "DES";
-             4'b0110: command_used = "ZQC";
-             default: command_used = "???";
-        endcase
-        #1000;
-    end
+    
 /*
     // 1 lane DDR3
     ddr3 ddr3_0(
@@ -179,13 +168,14 @@ ddr3_top #(
         .dqs_n(dqs_n),
         .dq(dq)
     );
-    integer start_of_test = 0;
+    
     reg[511:0] write_data = 0, expected_read_data = 0;
     integer address = 0, read_address = 0;
+    integer start_address = 0, start_read_address;
     integer number_of_writes=0, number_of_reads=0, number_of_successful=0, number_of_failed=0;
-    localparam MAX_READS = 256;
+    integer random_start = $random; //starting seed for random accesss
+    localparam MAX_READS = (2**COL_BITS)*(2**BA_BITS + 1)/8; //1 row = 2**(COL_BITS) addresses/8 burst = 128 words per row. Times 8 to pass all 8 banks
       initial begin
-        start_of_test = 0;
         //toggle reset for 1 slow clk 
         @(posedge i_controller_clk)
         i_rst_n = 0;
@@ -199,9 +189,10 @@ ddr3_top #(
         wait(ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE);
         
         // test 1 phase 1: Write random word sequentially
-        start_of_test = 1;
-        address = 0;
-        while(address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+        // write to row 1
+        start_address = 0;
+        address = start_address;
+        while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
             @(posedge i_controller_clk);
             if(!o_wb_stall) begin 
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
@@ -212,43 +203,153 @@ ddr3_top #(
                 i_wb_we = 1; 
                 i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
                 i_wb_data = write_data;
-                $display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
                 number_of_writes = number_of_writes + 1;
                 address = address + ($bits(ddr3_top.i_wb_data)/32); 
             end
-            else begin
-                i_wb_cyc = 1;
-                i_wb_stb = 0;
-                i_wb_we = 0; 
-                i_wb_addr = 0;
-                i_wb_data = 0;
-            end
         end
         
-        // test 1 phase 2: Read sequentially
-        start_of_test = 2;
-        address = 0;
-        while(address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+        //Read sequentially
+        address = start_address;
+        while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
            @(posedge i_controller_clk);
            if(!o_wb_stall) begin 
                 i_wb_cyc = 1;
                 i_wb_stb = 1;
                 i_wb_we = 0; 
                 i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
-                $display("Read: Address = %0d", i_wb_addr);
+                //$display("Read: Address = %0d", i_wb_addr);
                 number_of_reads = number_of_reads + 1;
                 address = address + ($bits(ddr3_top.i_wb_data)/32); 
-            end
-            else begin
-                i_wb_cyc = 1;
-                i_wb_stb = 0;
-                i_wb_we = 0; 
-                i_wb_addr = 0;
             end
         end
         @(posedge i_controller_clk);
         i_wb_stb = 0;
+        $display("\nDONE TEST 1: FIRST ROW\n");
+        #100_000;
         
+        @(posedge i_controller_clk);
+        // write to middle row
+        start_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS)/2)*($bits(ddr3_top.i_wb_data)/32)/8; //start at the middle row
+        address = start_address; 
+        while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+            @(posedge i_controller_clk);
+            if(!o_wb_stall) begin 
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+                end
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 1; 
+                i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
+                i_wb_data = write_data;
+                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                number_of_writes = number_of_writes + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+        end
+        
+        // Read sequentially
+        address = start_address;
+        while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(posedge i_controller_clk);
+           if(!o_wb_stall) begin 
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 0; 
+                i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
+                //$display("Read: Address = %0d", i_wb_addr);
+                number_of_reads = number_of_reads + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+        end
+        @(posedge i_controller_clk);
+        i_wb_stb = 0;
+        $display("\nDONE TEST 1: MIDDLE ROW\n");
+        #100_000;
+
+
+         // write to last row (then go back to first row)
+        start_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
+        address = start_address; 
+        while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+            @(posedge i_controller_clk);
+            if(!o_wb_stall) begin 
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+                end
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 1; 
+                i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
+                i_wb_data = write_data;
+                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                number_of_writes = number_of_writes + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+        end
+        
+        // Read sequentially
+        address = start_address;
+        while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(posedge i_controller_clk);
+           if(!o_wb_stall) begin 
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 0; 
+                i_wb_addr = address/ ($bits(ddr3_top.i_wb_data)/32);
+                //$display("Read: Address = %0d", i_wb_addr);
+                number_of_reads = number_of_reads + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+        end
+        @(posedge i_controller_clk);
+        i_wb_stb = 0;
+        $display("\nDONE TEST 1: LAST ROW\n");
+        #100_000;
+       
+        
+        
+        // Test 2:Random Access
+        // write randomly
+        address = random_start; //this will just be used as the seed to generate a random number 
+        while(address < random_start + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+            @(posedge i_controller_clk);
+            if(!o_wb_stall) begin 
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+                end
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 1; 
+                i_wb_addr = $random(~address); //write at random address
+                i_wb_data = write_data; //write random data
+                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                number_of_writes = number_of_writes + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+        end
+        
+        // Read sequentially
+        // Read the random words written at the random addresses
+        address = random_start;
+        while(address < random_start + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(posedge i_controller_clk);
+           if(!o_wb_stall) begin 
+                i_wb_cyc = 1;
+                i_wb_stb = 1;
+                i_wb_we = 0; 
+                i_wb_addr = $random(~address);
+                //$display("Read: Address = %0d", i_wb_addr);
+                number_of_reads = number_of_reads + 1;
+                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            end
+        end
+        @(posedge i_controller_clk);
+        i_wb_stb = 0;
+        $display("\nDONE TEST 1: LAST ROW\n");
+        #100_000;
+       
         
         /*
         // write
@@ -288,15 +389,16 @@ ddr3_top #(
     
     //check read data
     initial begin
-        read_address = 0;
-        while(read_address < MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+        start_read_address = 0; //start at first row
+        read_address = start_read_address;
+        while(read_address < start_read_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
            @(posedge i_controller_clk);
-           if(o_wb_ack && start_of_test) begin
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
                 if(expected_read_data == o_wb_data) begin
-                    $display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
                     number_of_successful = number_of_successful + 1;
                 end
                 else begin
@@ -306,9 +408,124 @@ ddr3_top #(
                 read_address = read_address + ($bits(ddr3_top.i_wb_data)/32); 
            end
         end
+        
+        start_read_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS)/2)*($bits(ddr3_top.i_wb_data)/32)/8; //start at the middle row
+        read_address = start_read_address;
+        while(read_address < start_read_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(posedge i_controller_clk);
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE) begin
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                end
+                if(expected_read_data == o_wb_data) begin
+                    //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_successful = number_of_successful + 1;
+                end
+                else begin
+                    $display("FAILED: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_failed = number_of_failed + 1;
+                end            
+                read_address = read_address + ($bits(ddr3_top.i_wb_data)/32); 
+           end
+        end
+        
+        start_read_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
+        read_address = start_read_address;
+        while(read_address < start_read_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(posedge i_controller_clk);
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE) begin
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                end
+                if(expected_read_data == o_wb_data) begin
+                    //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_successful = number_of_successful + 1;
+                end
+                else begin
+                    $display("FAILED: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_failed = number_of_failed + 1;
+                end            
+                read_address = read_address + ($bits(ddr3_top.i_wb_data)/32); 
+           end
+        end
+        
+        // Read the random words written at the random addresses//read the random words at random addresses 
+        read_address = random_start;
+        while(read_address < random_start + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
+           @(posedge i_controller_clk);
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE) begin
+                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                end
+                if(expected_read_data == o_wb_data) begin
+                    //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_successful = number_of_successful + 1;
+                end
+                else begin
+                    $display("FAILED: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
+                    number_of_failed = number_of_failed + 1;
+                end            
+                read_address = read_address + ($bits(ddr3_top.i_wb_data)/32); 
+           end
+        end
+        
+                
+                
     end
-
-
+    
+    reg[8*3-1:0] command_used; //store command in ASCII
+    reg[3*8*2-1:0] prev_cmd; //stores previous 2 commands
+    reg[32*2-1:0] prev_time;
+    reg[31:0] time_now;
+    reg[3:0] repeats = 0; 
+    //display commands issued
+    always @(posedge o_ddr3_clk_p) begin
+        if(!cs_n) begin //command is center-aligned to positive edge of clock, a valid command always has low cs_n
+            case({cs_n, ras_n, cas_n, we_n})
+                 4'b0000: command_used = "MRS";
+                 4'b0001: command_used = "REF";
+                 4'b0010: command_used = "PRE";
+                 4'b0011: command_used = "ACT";
+                 4'b0100: command_used = " WR";
+                 4'b0101: command_used = " RD";
+                 4'b0111: command_used = "NOP";
+                 4'b1000: command_used = "DES";
+                 4'b0110: command_used = "ZQC";
+                 default: command_used = "???";
+            endcase
+            time_now = $time;
+            if(command_used == " WR" || command_used == " RD") begin
+                $write("[%5d ps] %s @ (%0d, %5d) -> ",(time_now-prev_time[0 +: 32]), command_used, ba_addr, addr); //show bank and column address of being read/write
+            end
+            else if(command_used == "ACT") 
+                $write("[%5d ps] %s @ (%0d, %5d) -> ",(time_now-prev_time[0 +: 32]), command_used, ba_addr, addr); //show bank and row address of being activated
+            else if(command_used == "PRE") 
+                $write("[%5d ps] %s @ (%0d) -> ",(time_now-prev_time[0 +: 32]), command_used, ba_addr); //show bank that is being precharged
+            else 
+                $write("[%5d ps] %s -> ",(time_now-prev_time[0 +: 32]), command_used); //show bank that is being precharged
+            prev_cmd <= {prev_cmd[0 +: 3*8], command_used[0 +: 3*8]};
+            prev_time <= {prev_time[0 +: 32], time_now};
+            repeats <= repeats + 1;
+            if(repeats == 4) begin
+                $write("\n");
+                repeats <= 0;
+            end
+        end
+    end
+    /*
+    // check delays between command if just enough
+    always @* begin
+        case({command_used, prev_cmd[0 +: 3*8]}) 
+            {"PRE","ACT"};
+            {"ACT"," RD"};
+            {"ACT"," WR"};
+            {" WR"," WR"}: 
+            {" WR"," RD"}:
+            {" RD"," RD"};
+            {" RD"," WR"};
+        endcase
+    end
+        */
 endmodule
 
 
