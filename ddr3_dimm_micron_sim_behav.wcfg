@@ -11,13 +11,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="69,245.080 ns"></ZoomStartTime>
-      <ZoomEndTime time="69,267.821 ns"></ZoomEndTime>
-      <Cursor1Time time="69,248.900 ns"></Cursor1Time>
+      <ZoomStartTime time="133,811.600 ns"></ZoomStartTime>
+      <ZoomEndTime time="133,840.351 ns"></ZoomEndTime>
+      <Cursor1Time time="133,835.250 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="267"></NameColumnWidth>
-      <ValueColumnWidth column_width="93"></ValueColumnWidth>
+      <ValueColumnWidth column_width="85"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="82" />
    <wvobject fp_name="divider869" type="divider">
@@ -88,8 +88,8 @@
       <obj_property name="ObjectShortName">odt</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/command_used">
-      <obj_property name="ElementShortName">command_used[63:0]</obj_property>
-      <obj_property name="ObjectShortName">command_used[63:0]</obj_property>
+      <obj_property name="ElementShortName">command_used[23:0]</obj_property>
+      <obj_property name="ObjectShortName">command_used[23:0]</obj_property>
       <obj_property name="Radix">ASCIIRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/cs_n">
@@ -119,6 +119,7 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ba_addr">
       <obj_property name="ElementShortName">ba_addr[2:0]</obj_property>
       <obj_property name="ObjectShortName">ba_addr[2:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dq">
       <obj_property name="ElementShortName">dq[63:0]</obj_property>
@@ -209,6 +210,7 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
       <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
       <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_store">
       <obj_property name="ElementShortName">dqs_store[39:0]</obj_property>
