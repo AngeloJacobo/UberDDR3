@@ -1,17 +1,18 @@
 
 `default_nettype none
 module ddr3_top #(
-    parameter ROW_BITS = 14,   //width of row address
-                COL_BITS = 10, //width of column address
-                BA_BITS = 3, //width of bank address
-                DQ_BITS = 8,  //width of DQ
-                CONTROLLER_CLK_PERIOD = 5, //ns, period of clock input to this DDR3 controller module
-                DDR3_CLK_PERIOD = 1.25, //ns, period of clock input to DDR3 RAM device 
-                LANES = 8, //8 lanes of DQ
-                OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
-                OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-                
-                // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
+    parameter real CONTROLLER_CLK_PERIOD = 10, //syntax error, unexpected TOK_ID, expecting ',' or '=' or ')' //ns, period of clock input to this DDR3 controller module
+                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+    parameter      ROW_BITS = 14,   //width of row address
+                   COL_BITS = 10, //width of column address
+                   BA_BITS = 3, //width of bank address
+                   DQ_BITS = 8,  //width of DQ
+                   LANES = 8, //8 lanes of DQ
+                   AUX_WIDTH = 16, 
+    parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
+                   OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+
+    parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -29,12 +30,12 @@ module ddr3_top #(
         input wire[wb_addr_bits - 1:0] i_wb_addr, //burst-addressable {row,bank,col} 
         input wire[wb_data_bits - 1:0] i_wb_data, //write data, for a 4:1 controller data width is 8 times the number of pins on the device
         input wire[wb_sel_bits - 1:0] i_wb_sel, //byte strobe for write (1 = write the byte)
-        input wire i_aux, //for AXI-interface compatibility (given upon strobe)
+        input wire[AUX_WIDTH - 1:0]  i_aux, //for AXI-interface compatibility (given upon strobe)
         // Wishbone outputs
         output wire o_wb_stall, //1 = busy, cannot accept requests
         output wire o_wb_ack, //1 = read/write request has completed
         output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-        output wire o_aux, //for AXI-interface compatibility (returned upon ack)
+        input wire[AUX_WIDTH - 1:0]  o_aux, //for AXI-interface compatibility (given upon strobe)
         // DDR3 I/O Interface
         output wire o_ddr3_clk_p, o_ddr3_clk_n,
         output wire o_ddr3_reset_n,
@@ -47,6 +48,7 @@ module ddr3_top #(
         output wire[BA_BITS-1:0] o_ddr3_ba_addr,
         inout wire[(DQ_BITS*LANES)-1:0] io_ddr3_dq,
         inout wire[(DQ_BITS*LANES)/8-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
+        output wire[LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt // on-die termination
     );
 
@@ -68,13 +70,14 @@ module ddr3_top #(
     wire[LANES-1:0] idelay_data_ld, idelay_dqs_ld;
     //module instantiations
     ddr3_controller #(
+            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
+            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
             .ROW_BITS(ROW_BITS), //width of row address
             .COL_BITS(COL_BITS), //width of column address
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
             .LANES(LANES), //8 lanes of DQ
-            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
-            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+            .AUX_WIDTH(AUX_WIDTH), //
             .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
             .OPT_BUS_ABORT(OPT_BUS_ABORT)  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
         ) ddr3_controller_inst (
@@ -158,6 +161,7 @@ module ddr3_top #(
             .io_ddr3_dq(io_ddr3_dq),
             .io_ddr3_dqs(io_ddr3_dqs),
             .io_ddr3_dqs_n(io_ddr3_dqs_n),
+            .o_ddr3_dm(o_ddr3_dm),
             .o_ddr3_odt(o_ddr3_odt) // on-die termination
         );
         
