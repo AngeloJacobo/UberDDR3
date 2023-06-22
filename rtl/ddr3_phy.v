@@ -10,6 +10,7 @@ module ddr3_phy #(
               // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
               serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
               wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
+              wb_sel_bits = wb_data_bits / 8,
               //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
               cmd_len = 4 + 3 + BA_BITS + ROW_BITS
     )(
@@ -20,6 +21,7 @@ module ddr3_phy #(
         input wire i_controller_dqs_tri_control, i_controller_dq_tri_control,
         input wire i_controller_toggle_dqs,
         input wire[wb_data_bits-1:0] i_controller_data,
+        input wire[wb_sel_bits-1:0] i_controller_dm,
         input wire[4:0] i_controller_odelay_data_cntvaluein,i_controller_odelay_dqs_cntvaluein,
         input wire[4:0] i_controller_idelay_data_cntvaluein,i_controller_idelay_dqs_cntvaluein,
         input wire[LANES-1:0] i_controller_odelay_data_ld, i_controller_odelay_dqs_ld,
@@ -41,6 +43,7 @@ module ddr3_phy #(
         output wire[BA_BITS-1:0] o_ddr3_ba_addr,
         inout wire[(DQ_BITS*LANES)-1:0] io_ddr3_dq,
         inout wire[(DQ_BITS*LANES)/8-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
+        output wire[LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt // on-die termination
     );
 
@@ -82,6 +85,7 @@ module ddr3_phy #(
     wire[cmd_len-1:0] oserdes_cmd, //serialized(4:1) i_controller_cmd_slot_x 
                       cmd;//delayed oserdes_cmd
     wire[(DQ_BITS*LANES)-1:0] oserdes_data, odelay_data, idelay_data, read_dq;
+    wire[LANES-1:0] oserdes_dm, odelay_dm;
     wire[LANES-1:0] odelay_dqs, read_dqs, idelay_dqs;
     wire[DQ_BITS*LANES-1:0] oserdes_dq_tri_control;
     wire[LANES-1:0] oserdes_dqs;
@@ -209,7 +213,7 @@ module ddr3_phy #(
     );
     // End of OBUFDS_inst instantiation
             
-    // PHY data
+    // PHY data and dm
     generate
         // data: oserdes -> odelay -> iobuf
         for(gen_index = 0; gen_index < (DQ_BITS*LANES); gen_index = gen_index + 1) begin
@@ -245,7 +249,6 @@ module ddr3_phy #(
             );
             // End of OSERDESE2_inst instantiation
             
-
             // ODELAYE2: Output Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -321,10 +324,6 @@ module ddr3_phy #(
             );
             // End of IDELAYE2_inst instantiation
 
-
-
-
-
             // End of IOBUF_inst instantiation                 
             // ISERDESE2: Input SERial/DESerializer with bitslip
             //7 Series
@@ -393,11 +392,87 @@ module ddr3_phy #(
             // End of ISERDESE2_inst instantiation
   
         end
+        
+        // data mask: oserdes -> odelay -> obuf
+        for(gen_index = 0; gen_index < LANES; gen_index = gen_index + 1) begin
+            // OSERDESE2: Output SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OSERDESE2 #(
+                .DATA_RATE_OQ("DDR"), // DDR, SDR
+                .DATA_RATE_TQ("BUF"), // DDR, SDR
+                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                .INIT_OQ(1'b0), // Initial value of OQ output (1'b0,1'b1)
+                .TRISTATE_WIDTH(1)
+            )
+            OSERDESE2_dm(
+                .OFB(oserdes_dm[gen_index]), // 1-bit output: Feedback path for data
+                .OQ(), // 1-bit output: Data path output
+                .TQ(),
+                .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1(i_controller_dm[gen_index + LANES*0]),
+                .D2(i_controller_dm[gen_index + LANES*1]),
+                .D3(i_controller_dm[gen_index + LANES*2]),
+                .D4(i_controller_dm[gen_index + LANES*3]),
+                .D5(i_controller_dm[gen_index + LANES*4]),
+                .D6(i_controller_dm[gen_index + LANES*5]),
+                .D7(i_controller_dm[gen_index + LANES*6]),
+                .D8(i_controller_dm[gen_index + LANES*7]),
+                .TCE(0),
+                .OCE(1), // 1-bit input: Output data clock enable
+                .RST(sync_rst) // 1-bit input: Reset
+            );
+            // End of OSERDESE2_inst instantiation
+            
+            // ODELAYE2: Output Fixed or Variable Delay Element
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            //Delay the DQ
+            // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
+            ODELAYE2 #(
+                .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
+                .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
+                .ODELAY_TYPE("VAR_LOAD"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+                .ODELAY_VALUE(DATA_ODELAY_TAP), // Output delay tap setting (0-31)
+                .REFCLK_FREQUENCY(200.0), // IDELAYCTRL clock input frequency in MHz (190.0-210.0).
+                .SIGNAL_PATTERN("DATA") // DATA, CLOCK input signal
+            )
+            ODELAYE2_dm (
+                .CNTVALUEOUT(), // 5-bit output: Counter value output
+                .DATAOUT(odelay_dm[gen_index]), // 1-bit output: Delayed data/clock output
+                .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
+                .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
+                .CLKIN(0), // 1-bit input: Clock delay input
+                .CNTVALUEIN(i_controller_odelay_data_cntvaluein), // 5-bit input: Counter value input
+                .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
+                .LD(i_controller_odelay_data_ld[gen_index]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                            // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
+                .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+                .ODATAIN(oserdes_dm[gen_index]), // 1-bit input: Output delay data input
+                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+            );
+            
+            // OBUF: Single-ended Output Buffer
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OBUF #(
+            //.IOSTANDARD("SSTL_15"), // Specify the output I/O standard
+            .SLEW("FAST") // Specify the output slew rate
+            ) OBUF_dm (
+                .O(o_ddr3_dm[gen_index]), // Buffer output (connect directly to top-level port)
+                .I(odelay_dm[gen_index]) // Buffer input
+            );
+            // End of OBUF_inst instantiation
+        end
+
         //800MHz = 
         // dqs: odelay -> iobuf
         for(gen_index = 0; gen_index < LANES; gen_index = gen_index + 1) begin
-        
-            
         
             // ODELAYE2: Output Fixed or Variable Delay Element
             // 7 Series
