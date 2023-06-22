@@ -35,17 +35,18 @@
 // PRE_STALL_DELAY
                    
 module ddr3_controller #(
-    parameter ROW_BITS = 14,   //width of row address
-                COL_BITS = 10, //width of column address
-                BA_BITS = 3, //width of bank address
-                DQ_BITS = 8,  //width of DQ
-                LANES = 8, //8 lanes of DQ
-                CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
-                DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
-                OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
-                OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-                
-                // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
+    parameter real CONTROLLER_CLK_PERIOD = 10, //syntax error, unexpected TOK_ID, expecting ',' or '=' or ')' //ns, period of clock input to this DDR3 controller module
+                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+    parameter      ROW_BITS = 14,   //width of row address
+                   COL_BITS = 10, //width of column address
+                   BA_BITS = 3, //width of bank address
+                   DQ_BITS = 8,  //width of DQ
+                   LANES = 8, //8 lanes of DQ
+                   AUX_WIDTH = 16, 
+    parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
+                   OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+
+    parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -63,12 +64,12 @@ module ddr3_controller #(
         input wire[wb_addr_bits - 1:0] i_wb_addr, //burst-addressable {row,bank,col} 
         input wire[wb_data_bits - 1:0] i_wb_data, //write data, for a 4:1 controller data width is 8 times the number of pins on the device
         input wire[wb_sel_bits - 1:0] i_wb_sel, //byte strobe for write (1 = write the byte)
-        input wire i_aux, //for AXI-interface compatibility (given upon strobe)
+        input wire[AUX_WIDTH - 1:0]  i_aux, //for AXI-interface compatibility (given upon strobe)
         // Wishbone outputs
         output reg o_wb_stall, //1 = busy, cannot accept requests
         output wire o_wb_ack, //1 = read/write request has completed
         output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-        output reg o_aux, //for AXI-interface compatibility (returned upon ack)
+        output wire[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
         // PHY interface
         input wire[DQ_BITS*LANES*8-1:0] i_phy_iserdes_data,
         input wire[LANES*8-1:0] i_phy_iserdes_dqs,
@@ -78,6 +79,7 @@ module ddr3_controller #(
         output wire o_phy_dqs_tri_control, o_phy_dq_tri_control,
         output wire o_phy_toggle_dqs,
         output wire[wb_data_bits-1:0] o_phy_data,
+        output wire[wb_sel_bits-1:0] o_phy_dm, 
         output wire[4:0] o_phy_odelay_data_cntvaluein, o_phy_odelay_dqs_cntvaluein,
         output wire[4:0] o_phy_idelay_data_cntvaluein, o_phy_idelay_dqs_cntvaluein,
         output reg[LANES-1:0] o_phy_odelay_data_ld, o_phy_odelay_dqs_ld,
@@ -156,7 +158,7 @@ module ddr3_controller #(
     `ifdef DDR3_1600_11_11_11 //DDR3-1600 (11-11-11) speed bin
         localparam tRCD     =       13.750; // ns Active to Read/Write command time
         localparam tRP      =      13.750; // ns Precharge command period
-        
+        localparam tRAS     =      35; // ns ACT to PRE command period
     `endif
 
     `ifdef RAM_1Gb
@@ -194,6 +196,7 @@ module ddr3_controller #(
 
     /********************************************************** Computed Delay Parameters **********************************************************/
     localparam PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ns_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
+    localparam ACTIVATE_TO_PRECHARGE_DELAY = find_delay(ns_to_nCK(tRAS), ACTIVATE_SLOT, PRECHARGE_SLOT);
     localparam ACTIVATE_TO_WRITE_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
     localparam ACTIVATE_TO_READ_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, READ_SLOT); //2
     localparam READ_TO_WRITE_DELAY = find_delay((CL_nCK + tCCD + 3'd2 - CWL_nCK), READ_SLOT, WRITE_SLOT); //2
@@ -209,8 +212,17 @@ module ddr3_controller #(
     //Also, worscase is when the anticipated bank still has the leftover of the 
     //WRITE_TO_PRECHARGE_DELAY thus consider also this.
     localparam MARGIN_BEFORE_ANTICIPATE = PRECHARGE_TO_ACTIVATE_DELAY + ACTIVATE_TO_WRITE_DELAY + WRITE_TO_PRECHARGE_DELAY;
-    localparam STAGE2_DATA_DEPTH = ($rtoi($floor((CWL_nCK - (3 - WRITE_SLOT + 1))/4.0 ))) + 1; //this is always >= 1
+    localparam STAGE2_DATA_DEPTH = (CWL_nCK - (3 - WRITE_SLOT + 1))/4 + 1; //this is always >= 1 (5 - (3 - 3 + 1))/4.0 -> floor(1) + 1 = floor(4
+    `ifdef FORMAL
+        wire stage2_data_depth;
+        assign stage2_data_depth = STAGE2_DATA_DEPTH;
+        always @* begin
+            assert(STAGE2_DATA_DEPTH-2 >= 0);
+        end
+    `endif
     localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 ));
+    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;
+    localparam MAX_ADDED_READ_ACK_DELAY = 16;
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ns_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
                                                                                             //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
     /*********************************************************************************************************************************************/
@@ -300,8 +312,10 @@ module ddr3_controller #(
 
     //pipeline stage 1 regs
     reg stage1_pending = 0;
+    reg[AUX_WIDTH-1:0] stage1_aux = 0;
     reg stage1_we = 0;
     reg[wb_data_bits - 1:0] stage1_data = 0;
+    reg[wb_sel_bits - 1:0] stage1_dm = 0;
     reg[COL_BITS-1:0] stage1_col = 0;
     reg[BA_BITS-1:0] stage1_bank = 0;
     reg[ROW_BITS-1:0] stage1_row = 0;
@@ -311,10 +325,14 @@ module ddr3_controller #(
     
     //pipeline stage 2 regs
     reg stage2_pending = 0;
+    reg[AUX_WIDTH-1:0] stage2_aux = 0;
     reg stage2_we = 0;
-    reg [wb_data_bits - 1:0] stage2_data [STAGE2_DATA_DEPTH-1:0];
-    reg [wb_data_bits - 1:0] stage2_data_unaligned = 0;
+    reg[wb_sel_bits - 1:0] stage2_dm_unaligned = 0;
+    reg[wb_sel_bits - 1:0] stage2_dm[STAGE2_DATA_DEPTH-1:0];
+    reg[wb_data_bits - 1:0] stage2_data_unaligned = 0;
+    reg[wb_data_bits - 1:0] stage2_data[STAGE2_DATA_DEPTH-1:0];
     reg [DQ_BITS*8 - 1:0] unaligned_data[LANES-1:0];
+    reg [8 - 1:0] unaligned_dm[LANES-1:0];
     reg[COL_BITS-1:0] stage2_col = 0;
     reg[BA_BITS-1:0] stage2_bank = 0;
     reg[ROW_BITS-1:0] stage2_row = 0;
@@ -364,14 +382,17 @@ module ddr3_controller #(
     reg[3:0] added_read_pipe_max = 0;
     reg[3:0] added_read_pipe[LANES - 1:0];
     
-    reg[(READ_DELAY + 1 + 2 + 1):0] shift_reg_read_pipe_q, shift_reg_read_pipe_d; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+    //contains the ack shift reg for both read and write
+    reg[AUX_WIDTH:0] shift_reg_read_pipe_q[READ_ACK_PIPE_WIDTH-1:0]; 
+    reg[AUX_WIDTH:0] shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1:0]; //1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
     reg index_read_pipe; //tells which delay_read_pipe will be updated 
     reg[1:0] index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
-    reg[15:0] o_wb_ack_read_q;
+    reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
  
     reg write_calib_stb = 0;
+    reg[AUX_WIDTH-1:0] write_calib_aux = 0;
     reg write_calib_we = 0;
     reg[3:0] write_calib_col = 0;
     reg[wb_data_bits-1:0] write_calib_data = 0;
@@ -387,7 +408,8 @@ module ddr3_controller #(
     reg[4:0] idelay_data_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein_prev;
     reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
-
+    wire[31:0] read_ack_width;
+    assign read_ack_width = READ_ACK_PIPE_WIDTH;
     // initial block for all regs
     initial begin
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
@@ -399,6 +421,7 @@ module ddr3_controller #(
 
         for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin
             stage2_data[index] =  0;               
+            stage2_dm[index] = 0;
         end
 
         for(index=0; index <(1<<BA_BITS); index=index+1) begin
@@ -406,6 +429,11 @@ module ddr3_controller #(
             delay_before_activate_counter_q[index] = 0;
             delay_before_write_counter_q[index] = 0; 
             delay_before_read_counter_q[index] = 0; 
+        end
+
+        for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+            shift_reg_read_pipe_q[index] = 0;
+            shift_reg_read_pipe_d[index] = 0;
         end
 
         //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
@@ -601,8 +629,10 @@ module ddr3_controller #(
             stage2_row <= 0;
             cmd_odt_q <= 0;
             stage2_data_unaligned <= 0;
+            stage2_dm_unaligned <= 0;
             for(index=0; index<LANES; index=index+1) begin
                 unaligned_data[index] <= 0;
+                unaligned_dm[index] <= 0;
             end
             //set delay counters to 0
             for(index=0; index<(1<<BA_BITS); index=index+1) begin
@@ -619,6 +649,7 @@ module ddr3_controller #(
              //reset data
             for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin
                 stage2_data[index] <=  0;               
+                stage2_dm[index] <= 0;
             end
         end
         
@@ -666,9 +697,17 @@ module ddr3_controller #(
                 stage1_pending <= 0; //move pending request to stage 2 thus stage 1 will not be pending anymore UNLESS there is a wb request at this clk cycle
             end
             
+            //abort any outgoing ack when cyc is low
+            if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
+                stage2_pending <= 0;
+                stage1_pending <= 0;
+            end
+
             //if pipeline is not stalled, move pipeline forward
             if(!pipe_stall) begin
+                stage2_aux <= stage1_aux;
                 stage2_we <= stage1_we;
+                stage2_dm_unaligned <= stage1_dm;
                 stage2_col <= stage1_col;
                 stage2_bank <= stage1_bank;
                 stage2_row <= stage1_row;
@@ -683,7 +722,9 @@ module ddr3_controller #(
                 //request is on the same bank as the current request. This
                 //will ensure stage1 bank will be different from stage2 bank
                 stage1_pending <= i_wb_stb;//actual request flag
+                stage1_aux = i_aux; //aux ID for AXI compatibility
                 stage1_we <= i_wb_we; //write-enable
+                stage1_dm <= i_wb_sel; //byte selection
                 stage1_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
                 stage1_bank <=  i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
                 stage1_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
@@ -698,6 +739,8 @@ module ddr3_controller #(
             else if(write_calib_stb) begin
                 stage1_pending <= write_calib_stb;//actual request flag
                 stage1_we <= write_calib_we; //write-enable
+                stage1_dm <= 0;
+                stage1_aux <= write_calib_aux; //aux ID for AXI compatibility
                 stage1_col <= write_calib_col; //column address (n-burst word-aligned)
                 stage1_bank <=  0; //bank_address
                 stage1_row <= 0; //row_address
@@ -706,21 +749,36 @@ module ddr3_controller #(
             end
             
             for(index = 0; index < LANES; index = index + 1) begin
-                {unaligned_data[index], { stage2_data[0][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*6 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*5 + 8*index) +: 8],
-                stage2_data[0][((DQ_BITS*LANES)*4 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*2 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*1 + 8*index) +: 8],
-                stage2_data[0][((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
-                <= ( {stage2_data_unaligned[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*6 + 8*index) +: 8],
-                        stage2_data_unaligned[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*4 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8],
-                        stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],stage2_data_unaligned[((DQ_BITS*LANES)*1 + 8*index) +: 8],stage2_data_unaligned[((DQ_BITS*LANES)*0 + 8*index) +: 8] }
+                {unaligned_data[index], { 
+                stage2_data[0][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
+                stage2_data[0][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
+                stage2_data[0][((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*2 + 8*index) +: 8], 
+                stage2_data[0][((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
+                <= ( {  stage2_data_unaligned[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*6 + 8*index) +: 8],
+                        stage2_data_unaligned[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*4 + 8*index) +: 8], 
+                        stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],
+                        stage2_data_unaligned[((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*0 + 8*index) +: 8] }
                         << data_start_index[index]) | unaligned_data[index];
+
+                {unaligned_dm[index], {
+                stage2_dm[0][LANES*7 + index], stage2_dm[0][LANES*6 + index], 
+                stage2_dm[0][LANES*5 + index], stage2_dm[0][LANES*4 + index], 
+                stage2_dm[0][LANES*3 + index], stage2_dm[0][LANES*2 + index],
+                stage2_dm[0][LANES*1 + index], stage2_dm[0][LANES*0 + index] }} 
+                <= ( {  stage2_dm_unaligned[LANES*7 + index], stage2_dm_unaligned[LANES*6 + index],
+                        stage2_dm_unaligned[LANES*5 + index], stage2_dm_unaligned[LANES*4 + index], 
+                        stage2_dm_unaligned[LANES*3 + index], stage2_dm_unaligned[LANES*2 + index],
+                        stage2_dm_unaligned[LANES*1 + index], stage2_dm_unaligned[LANES*0 + index] }
+                        << (data_start_index[index]>>3)) | unaligned_dm[index];
             end
-            //{unaligned_data, stage2_data[0]} <= (stage2_data_unaligned << data_start_index) | unaligned_data;
-            for(index = 1; index < STAGE2_DATA_DEPTH; index = index+1) begin
-                stage2_data[index] <=  stage2_data[index-1];              
+            for(index = 0; index < STAGE2_DATA_DEPTH-1; index = index+1) begin
+                stage2_data[index+1] <=  stage2_data[index];              
+                stage2_dm[index+1] <= stage2_dm[index];
             end
         end
     end
     assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];             
+    assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
     // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
     //
     //                          tRTP
@@ -774,7 +832,10 @@ module ddr3_controller #(
                 assert(delay_before_read_counter_d[index] <= max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY));
             `endif
         end
-        shift_reg_read_pipe_d = shift_reg_read_pipe_q>>1;
+        for(index = 1; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+            shift_reg_read_pipe_d[index-1] = shift_reg_read_pipe_q[index];
+        end
+        shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0;
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
             o_wb_stall_d = o_wb_stall; 
@@ -786,8 +847,29 @@ module ddr3_controller #(
                     o_wb_stall_d = 0;         
                     pipe_stall = 0; //move pipeline forward since write access is already done
                     cmd_odt = 1'b1;
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; 
+                    //write acknowledge will use the same logic pipeline as the read acknowledge. 
+                    //This would mean write ack latency will be the same for
+                    //read ack latency. If it takes 8 clocks for read ack, write
+                    //ack latency will be the same. This simplifies the logic
+                    //for write ack as there will be no need to analyze the
+                    //contents of the shift_reg_read_pipe just to determine
+                    //where best to place the write ack on the pipeline (since
+                    //the order of ack must be maintaned). But this would mean
+                    //the latency for write is fixed regardless if there is an 
+                    //outstanding read ack or none on the pipeline 
+                    
                     //set-up delay before precharge, read, and write
-                    delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
+                    if(delay_before_precharge_counter_q[stage2_bank] <= WRITE_TO_PRECHARGE_DELAY) begin
+                        //it is possible that the delay_before_precharge is
+                        //set to tRAS (activate to precharge delay). And if we
+                        //overwrite delay_before_precharge, we might overwrite
+                        //the delay to a lower value which will violate the
+                        //tRAS requirement. Thus, we must first check if the
+                        //delay_before_precharge is set to a value not more
+                        //than the WRITE_TO_PRECHARGE_DELAY
+                        delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
+                    end
                     for(index=0; index < (1<<BA_BITS); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
                         delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY;
                     end
@@ -816,11 +898,13 @@ module ddr3_controller #(
                     pipe_stall = 0; //move pipeline forward since read access is already done
                     cmd_odt = 1'b0;
                     //set-up delay before precharge, read, and write
-                    delay_before_precharge_counter_d[stage2_bank] = READ_TO_PRECHARGE_DELAY;
+                    if(delay_before_precharge_counter_q[stage2_bank] <= READ_TO_PRECHARGE_DELAY) begin
+                        delay_before_precharge_counter_d[stage2_bank] = READ_TO_PRECHARGE_DELAY;
+                    end
                     delay_before_read_counter_d[stage2_bank] = READ_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY;
                  
-                    shift_reg_read_pipe_d[READ_DELAY + 1 + 2 + 1] = 1'b1; 
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; 
                     //issue read command
                     if(COL_BITS <= 10) begin
                         cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
@@ -839,9 +923,10 @@ module ddr3_controller #(
             //bank is idle so activate it
             else if(!bank_status_q[stage2_bank] && delay_before_activate_counter_q[stage2_bank] == 0) begin 
                 activate_slot_busy = 1'b1;
+                delay_before_precharge_counter_d[stage2_bank] = ACTIVATE_TO_PRECHARGE_DELAY;
                 //set-up delay before read and write
-                if(delay_before_read_counter_d[stage2_bank] < ACTIVATE_TO_READ_DELAY) begin
-                    delay_before_read_counter_d[stage2_bank] <= ACTIVATE_TO_READ_DELAY;
+                if(delay_before_read_counter_q[stage2_bank] <= ACTIVATE_TO_READ_DELAY) begin
+                    delay_before_read_counter_d[stage2_bank] = ACTIVATE_TO_READ_DELAY;
                 end
                 delay_before_write_counter_d[stage2_bank] = ACTIVATE_TO_WRITE_DELAY;
                 //issue activate command
@@ -883,9 +968,10 @@ module ddr3_controller #(
             
             //anticipated bank is idle so do activate
             else if(!bank_status_q[stage1_next_bank] && delay_before_activate_counter_q[stage1_next_bank] == 0 && !activate_slot_busy) begin 
+                delay_before_precharge_counter_d[stage1_next_bank] = ACTIVATE_TO_PRECHARGE_DELAY;
                 //set-up delay before read and write
                 if(delay_before_read_counter_d[stage1_next_bank] < ACTIVATE_TO_READ_DELAY) begin
-                    delay_before_read_counter_d[stage1_next_bank] <= ACTIVATE_TO_READ_DELAY;
+                    delay_before_read_counter_d[stage1_next_bank] = ACTIVATE_TO_READ_DELAY;
                 end
                 delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
                 cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
@@ -917,7 +1003,6 @@ module ddr3_controller #(
     /******************************************************* Align Read Data from ISERDES *******************************************************/
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n ) begin
-            shift_reg_read_pipe_q <= 0;
             index_read_pipe <= 0;
             index_wb_data <= 0;
             write_dqs_val <= 0;
@@ -925,12 +1010,17 @@ module ddr3_controller #(
             write_dqs <= 0;
             write_dq_q <= 0;
             write_dq <= 0;
-            o_wb_ack_read_q <= 0;
             for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= 0;
             end
             for(index = 0; index < 2; index = index + 1) begin
                 o_wb_data_q[index] <= 0;
+            end
+            for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                shift_reg_read_pipe_q[index] <= 0;
+            end
+            for(index = 0; index < MAX_ADDED_READ_ACK_DELAY ; index = index + 1) begin
+                o_wb_ack_read_q[index] <= 0;
             end
         end
         else begin
@@ -941,19 +1031,55 @@ module ddr3_controller #(
             
             write_dq_q <= write_dq_d;
             write_dq[0] <= write_dq_d || write_dq_q; //high for 2 clk cycles
-            for(index = 1; index <= STAGE2_DATA_DEPTH; index = index+1) begin //increase by 1 to accomodate postamble            
-                write_dqs[index] <= write_dqs[index-1]; 
-                write_dqs_val[index] <= write_dqs_val[index-1];
+            for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin //increase by 1 to accomodate postamble            
+                write_dqs[index+1] <= write_dqs[index]; 
+                write_dqs_val[index+1] <= write_dqs_val[index];
             end 
-            for(index = 1; index <= STAGE2_DATA_DEPTH+1; index = index+1) begin //increase by 1 to accomodate postamble            
-                write_dq[index] <= write_dq[index-1]; 
+            for(index = 0; index < STAGE2_DATA_DEPTH+1; index = index+1) begin //increase by 1 to accomodate postamble            
+                write_dq[index+1] <= write_dq[index]; 
             end 
-            
-            shift_reg_read_pipe_q <= shift_reg_read_pipe_d;
+            for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                shift_reg_read_pipe_q[index] <= shift_reg_read_pipe_d[index];
+            end
+
+            /*
+            f_sum_of_pending_ack = stage1_pending + stage2_pending + 
+            if(f_outstanding == 1) begin
+                assert(stage1_pending ^ stage2_pending);
+                if(stage1_pending) begin
+                    assert(!stage2_pending);
+                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                        assert(shift_reg_read_pipe_q[index] == 0);
+                    end
+                    for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                        assert(o_wb_ack_read_q[index] == 0);
+                    end
+                end
+                else if(stage2_pending) begin
+                    assert(!stage1_pending);
+                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                        assert(shift_reg_read_pipe_q[index] == 0);
+                    end
+                    for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                        assert(o_wb_ack_read_q[index] == 0);
+                    end
+                end
+                else begin //neither stage1 nor stage2 is pending
+                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                        f_sum_of_pending_acks = shift_reg_read_pipe_q[index] == 0);
+                    end
+                    for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                        assert(o_wb_ack_read_q[index] == 0);
+                    end
+
+                end 
+            end
+            */
+
             for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
-            if(shift_reg_read_pipe_q[1]) begin //delay is over and data is now starting to release from iserdes BUT NOT YET ALIGNED
+            if(shift_reg_read_pipe_q[1][0]) begin //delay is over and data is now starting to release from iserdes BUT NOT YET ALIGNED
                 index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 3 pipe to store read data)ss
                 delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
             end
@@ -978,25 +1104,39 @@ module ddr3_controller #(
                     o_wb_data_q[1][((DQ_BITS*LANES)*6 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*6 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[1][((DQ_BITS*LANES)*7 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*7 + 8*index) +: 8]; //update each lane of the burst
                 end
+            end
+            if(o_wb_ack_read_q[0][0]) begin 
+                index_wb_data <= !index_wb_data;
+            end
+            for(index = 1; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                o_wb_ack_read_q[index-1] <= o_wb_ack_read_q[index];
+            end
+            o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1] <= 0;
+            o_wb_ack_read_q[added_read_pipe_max] <= shift_reg_read_pipe_q[0];
 
-                if(o_wb_ack_read_q[0]) begin 
-                    index_wb_data <= !index_wb_data;
+            //abort any outgoing ack when cyc is low
+            if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
+                for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                    o_wb_ack_read_q[index] <= 0;
                 end
-                /*
-                for(index = 0; index < 15; index = index + 1) begin
-                    o_wb_ack_read_q[index] <= o_wb_ack_read_q[index+1];
+                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                    shift_reg_read_pipe_q[index] <= 0;
                 end
-                */
-                o_wb_ack_read_q <= o_wb_ack_read_q >> 1;
-                o_wb_ack_read_q[added_read_pipe_max] <= shift_reg_read_pipe_q[0];
             end
        end
     end
-    assign o_wb_ack = o_wb_ack_read_q[0];
+    assign o_wb_ack = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
+    //o_wb_ack_read_q[0][0] is needed internally for write calibration but it must not go outside (since it is not an actual user wb request unless we are in DONE_CALIBRATE) 
+    assign o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1] && state_calibrate == DONE_CALIBRATE; 
     assign o_wb_data = o_wb_data_q[index_wb_data];
     assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH];
     assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH+1];
-    assign o_phy_toggle_dqs = write_dqs_val[STAGE2_DATA_DEPTH-2]; 
+    generate
+        if(STAGE2_DATA_DEPTH - 2 >= 0)
+            assign o_phy_toggle_dqs = write_dqs_val[STAGE2_DATA_DEPTH-2]; 
+        else
+            assign o_phy_toggle_dqs = write_dqs_d || write_dqs_q[0]; 
+    endgenerate
     /*********************************************************************************************************************************************/
     
 
@@ -1019,6 +1159,7 @@ module ddr3_controller #(
             write_calib_odt <= 0;
             prev_write_level_feedback <= 1;
             write_calib_stb <= 0;//actual request flag
+            write_calib_aux <= 0; //AUX ID
             write_calib_we <= 0; //write-enable
             write_calib_col <= 0;
             write_calib_data <= 0;
@@ -1033,14 +1174,15 @@ module ddr3_controller #(
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
-                odelay_data_cntvaluein[index] = DATA_INITIAL_ODELAY_TAP;
-                odelay_dqs_cntvaluein[index] = DQS_INITIAL_ODELAY_TAP;
-                idelay_data_cntvaluein[index] = DATA_INITIAL_IDELAY_TAP;
-                idelay_dqs_cntvaluein[index] = DQS_INITIAL_IDELAY_TAP;
+                odelay_data_cntvaluein[index] <= DATA_INITIAL_ODELAY_TAP;
+                odelay_dqs_cntvaluein[index] <= DQS_INITIAL_ODELAY_TAP;
+                idelay_data_cntvaluein[index] <= DATA_INITIAL_IDELAY_TAP;
+                idelay_dqs_cntvaluein[index] <= DQS_INITIAL_IDELAY_TAP;
             end
         end
         else begin
             write_calib_stb <= 0;//actual request flag
+            write_calib_aux <= 0; //AUX ID
             write_calib_we <= 0; //write-enable
             write_calib_col <= 0;
             write_calib_data <= 0;
@@ -1199,6 +1341,7 @@ module ddr3_controller #(
                         end     
         ISSUE_WRITE_1: if(instruction_address == 22) begin
                         write_calib_stb <= 1;//actual request flag
+                        write_calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 1; //write-enable
                         write_calib_col <= 0;
                         write_calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
@@ -1206,6 +1349,7 @@ module ddr3_controller #(
                        end    
         ISSUE_WRITE_2: begin
                         write_calib_stb <= 1;//actual request flag
+                        write_calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 1; //write-enable
                         write_calib_col <= 8;
                         write_calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
@@ -1214,11 +1358,12 @@ module ddr3_controller #(
                                     
           ISSUE_READ: if(!o_wb_stall_d) begin
                         write_calib_stb <= 1;//actual request flag
+                        write_calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 0; //write-enable
                         state_calibrate <= READ_DATA;
                       end   
                       
-           READ_DATA: if(o_wb_ack_read_q[0]) begin
+           READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH){1'b0}}, 1'b1}) begin //wait for the read ack (which has UAX ID of 0}
                          read_data_store <= o_wb_data;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index[lane] <= 0;
@@ -1447,11 +1592,41 @@ module ddr3_controller #(
         $display("WRITE_TO_READ_DELAY = 4 = %0d", WRITE_TO_READ_DELAY);
         $display("WRITE_TO_PRECHARGE_DELAY = 5 = %0d", WRITE_TO_PRECHARGE_DELAY);
         $display("STAGE2_DATA_DEPTH = 2 = %0d", STAGE2_DATA_DEPTH);
+        $display("READ_ACK_PIPE_WIDTH = %0d", READ_ACK_PIPE_WIDTH);
     end
 `endif
     
     
 `ifdef  FORMAL
+    // wires and registers used in this formal section
+    localparam F_TEST_CMD_DATA_WIDTH = $bits(i_wb_data) + $bits(i_wb_sel) + $bits(i_aux) + $bits(i_wb_addr) + $bits(i_wb_we);
+    reg f_past_valid = 0; 
+    reg[$bits(instruction_address) - 1: 0] f_addr = 0, f_read = 0 ; 
+    reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
+    reg[3:0] f_count_refreshes = 0; //count how many refresh cycles had already passed
+    reg[24:0] f_wb_inputs[31:0];
+    reg[4:0] f_index = 0;
+    reg[5:0] f_counter = 0;
+    reg[9:0] f_reset_counter = 0;
+
+    reg[4:0] f_index_1 = 0;
+    reg[F_TEST_CMD_DATA_WIDTH - 1:0] f_write_data;
+    reg f_write_fifo = 0, f_read_fifo = 0;
+    wire f_empty, f_full;
+    wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data;
+
+    reg[AUX_WIDTH - 1:0] f_write_data_2;
+    reg f_write_fifo_2 = 0, f_read_fifo_2 = 0;
+    wire f_empty_2, f_full_2;
+    wire[AUX_WIDTH - 1:0] f_read_data_2;
+
+    wire[$bits(instruction) - 1:0]  a= read_rom_instruction(f_const_addr); //retrieve an instruction based on engine's choice
+    wire[1:0] f_write_slot;
+    wire[1:0] f_read_slot;
+    wire[1:0] f_precharge_slot;
+    wire[1:0] f_activate_slot;
+    (*anyconst*) reg[$bits(instruction_address) - 1: 0] f_const_addr;
+    
     initial assume(!i_rst_n); 
     
     always @* begin
@@ -1463,19 +1638,17 @@ module ddr3_controller #(
         assert(MR3_MPR_EN[18] != 1'b1);
         assert(MR3_MPR_DIS[18] != 1'b1);
         assert(DELAY_COUNTER_WIDTH <= $bits(MR0)); //bitwidth of mode register should be enough for the delay counter
-        assert(($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)) == 5 ); //sanity checking to ensure 5 bits is allotted for extra instruction {reset_finished, use_timer , stay_command , cke , reset_n } 
+        //sanity checking to ensure 5 bits is allotted for extra instruction {reset_finished, use_timer , stay_command , cke , reset_n } 
+        assert(($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)) == 5 ); 
         assert(DELAY_SLOT_WIDTH >= DELAY_COUNTER_WIDTH); //width occupied by delay timer slot on the reset rom must be able to occupy the maximum possible delay value on the reset sequence
     end
     
-    reg f_past_valid = 0; 
     always @(posedge i_controller_clk)  f_past_valid <= 1;
     
     
     //The idea below is sourced from https://zipcpu.com/formal/2019/11/18/genuctrlr.html
     //We will form a packet of information describing each instruction as it goes through the pipeline and make assertions along the way.
     //2-stage Pipeline: f_addr (update address)  ->  f_read (read instruction from rom)  
-    reg[$bits(instruction_address) - 1: 0] f_addr = 0, f_read = 0 ; 
-    reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
     
     //pipeline stage logic: f_addr (update address)  ->  f_read (read instruction from rom)  
     always @(posedge i_controller_clk, negedge i_rst_n) begin
@@ -1483,7 +1656,8 @@ module ddr3_controller #(
             f_addr <= 0;
             f_read <= 0;
         end
-        else if((delay_counter == 1 || !instruction[USE_TIMER] || skip_reset_seq_delay) /*&& !reset_done*/ )begin //move the pipeline forward when counter is about to go zero and we are not yet at end of reset sequence
+        //move the pipeline forward when counter is about to go zero and we are not yet at end of reset sequence
+        else if((delay_counter == 1 || !instruction[USE_TIMER] || skip_reset_seq_delay) /*&& !reset_done*/ )begin             
             f_addr <= (f_addr == 22)? 19:f_addr + 1;
             f_read <= f_addr;
         end     
@@ -1581,8 +1755,6 @@ module ddr3_controller #(
     
     
     // assertions on the instructions stored on the rom
-    (*anyconst*) reg[$bits(instruction_address) - 1: 0] f_const_addr;
-    wire[$bits(instruction) - 1:0]  a= read_rom_instruction(f_const_addr); //retrieve an instruction based on engine's choice
     always @* begin
      //there MUST BE no instruction which USE_TIMER is high but delay is zero since it can cause the logic to lock-up (delay must be at least 1)    
     if(a[USE_TIMER]) begin
@@ -1624,13 +1796,13 @@ module ddr3_controller #(
     end
     //cover statements
     `ifdef FORMAL_COVER
-    reg[3:0] f_count_refreshes = 0; //count how many refresh cycles had already passed
     always @(posedge i_controller_clk) begin
         if($past(f_read) == 15 && f_read == 12) f_count_refreshes = f_count_refreshes + 1; //every time address wrap around refresh is completed
     end
     always @(posedge i_controller_clk) begin
         cover(f_count_refreshes == 5);
-        //cover($past(instruction[RST_DONE]) && !instruction[RST_DONE] && i_rst_n); //MUST FAIL: find an instance where RST_DONE will go low after it already goes high (except when i_rst_n is activated)
+        //MUST FAIL: find an instance where RST_DONE will go low after it already goes high (except when i_rst_n is activated)
+        //cover($past(instruction[RST_DONE]) && !instruction[RST_DONE] && i_rst_n); 
     end
     `endif
     
@@ -1647,10 +1819,6 @@ module ddr3_controller #(
     //make an assertion that there will be no request pending before actual refresh starts at instruction 4'd12
         
         
-    reg[24:0] f_wb_inputs[31:0];
-    reg[4:0] f_index = 0;
-    reg[5:0] f_counter = 0;
-    reg[9:0] f_reset_counter = 0;
     initial begin
     /*
         f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
@@ -1731,46 +1899,60 @@ module ddr3_controller #(
         //cover(f_reset_counter == 10);
     end
     */
-    
-    //mini-FiFO
-    //error: AFTER PRECHARGE, cna already write since active row is lready
-    //eqaual
-    localparam f_fifo_width = 1;
-    (*keep*) reg[$bits(i_wb_addr) + $bits(i_wb_we) - 1:0] f_fifo_reg[2**f_fifo_width-1:0];
-    reg[f_fifo_width-1:0] f_write_pointer=0, f_read_pointer=0;
-    reg[4:0] f_index_1 = 0;
-    reg[$bits(i_wb_addr) + $bits(i_wb_we) - 1:0] f_write_data;
-    wire[24:0] f_read_data;
-    reg f_write_fifo = 0, f_read_fifo = 0;
-    reg f_empty = 1, f_full = 0;
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n) begin
-            f_empty <= 1;
-            f_full <=0;
-            f_read_pointer <= 0;
-            f_write_pointer <= 0;
-        end
+
+    mini_fifo #(
+        .FIFO_WIDTH(1), //the fifo will have 2**FIFO_WIDTH positions
+        .DATA_WIDTH(F_TEST_CMD_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
+   ) fifo_1 (
+        .i_clk(i_controller_clk), 
+        .i_rst_n(i_rst_n && i_wb_cyc),
+        .read_fifo(f_read_fifo), 
+        .write_fifo(f_write_fifo),
+        .empty(f_empty), 
+        .full(f_full),
+        .write_data(f_write_data),
+        .read_data(f_read_data)
+   ); 
+
+
+   /*
+    mini_fifo #(
+        .FIFO_WIDTH($clog2(READ_ACK_PIPE_WIDTH+5)), //the fifo will have 2**FIFO_WIDTH positions
+        .DATA_WIDTH(AUX_WIDTH) //each FIFO position can store DATA_WIDTH bits
+   ) fifo_2 (
+        .i_clk(i_controller_clk), 
+        .i_rst_n(i_rst_n),
+        .read_fifo(f_read_fifo_2), 
+        .write_fifo(f_write_fifo_2),
+        .empty(f_empty_2), 
+        .full(f_full_2),
+        .write_data(f_write_data_2),
+        .read_data(f_read_data_2)
+   ); 
+
+    always @* begin
+        //write the wb request to fifo
+        if(i_wb_stb && i_wb_cyc && !o_wb_stall && state_calibrate == DONE_CALIBRATE) begin
+            f_write_fifo_2 = 1;
+            f_write_data_2 = i_aux;
+        end 
         else begin
-            if(f_read_fifo) begin
-                assert(!f_empty);
-                if(!f_write_fifo) f_full <= 0;
-                //advance read pointer
-                f_read_pointer <= f_read_pointer + 1;
-                if(f_read_pointer + 1'b1 == f_write_pointer && !f_write_fifo) f_empty <= 1;
-             end
-            if(f_write_fifo) begin
-                  if(!f_read_fifo) assert(!f_full);
-                  if(!f_read_fifo) f_empty <= 0;
-                  //write to FiFo
-                  f_fifo_reg[f_write_pointer] <= f_write_data;
-                  //advance read pointer
-                  f_write_pointer <= f_write_pointer + 1;
-                  if(f_write_pointer + 1'b1 == f_read_pointer && !f_read_fifo) f_full <= 1'b1; //fifo should never be full
-            end
+            f_write_fifo_2 = 0;
         end
+        f_read_fifo_2 = 0;
+        //check if an ack is received
+        if(o_wb_ack && i_wb_cyc) begin //
+            assert(f_read_data_2 == o_aux); //the AUX ID must match the corresponding request AUX ID
+            assert(!f_empty_2);
+            f_read_fifo_2 = 1;
+            assert(state_calibrate == DONE_CALIBRATE); //o_wb_ack must only go high after done calibration
+        end
+
+        if(state_calibrate != DONE_CALIBRATE) assert(f_empty_2); //if not yet finished calibrating, stall should never go low
+        if(!f_empty_2) assert(state_calibrate == DONE_CALIBRATE);
     end
-    assign f_read_data = f_fifo_reg[f_read_pointer];
-    //mini-FiFo assertions
+    */
+    
     always @* begin
         if(state_calibrate == DONE_CALIBRATE) begin
             if(f_full) assert(stage1_pending && stage2_pending);//there are 2 contents
@@ -1781,11 +1963,8 @@ module ddr3_controller #(
 
             if(f_empty) assert(stage1_pending == 0 && stage2_pending==0); //there is 0 content
             if(stage1_pending == 0 && stage2_pending == 0) assert(f_empty);
-        
+
         end
-        if(f_empty || f_full) assert(f_write_pointer == f_read_pointer); 
-        if(f_write_pointer == f_read_pointer) assert(f_empty || f_full);
-        assert(!(f_empty && f_full));
 
         if(state_calibrate < ISSUE_WRITE_1) assert(!stage1_pending && !stage2_pending);
         if(stage1_pending && state_calibrate == ISSUE_READ) assert(stage1_we);
@@ -1825,25 +2004,39 @@ module ddr3_controller #(
         //write the wb request to fifo
         if(i_wb_stb && i_wb_cyc && !o_wb_stall && state_calibrate == DONE_CALIBRATE) begin
             f_write_fifo = 1;
-            f_write_data = {i_wb_addr,i_wb_we};
+            f_write_data = {i_wb_data, i_wb_sel, i_aux, i_wb_addr,i_wb_we};
         end 
         else f_write_fifo = 0;
         f_read_fifo = 0;
         //check if a DDR3 command is issued
         for(f_index_1 = 0; f_index_1 < 4; f_index_1 = f_index_1 + 1) begin
-            if(!cmd_d[f_index_1][CMD_CS_N] && state_calibrate == DONE_CALIBRATE) begin //only if already done calibrate and controller can accept wb request 
+            if(!cmd_d[f_index_1][CMD_CS_N]) begin //only if already done calibrate and controller can accept wb request 
                 case(cmd_d[f_index_1][CMD_CS_N:CMD_WE_N])
                     4'b0100: begin //WRITE
-                               assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank and address must match 
-                               assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //bank and address must match 
-                               assert(f_read_data[0]); //i_wb_we must be high
-                               f_read_fifo = 1; //advance read pointer to prepare for next read
+                                if(state_calibrate == DONE_CALIBRATE) begin
+                                   assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                                   assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                                   assert(stage2_aux == f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]); //UAX ID must match 
+                                   assert(stage2_dm_unaligned == f_read_data[$bits(i_wb_addr) + AUX_WIDTH + 1 +: $bits(i_wb_sel)]); //wb sel must match to data mask
+                                   //assert(stage2_data_unaligned == f_read_data[$bits(i_wb_sel) + $bits(i_wb_addr) + AUX_WIDTH + 1 +: $bits(i_wb_data)]); //actual data must match 
+                                   assert(f_read_data[0]); //i_wb_we must be high
+                                   f_read_fifo = 1; //advance read pointer to prepare for next read
+                                end
+                                else if(state_calibrate > ISSUE_WRITE_1) begin
+                                    assert(stage2_aux == 1);
+                                end
                              end
                     4'b0101: begin //READ
-                               assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank and address must match 
-                               assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //bank and address must match 
-                               assert(!f_read_data[0]); //i_wb_we must be low
-                               f_read_fifo = 1; //advance read pointer to prepare for next read
+                               if(state_calibrate == DONE_CALIBRATE) begin
+                                   assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank and address must match 
+                                   assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //bank and address must match 
+                                   assert(stage2_aux == f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]); //UAX ID must match 
+                                   assert(!f_read_data[0]); //i_wb_we must be low
+                                   f_read_fifo = 1; //advance read pointer to prepare for next read
+                               end
+                                else if(state_calibrate > ISSUE_WRITE_1) begin
+                                    assert(stage2_aux == 0);
+                                end
                              end
                 endcase
             end
@@ -1856,29 +2049,16 @@ module ddr3_controller #(
         if(state_calibrate != DONE_CALIBRATE) assert(f_empty); //if not yet finished calibrating, stall should never go low
         if(!f_empty) assert(state_calibrate == DONE_CALIBRATE);
     end
-    wire[1:0] f_write_slot;
     assign f_write_slot = WRITE_SLOT;
-    wire[1:0] f_read_slot;
     assign f_read_slot = READ_SLOT;
-    wire[1:0] f_precharge_slot;
     assign f_precharge_slot = PRECHARGE_SLOT;
-    wire[1:0] f_activate_slot;
     assign f_activate_slot = ACTIVATE_SLOT;
 
-    reg[4:0] f_process_request_counter = 0;
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n) begin
-            f_process_request_counter <= 0;
+    always @(posedge i_controller_clk) begin
+        if(!f_empty) begin//there is an ongoing wb request
+            assert(stage1_pending || stage2_pending);
         end
-        else begin
-            if(!f_empty) begin//there is an ongoing wb request
-                f_process_request_counter <= f_read_fifo ? 0:f_process_request_counter + 1;//if a new command comes out (then read fifo) then counter will go back to sero
-                //assert(f_process_request_counter < 8); //a single wb request should not take more than 7 clock cycles
-                assert(stage1_pending || stage2_pending);
-            end
-            else f_process_request_counter <= 0;
-            if((stage1_pending || stage2_pending) && state_calibrate == DONE_CALIBRATE) assert(!f_empty || f_write_fifo);
-        end
+        if((stage1_pending || stage2_pending) && state_calibrate == DONE_CALIBRATE) assert(!f_empty || f_write_fifo);
     end
     always @(posedge i_controller_clk) begin
             if(f_past_valid) begin
@@ -1913,12 +2093,177 @@ module ddr3_controller #(
         end
         if(instruction_address != 22 && instruction_address != 19) assert(!stage1_pending && !stage2_pending); //must be pending except in tREFI and in prestall delay
         if(!reset_done) assert(stage1_pending == 0 && stage2_pending == 0);
-        if(state_calibrate <= ISSUE_READ) assert(o_wb_ack_read_q == 0);
+        if(state_calibrate <= ISSUE_READ) begin
+            for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                assert(o_wb_ack_read_q[index] == 0);
+            end
+            for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                assert(shift_reg_read_pipe_q[index] == 0);
+            end
+        end
         if(state_calibrate <= ISSUE_WRITE_1) begin
             assert(bank_status_q == 0);
         end
         assert(state_calibrate <= DONE_CALIBRATE);
+        if(!DONE_CALIBRATE) assert(o_wb_ack == 0); //o_wb_ack must not go high before done calibration
     end
+
+
+        wire[4:0] f_nreqs, f_nacks, f_outstanding;
+
+        integer f_sum_of_pending_acks = 0;
+        always @* begin
+                if(state_calibrate == DONE_CALIBRATE) begin
+                    assume(added_read_pipe_max == 1);
+                end
+                f_sum_of_pending_acks = stage1_pending + stage2_pending;
+                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
+                end
+                for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
+                end
+                if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
+                    assert(f_outstanding == f_sum_of_pending_acks);
+                end
+                else if(!i_rst_n) begin
+                    assert(f_sum_of_pending_acks == 0);
+                end
+                if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
+                    assert(f_outstanding == 0);
+                end
+                if(state_calibrate <= ISSUE_WRITE_1) begin
+                    //not inside tREFI, prestall delay, nor precharge
+                    assert(f_outstanding == 0); 
+                    assert(f_sum_of_pending_acks == 0);
+                end
+
+        end
+fwb_slave #(
+		// {{{
+		.AW(wb_addr_bits), 
+        .DW(wb_data_bits),
+		.F_MAX_STALL(15),
+		.F_MAX_ACK_DELAY(15),
+		.F_LGDEPTH(4),
+		.F_MAX_REQUESTS(10),
+		// OPT_BUS_ABORT: If true, the master can drop CYC at any time
+		// and must drop CYC following any bus error
+		.OPT_BUS_ABORT(0),
+		//
+		// If true, allow the bus to be kept open when there are no
+		// outstanding requests.  This is useful for any master that
+		// might execute a read modify write cycle, such as an atomic
+		// add.
+		.F_OPT_RMW_BUS_OPTION(1),
+		//
+		// 
+		// If true, allow the bus to issue multiple discontinuous
+		// requests.
+		// Unlike F_OPT_RMW_BUS_OPTION, these requests may be issued
+		// while other requests are outstanding
+		.F_OPT_DISCONTINUOUS(1),
+		//
+		//
+		// If true, insist that there be a minimum of a single clock
+		// delay between request and response.  This defaults to off
+		// since the wishbone specification specifically doesn't
+		// require this.  However, some interfaces do, so we allow it
+		// as an option here.
+		.F_OPT_MINCLOCK_DELAY(1),
+		//
+		//
+		//
+        .F_WB_ERR(0)
+		// }}}
+	) wb_properties (
+		// {{{
+		.i_clk(i_controller_clk), 
+        .i_reset(!i_rst_n),
+        .i_check_assert(state_calibrate == DONE_CALIBRATE && instruction_address == 22),
+		// The Wishbone bus
+		.i_wb_cyc(i_wb_cyc), 
+        .i_wb_stb(i_wb_stb), 
+        .i_wb_we(i_wb_we),
+		.i_wb_addr(i_wb_addr),
+		.i_wb_data(i_wb_data),
+		.i_wb_sel(i_wb_sel),
+		//
+		.i_wb_ack(o_wb_ack),
+		.i_wb_stall(o_wb_stall),
+		.i_wb_idata(o_wb_data),
+		.i_wb_err(),
+		// Some convenience output parameters
+		.f_nreqs(f_nreqs), 
+        .f_nacks(f_nacks),
+		.f_outstanding(f_outstanding)
+		// }}}
+		// }}}
+	);
 
 `endif
 endmodule
+
+
+module mini_fifo #(
+        parameter FIFO_WIDTH = 1, //the fifo will have 2**FIFO_WIDTH positions
+        parameter DATA_WIDTH = 8 //each FIFO position can store DATA_WIDTH bits
+   )(
+        input wire i_clk, i_rst_n,
+        input wire read_fifo, write_fifo,
+        output reg empty, full,
+        input wire[DATA_WIDTH - 1:0] write_data,
+        output wire[DATA_WIDTH - 1:0] read_data
+   ); 
+    reg[FIFO_WIDTH-1:0] write_pointer=0, read_pointer=0;
+    reg[DATA_WIDTH - 1:0] fifo_reg[2**FIFO_WIDTH-1:0];
+    initial begin
+        empty = 1;
+        full = 0;
+    end
+
+    always @(posedge i_clk, negedge i_rst_n) begin
+        if(!i_rst_n) begin
+            empty <= 1;
+            full <=0;
+            read_pointer <= 0;
+            write_pointer <= 0;
+        end
+        else begin
+            if(read_fifo) begin
+                `ifdef FORMAL
+                    assert(!empty);
+                `endif
+                if(!write_fifo) full <= 0;
+                //advance read pointer
+                read_pointer <= read_pointer + 1;
+                if(read_pointer + 1'b1 == write_pointer && !write_fifo) empty <= 1;
+             end
+            if(write_fifo) begin
+                 `ifdef FORMAL
+                    if(!read_fifo) assert(!full);
+                  `endif
+                  if(!read_fifo) empty <= 0;
+                  //write to FiFo
+                  fifo_reg[write_pointer] <= write_data;
+                  //advance read pointer
+                  write_pointer <= write_pointer + 1;
+                  if(write_pointer + 1'b1 == read_pointer && !read_fifo) full <= 1'b1; //fifo should never be full
+            end
+        end
+    end
+    assign read_data = fifo_reg[read_pointer];
+
+    `ifdef FORMAL
+    //mini-FiFo assertions
+    always @* begin
+        if(empty || full) assert(write_pointer == read_pointer); 
+        if(write_pointer == read_pointer) assert(empty || full);
+        assert(!(empty && full));
+        //TASK ADD MORE ASSERTIONS
+    end
+    `endif
+
+endmodule
+
+
