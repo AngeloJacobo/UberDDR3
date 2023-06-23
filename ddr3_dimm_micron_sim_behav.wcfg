@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="133,811.600 ns"></ZoomStartTime>
-      <ZoomEndTime time="133,840.351 ns"></ZoomEndTime>
-      <Cursor1Time time="133,835.250 ns"></Cursor1Time>
+      <ZoomStartTime time="73,712.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="76,018.001 ns"></ZoomEndTime>
+      <Cursor1Time time="74,270.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="267"></NameColumnWidth>
-      <ValueColumnWidth column_width="85"></ValueColumnWidth>
+      <ValueColumnWidth column_width="77"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="82" />
+   <WVObjectSize size="84" />
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Model File</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -48,6 +48,20 @@
       <obj_property name="ElementShortName">i_wb_stb</obj_property>
       <obj_property name="ObjectShortName">i_wb_stb</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/o_aux">
+      <obj_property name="ElementShortName">o_aux[15:0]</obj_property>
+      <obj_property name="ObjectShortName">o_aux[15:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/i_aux">
+      <obj_property name="ElementShortName">i_aux[15:0]</obj_property>
+      <obj_property name="ObjectShortName">i_aux[15:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/o_wb_ack">
+      <obj_property name="ElementShortName">o_wb_ack</obj_property>
+      <obj_property name="ObjectShortName">o_wb_ack</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_wb_we">
       <obj_property name="ElementShortName">i_wb_we</obj_property>
       <obj_property name="ObjectShortName">i_wb_we</obj_property>
@@ -63,10 +77,6 @@
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/o_wb_stall">
       <obj_property name="ElementShortName">o_wb_stall</obj_property>
       <obj_property name="ObjectShortName">o_wb_stall</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/o_wb_ack">
-      <obj_property name="ElementShortName">o_wb_ack</obj_property>
-      <obj_property name="ObjectShortName">o_wb_ack</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/o_wb_data">
       <obj_property name="ElementShortName">o_wb_data[511:0]</obj_property>
