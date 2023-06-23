@@ -186,7 +186,7 @@ module ddr3_controller #(
     localparam CWL_nCK = 5; //create a function for this
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
-    localparam PRE_STALL_DELAY = ((PRECHARGE_TO_ACTIVATE_DELAY+1) + (ACTIVATE_TO_WRITE_DELAY+1) + (WRITE_TO_PRECHARGE_DELAY+1))*2; 
+    localparam PRE_STALL_DELAY = ((PRECHARGE_TO_ACTIVATE_DELAY+1) + (ACTIVATE_TO_WRITE_DELAY+1) + (WRITE_TO_PRECHARGE_DELAY+1) + 1)*2; 
                                     //worst case scenario: two consecutive writes at same bank but different row
                                     //delay will be: PRECHARGE -> PRECHARGE_TO_ACTIVATE_DELAY -> ACTIVATE -> ACTIVATE_TO_WRITE_DELAY -> WRITE -> WRITE_TO_PRECHARGE_DELAY ->
                                     //PRECHARGE -> PRECHARGE_TO_ACTIVATE_DELAY -> ACTIVATE -> ACTIVATE_TO_WRITE_DELAY -> WRITE -> WRITE_TO_PRECHARGE_DELAY 
@@ -222,7 +222,7 @@ module ddr3_controller #(
     `endif
     localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 ));
     localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;
-    localparam MAX_ADDED_READ_ACK_DELAY = 16;
+    localparam MAX_ADDED_READ_ACK_DELAY = 2;
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ns_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
                                                                                             //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
     /*********************************************************************************************************************************************/
@@ -684,6 +684,7 @@ module ddr3_controller #(
                 //delay     
                 //stage1_pending <= 0;
             end
+
             if(instruction_address == 20) begin ///current instruction at precharge
                 cmd_odt_q <= 1'b0;
                 //all banks will be in idle after refresh
@@ -696,6 +697,7 @@ module ddr3_controller #(
                 stage2_pending <= stage1_pending;
                 stage1_pending <= 0; //move pending request to stage 2 thus stage 1 will not be pending anymore UNLESS there is a wb request at this clk cycle
             end
+            
             
             //abort any outgoing ack when cyc is low
             if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
@@ -836,6 +838,7 @@ module ddr3_controller #(
             shift_reg_read_pipe_d[index-1] = shift_reg_read_pipe_q[index];
         end
         shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0;
+
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
             o_wb_stall_d = o_wb_stall; 
@@ -979,11 +982,11 @@ module ddr3_controller #(
                 bank_active_row_d[stage1_next_bank] = stage1_next_row;
             end //end of anticipate activate
             
-        end //end of stage1 pending
+        end //end of stage1 anticipate
 
-        if(stage1_pending) begin
+        if(stage1_pending) begin //raise stall only if stage2 will still be busy next clock
             // Stage1 bank and row will determine if transaction will be
-            // stalled (bank is idle OR wrong row is active).  
+            // stalled (bank is idle OR wrong row is active). 
             if(!bank_status_q[stage1_bank] || (bank_status_q[stage1_bank] && bank_active_row_q[stage1_bank] != stage1_row)) begin 
                 o_wb_stall_d = 1;
             end
@@ -992,6 +995,7 @@ module ddr3_controller #(
             //different request type will need a delay of more than 1 clk cycle so stall the pipeline 
             if(stage1_we != stage2_we) o_wb_stall_d = 1;
         end
+    
     // Vivado Benchmarking
     // LUT = 1254, FF = 2878
     // WNS = 0.924 ns (200MHz clk)
@@ -1355,7 +1359,6 @@ module ddr3_controller #(
                         write_calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
                         state_calibrate <= ISSUE_READ;
                        end    
-                                    
           ISSUE_READ: if(!o_wb_stall_d) begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
@@ -2038,6 +2041,20 @@ module ddr3_controller #(
                                     assert(stage2_aux == 0);
                                 end
                              end
+                 `ifdef OKAY reg[ROW_BITS-1:0] f_bank_active_row_q[(1<<BA_BITS)-1:0]; reg[(1<<BA_BITS)-1:0] f_bank_status; 
+                    4'b0010: begin //PRECHARGE
+                                assert(f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] == 1); //the bank that should be precharged must initially be active 
+                                f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 0;
+                             end
+                    4'b0011: begin //ACTIVATE
+                                assert(f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] == 0); //the bank that should be activated must initially be precharged 
+                                f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 1; //bank will be turned active
+                                f_active_row[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= cmd_d[CMD_ADDRESS_START:0]; //save row to be activated 
+                             end
+                    cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
+                    cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
+                    bank_status_d[stage1_next_bank] = 1'b0; 
+                 `endif
                 endcase
             end
             if(reset_done) begin
@@ -2113,9 +2130,11 @@ module ddr3_controller #(
 
         integer f_sum_of_pending_acks = 0;
         always @* begin
-                if(state_calibrate == DONE_CALIBRATE) begin
-                    assume(added_read_pipe_max == 1);
+                if(!i_rst_n) begin
+                    assume(f_nreqs == 0);
+                    assume(f_nacks == 0);
                 end
+                //assume(added_read_pipe_max == 1);
                 f_sum_of_pending_acks = stage1_pending + stage2_pending;
                 for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
                     f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
@@ -2132,13 +2151,41 @@ module ddr3_controller #(
                 if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
                     assert(f_outstanding == 0);
                 end
-                if(state_calibrate <= ISSUE_WRITE_1) begin
+                if(state_calibrate <= ISSUE_WRITE_1 && i_rst_n) begin
                     //not inside tREFI, prestall delay, nor precharge
                     assert(f_outstanding == 0); 
                     assert(f_sum_of_pending_acks == 0);
                 end
-
+                if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
+                    assert(f_outstanding == 0); 
+                    assert(f_sum_of_pending_acks == 0);
+                end
+                if(state_calibrate != DONE_CALIBRATE  && i_rst_n) begin //if not yet done calibration, no request should be accepted
+                    assert(f_nreqs == 0);
+                    assert(f_nacks == 0);
+                    assert(f_outstanding == 0); 
+                end
+               if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
+                   if(write_calib_stb == 1) begin
+                        assert(write_calib_aux == 1);          
+                        assert(write_calib_we == 1);
+                    end
+               end
         end
+        always @(posedge i_controller_clk) begin
+            if(f_past_valid) begin
+                if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && i_rst_n) begin
+                   assert(f_nreqs == $past(f_nreqs));           
+                end
+                if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && i_rst_n) begin//just started DONE_CALBRATION
+                    assert(f_nreqs == 0);
+                    assert(f_nacks == 0);
+                    assert(f_outstanding == 0); 
+                    assert(f_sum_of_pending_acks == 0);
+                end
+            end
+        end
+
 fwb_slave #(
 		// {{{
 		.AW(wb_addr_bits), 
