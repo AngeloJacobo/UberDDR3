@@ -1,40 +1,21 @@
-start_gui
-open_project /home/angelo/Desktop/switch_fpga/switch_fpga.xpr
-INFO: [filemgmt 56-3] Default IP Output Path : Could not find the directory '/home/angelo/Desktop/switch_fpga/switch_fpga.gen/sources_1'.
-Scanning sources...
-Finished scanning sources
-INFO: [IP_Flow 19-234] Refreshing IP repositories
-INFO: [IP_Flow 19-1704] No user IP repositories specified
-INFO: [IP_Flow 19-2313] Loaded Vivado IP repository '/tools/Xilinx/Vivado/2021.2/data/ip'.
-open_project: Time (s): cpu = 00:00:15 ; elapsed = 00:00:16 . Memory (MB): peak = 7525.488 ; gain = 70.047 ; free physical = 512 ; free virtual = 24271
-update_compile_order -fileset sources_1
-launch_simulation
-Command: launch_simulation 
+relaunch_sim
+INFO: xsimkernel Simulation Memory Usage: 240120 KB (Peak: 297916 KB), Simulation CPU Usage: 10100 ms
+Command: launch_simulation -step compile -simset sim_1 -mode behavioral
 INFO: [Vivado 12-12493] Simulation top is 'ddr3_dimm_micron_sim'
 WARNING: [Vivado 12-12986] Compiled library path does not exist: ''
 INFO: [Vivado 12-5682] Launching behavioral simulation in '/home/angelo/Desktop/switch_fpga/switch_fpga.sim/sim_1/behav/xsim'
 INFO: [SIM-utils-51] Simulation object is 'sim_1'
-INFO: [SIM-utils-72] Using boost library from '/tools/Xilinx/Vivado/2021.2/tps/boost_1_72_0'
-INFO: [SIM-utils-54] Inspecting design source files for 'ddr3_dimm_micron_sim' in fileset 'sim_1'...
-INFO: [USF-XSim-97] Finding global include files...
-INFO: [USF-XSim-98] Fetching design files from 'sim_1'...
 INFO: [USF-XSim-2] XSim::Compile design
 INFO: [USF-XSim-61] Executing 'COMPILE and ANALYZE' step in '/home/angelo/Desktop/switch_fpga/switch_fpga.sim/sim_1/behav/xsim'
 xvlog --incr --relax -L uvm -prj ddr3_dimm_micron_sim_vlog.prj
-INFO: [VRFC 10-2263] Analyzing Verilog file "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_controller.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_controller
-WARNING: [VRFC 10-3380] identifier 'PRECHARGE_TO_ACTIVATE_DELAY' is used before its declaration [/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_controller.v:189]
-INFO: [VRFC 10-311] analyzing module mini_fifo
-INFO: [VRFC 10-2263] Analyzing Verilog file "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_phy
-WARNING: [VRFC 10-3401] illegal argument of type reg [packed dim count:1] in math function 'floor()', expected real type [/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v:276]
-WARNING: [VRFC 10-3401] illegal argument of type reg [packed dim count:1] in math function 'floor()', expected real type [/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v:321]
-WARNING: [VRFC 10-3401] illegal argument of type reg [packed dim count:1] in math function 'floor()', expected real type [/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v:364]
-INFO: [VRFC 10-2263] Analyzing Verilog file "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_top.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_top
 Waiting for jobs to finish...
 No pending jobs, compilation finished.
-INFO: [USF-XSim-69] 'compile' step finished in '4' seconds
+INFO: [USF-XSim-69] 'compile' step finished in '3' seconds
+Command: launch_simulation -step elaborate -simset sim_1 -mode behavioral
+INFO: [Vivado 12-12493] Simulation top is 'ddr3_dimm_micron_sim'
+WARNING: [Vivado 12-12986] Compiled library path does not exist: ''
+INFO: [Vivado 12-5682] Launching behavioral simulation in '/home/angelo/Desktop/switch_fpga/switch_fpga.sim/sim_1/behav/xsim'
+INFO: [SIM-utils-51] Simulation object is 'sim_1'
 INFO: [USF-XSim-3] XSim::Elaborate design
 INFO: [USF-XSim-61] Executing 'ELABORATE' step in '/home/angelo/Desktop/switch_fpga/switch_fpga.sim/sim_1/behav/xsim'
 xelab --incr --debug typical --relax --mt 8 -L xil_defaultlib -L uvm -L unisims_ver -L unimacro_ver -L secureip --snapshot ddr3_dimm_micron_sim_behav xil_defaultlib.ddr3_dimm_micron_sim xil_defaultlib.glbl -log elaborate.log
@@ -106,59 +87,11 @@ WARNING: [VRFC 10-3091] actual bit length 16 differs from formal bit length 14 f
 WARNING: [VRFC 10-5021] port 'scl' is not connected on this instance [/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v:160]
 WARNING: [VRFC 10-5021] port 'i_controller_dm' is not connected on this instance [/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_top.v:119]
 Completed static elaboration
-Starting simulation data flow analysis
-WARNING: [XSIM 43-4099] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_top.v" Line 3. Module ddr3_top(CONTROLLER_CLK_PERIOD=10.0,OPT_LOWPOWER=1'b1,OPT_BUS_ABORT=1'b1) doesn't have a timescale but at least one module in design has a timescale.
-WARNING: [XSIM 43-4099] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_controller.v" Line 37. Module ddr3_controller(CONTROLLER_CLK_PERIOD=10.0,OPT_LOWPOWER=1'b1,OPT_BUS_ABORT=1'b1) doesn't have a timescale but at least one module in design has a timescale.
-WARNING: [XSIM 43-4099] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v" Line 3. Module ddr3_phy(CONTROLLER_CLK_PERIOD=10.0,DDR3_CLK_PERIOD=2.5) doesn't have a timescale but at least one module in design has a timescale.
-WARNING: [XSIM 43-4099] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_top.v" Line 3. Module ddr3_top(CONTROLLER_CLK_PERIOD=10.0,OPT_LOWPOWER=1'b1,OPT_BUS_ABORT=1'b1) doesn't have a timescale but at least one module in design has a timescale.
-WARNING: [XSIM 43-4099] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_controller.v" Line 37. Module ddr3_controller(CONTROLLER_CLK_PERIOD=10.0,OPT_LOWPOWER=1'b1,OPT_BUS_ABORT=1'b1) doesn't have a timescale but at least one module in design has a timescale.
-WARNING: [XSIM 43-4099] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v" Line 3. Module ddr3_phy(CONTROLLER_CLK_PERIOD=10.0,DDR3_CLK_PERIOD=2.5) doesn't have a timescale but at least one module in design has a timescale.
-Completed simulation data flow analysis
-Time Resolution for simulation is 1ps
-Compiling module xil_defaultlib.ddr3_controller(CONTROLLER_CLK_P...
-Compiling module unisims_ver.OSERDESE2(DATA_RATE_OQ="SDR",DAT...
-Compiling module unisims_ver.ODELAYE2(HIGH_PERFORMANCE_MODE="...
-Compiling module unisims_ver.OSERDESE2(DATA_RATE_TQ="SDR",DAT...
-Compiling module unisims_ver.OBUFDS
-Compiling module unisims_ver.OSERDESE2(DATA_RATE_TQ="BUF",DAT...
-Compiling module unisims_ver.ODELAYE2(HIGH_PERFORMANCE_MODE="...
-Compiling module unisims_ver.IOBUF(IOSTANDARD="SSTL15",SLEW="...
-Compiling module unisims_ver.IDELAYE2(HIGH_PERFORMANCE_MODE="...
-Compiling module unisims_ver.ISERDESE2(DATA_WIDTH=8,INTERFACE...
-Compiling module unisims_ver.OBUF(SLEW="FAST")
-Compiling module unisims_ver.ODELAYE2(HIGH_PERFORMANCE_MODE="...
-Compiling module unisims_ver.OSERDESE2(DATA_RATE_TQ="BUF",DAT...
-Compiling module unisims_ver.IOBUFDS(IOSTANDARD="DIFF_SSTL15"...
-Compiling module unisims_ver.IDELAYE2(HIGH_PERFORMANCE_MODE="...
-Compiling module unisims_ver.ISERDESE2(DATA_WIDTH=8,INTERFACE...
-Compiling module unisims_ver.IDELAYCTRL_default
-Compiling module xil_defaultlib.ddr3_phy(CONTROLLER_CLK_PERIOD=1...
-Compiling module xil_defaultlib.ddr3_top(CONTROLLER_CLK_PERIOD=1...
-Compiling module xil_defaultlib.ddr3_default
-Compiling module xil_defaultlib.ddr3_dimm_default
-Compiling module xil_defaultlib.ddr3_dimm_micron_sim
-Compiling module xil_defaultlib.glbl
-Built simulation snapshot ddr3_dimm_micron_sim_behav
-run_program: Time (s): cpu = 00:02:58 ; elapsed = 00:02:00 . Memory (MB): peak = 7543.496 ; gain = 0.000 ; free physical = 1219 ; free virtual = 24279
-INFO: [USF-XSim-69] 'elaborate' step finished in '120' seconds
-INFO: [USF-XSim-4] XSim::Simulate design
-INFO: [USF-XSim-61] Executing 'SIMULATE' step in '/home/angelo/Desktop/switch_fpga/switch_fpga.sim/sim_1/behav/xsim'
-INFO: [USF-XSim-98] *** Running xsim
-   with args "ddr3_dimm_micron_sim_behav -key {Behavioral:sim_1:Functional:ddr3_dimm_micron_sim} -tclbatch {ddr3_dimm_micron_sim.tcl} -view {/home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_dimm_micron_sim_behav.wcfg} -log {simulate.log}"
-INFO: [USF-XSim-8] Loading simulator feature
+INFO: [XSIM 43-4323] No Change in HDL. Linking previously generated obj files to create kernel
+run_program: Time (s): cpu = 00:00:05 ; elapsed = 00:00:08 . Memory (MB): peak = 7767.559 ; gain = 0.000 ; free physical = 1226 ; free virtual = 23351
+INFO: [USF-XSim-69] 'elaborate' step finished in '8' seconds
+launch_simulation: Time (s): cpu = 00:00:05 ; elapsed = 00:00:08 . Memory (MB): peak = 7767.559 ; gain = 0.000 ; free physical = 1226 ; free virtual = 23351
 Time resolution is 1 ps
-open_wave_config /home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_dimm_micron_sim_behav.wcfg
-source ddr3_dimm_micron_sim.tcl
-# set curr_wave [current_wave_config]
-# if { [string length $curr_wave] == 0 } {
-#   if { [llength [get_objects]] > 0} {
-#     add_wave /
-#     set_property needs_save false [current_wave_config]
-#   } else {
-#      send_msg_id Add_Wave-1 WARNING "No top level signals found. Simulator will start without a wave window. If you want to open a wave window go to 'File->New Waveform Configuration' or type 'create_wave_config' in the TCL console."
-#   }
-# }
-# run 1000ns
 Test ns_to_cycles() function:
 	ns_to_cycles(15) = 3 = 2 [exact]
 	ns_to_cycles(14.5) = 3 = 2 [round-off]
@@ -254,11 +187,9 @@ ddr3_dimm_micron_sim.ddr3_dimm.U6.cmd_task at time 802600.0 ps WARNING: 500 us i
 ddr3_dimm_micron_sim.ddr3_dimm.U7.cmd_task at time 802600.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
 ddr3_dimm_micron_sim.ddr3_dimm.U8.cmd_task at time 802600.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
 ddr3_dimm_micron_sim.ddr3_dimm.U9.cmd_task at time 802600.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
-[510000 ps] NOP -> run: Time (s): cpu = 00:00:07 ; elapsed = 00:00:15 . Memory (MB): peak = 7606.480 ; gain = 2.000 ; free physical = 839 ; free virtual = 24053
-xsim: Time (s): cpu = 00:00:16 ; elapsed = 00:00:26 . Memory (MB): peak = 7606.480 ; gain = 53.836 ; free physical = 839 ; free virtual = 24053
-INFO: [USF-XSim-96] XSim completed. Design snapshot 'ddr3_dimm_micron_sim_behav' loaded.
-INFO: [USF-XSim-97] XSim simulation ran for 1000ns
-launch_simulation: Time (s): cpu = 00:03:20 ; elapsed = 00:02:33 . Memory (MB): peak = 7606.480 ; gain = 62.984 ; free physical = 839 ; free virtual = 24053
+[510000 ps] NOP -> run: Time (s): cpu = 00:00:02 ; elapsed = 00:00:13 . Memory (MB): peak = 7767.559 ; gain = 0.000 ; free physical = 1092 ; free virtual = 23219
+relaunch_xsim_kernel: Time (s): cpu = 00:00:02 ; elapsed = 00:00:14 . Memory (MB): peak = 7767.559 ; gain = 0.000 ; free physical = 1092 ; free virtual = 23219
+relaunch_sim: Time (s): cpu = 00:00:20 ; elapsed = 00:00:26 . Memory (MB): peak = 7767.559 ; gain = 0.000 ; free physical = 1092 ; free virtual = 23219
 run all
 [370000 ps] MRS -> 
 ddr3_dimm_micron_sim.ddr3_dimm.U1.cmd_task: at time 1175100.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
@@ -12061,5 +11992,5 @@ Number of Fails = 4
 Number of Injected Errors = 4
 
 $stop called at time : 273460 ns : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 421
-run: Time (s): cpu = 00:15:52 ; elapsed = 00:51:38 . Memory (MB): peak = 7608.613 ; gain = 2.000 ; free physical = 916 ; free virtual = 24474
+run: Time (s): cpu = 00:14:14 ; elapsed = 01:05:23 . Memory (MB): peak = 7767.559 ; gain = 0.000 ; free physical = 317 ; free virtual = 22816
 
