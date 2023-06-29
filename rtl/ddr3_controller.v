@@ -9,7 +9,7 @@
 
 `define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
 //`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
-//`define COVER_DELAY 3 //fixed delay used in formal cover for reset sequence
+//`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
 `default_nettype none
 
 
@@ -349,8 +349,7 @@ module ddr3_controller #(
         o_phy_bitslip = 0;
     end
     reg cmd_odt_q = 0, cmd_odt, cmd_ck_en, cmd_reset_n;  
-    reg o_wb_stall_d;
-    reg pipe_stall;
+    reg o_wb_stall_q = 1, o_wb_stall_d;
     reg precharge_slot_busy;
     reg activate_slot_busy;
     reg[1:0] write_dqs_q;
@@ -570,6 +569,9 @@ module ddr3_controller #(
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             instruction_address <= 0;
+            `ifdef FORMAL_COVER
+                instruction_address <= 21;
+            `endif
             instruction <= INITIAL_RESET_INSTRUCTION;
             delay_counter <= INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0];
             delay_counter_is_zero <= (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0);
@@ -578,7 +580,7 @@ module ddr3_controller #(
         else begin 
             //update counter after reaching zero
             if(delay_counter_is_zero) begin 
-                `ifdef FORMAL_COVER
+                `ifdef FORMAL_COVER____1
                     //use fixed low value delay to cover the whole reset seqeunce using formal verification
                     if(instruction[DELAY_COUNTER_WIDTH - 1:0] > `COVER_DELAY) delay_counter <= `COVER_DELAY;
                     else delay_counter <= instruction[DELAY_COUNTER_WIDTH - 1:0] ; //use delay from rom if that is smaller than the COVER_DELAY macro
@@ -611,6 +613,7 @@ module ddr3_controller #(
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n ) begin
             o_wb_stall <= 1'b1; 
+            o_wb_stall_q <= 1'b1;
             //set stage 1 to 0
             stage1_pending <= 0;
             stage1_we <= 0;
@@ -656,6 +659,8 @@ module ddr3_controller #(
         // can only start accepting requests  when reset is done
         else if(reset_done) begin 
             o_wb_stall <= o_wb_stall_d || state_calibrate != DONE_CALIBRATE;
+            o_wb_stall_q <= o_wb_stall_d; //working even at calibration stage
+            //o_wb_stall <= stage2_stall || state_calibrate != DONE_CALIBRATE;
             cmd_odt_q <= cmd_odt;
 
             //update delay counter 
@@ -675,16 +680,6 @@ module ddr3_controller #(
                 bank_active_row_q[index] <= bank_active_row_d[index];
             end
 
-            //refresh sequence is on-going
-            if(!instruction[REF_IDLE]) begin
-                //no transaction will be pending during refresh
-                o_wb_stall <= 1'b1; 
-                //stage2_pending <= 0; ERRRRRRRRRROOOOOOOOOOR: this will
-                //cancel ongoing request even though we are still at prestall
-                //delay     
-                //stage1_pending <= 0;
-            end
-
             if(instruction_address == 20) begin ///current instruction at precharge
                 cmd_odt_q <= 1'b0;
                 //all banks will be in idle after refresh
@@ -692,32 +687,28 @@ module ddr3_controller #(
                     bank_status_q[index] <= 0;  
                 end
             end
-            //move pipeline forward 
-            else if(!pipe_stall) begin
+            
+            //refresh sequence is on-going
+            if(!instruction[REF_IDLE]) begin
+                //no transaction will be pending during refresh
+                o_wb_stall <= 1'b1; 
+            end
+            
+            //if pipeline is not stalled (or a request is left on the prestall
+            //delay address 19 or if in calib), move pipeline to stage 2
+            if(!o_wb_stall_q && stage2_update) begin //ITS POSSIBLE ONLY NEXT CLK WILL STALL SUPPOSE TO GO LOW
+                stage1_pending <= 1'b0; //no request initially unless overridden by the actual stb request
                 stage2_pending <= stage1_pending;
-                stage1_pending <= 0; //move pending request to stage 2 thus stage 1 will not be pending anymore UNLESS there is a wb request at this clk cycle
-            end
-            
-            
-            //abort any outgoing ack when cyc is low
-            if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
-                stage2_pending <= 0;
-                stage1_pending <= 0;
-            end
-
-            //if pipeline is not stalled, move pipeline forward
-            if(!pipe_stall) begin
                 stage2_aux <= stage1_aux;
                 stage2_we <= stage1_we;
-                stage2_dm_unaligned <= stage1_dm;
+                stage2_dm_unaligned <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
                 stage2_col <= stage1_col;
                 stage2_bank <= stage1_bank;
                 stage2_row <= stage1_row;
                 stage2_data_unaligned <= stage1_data;
                 //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
             end
-            
-            
+
             // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall
             if(i_wb_cyc && !o_wb_stall) begin 
                 //stage1 will not do the request (pending low) when the
@@ -777,6 +768,12 @@ module ddr3_controller #(
                 stage2_data[index+1] <=  stage2_data[index];              
                 stage2_dm[index+1] <= stage2_dm[index];
             end
+
+            //abort any outgoing ack when cyc is low
+            if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
+                stage2_pending <= 0;
+                stage1_pending <= 0;
+            end
         end
     end
     assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];             
@@ -798,12 +795,17 @@ module ddr3_controller #(
     //
     //Pipeline Stages:
     //  wishbone inputs --> stage1 --> stage2 --> cmd
+    reg stage2_update = 1;
+    reg stage2_stall = 0;
+    reg stage1_stall = 0;
     always @* begin
         cmd_odt = cmd_odt_q || write_calib_odt;
         cmd_ck_en = instruction[CLOCK_EN];
         cmd_reset_n = instruction[RESET_N];
-        o_wb_stall_d = 0; //wb_stall going high is determined on stage 1 (higher priority), wb_stall going low is determined at stage2 (lower priority)
-        pipe_stall = 0; //pipe_stall will follow i_wb_stall(so stall when stage 2 needs delay) but goes low after actual read/write request (move pipe forward when stage2 finishes request) 
+        stage1_stall = 1'b0;
+        stage2_stall = 1'b0;
+        stage2_update = 1'b1; //always update stage 2 UNLESS it has a pending request (stage2_pending high)
+        o_wb_stall_d = 1'b0; //wb_stall going high is determined on stage 1 (higher priority), wb_stall going low is determined at stage2 (lower priority)
         precharge_slot_busy = 0; //flag that determines if stage 2 is issuing precharge (thus stage 1 cannot issue precharge)
         activate_slot_busy = 0; //flag that determines if stage 2 is issuing activate (thus stage 1 cannot issue activate)
         write_dqs_d = write_calib_dqs;
@@ -839,16 +841,19 @@ module ddr3_controller #(
         end
         shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0;
 
+
+        //USE _d in ALL
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
-            o_wb_stall_d = o_wb_stall; 
-            pipe_stall = o_wb_stall;
+            stage2_stall = 1; //initially high when stage 2 is pending 
+            stage2_update = 0;
+
             //right row is already active so go straight to read/write
             if(bank_status_q[stage2_bank] &&  bank_active_row_q[stage2_bank] == stage2_row) begin //read/write operation
                 //write request
                 if(stage2_we && delay_before_write_counter_q[stage2_bank] == 0) begin       
-                    o_wb_stall_d = 0;         
-                    pipe_stall = 0; //move pipeline forward since write access is already done
+                    stage2_stall = 0;
+                    stage2_update = 1;
                     cmd_odt = 1'b1;
                     shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; 
                     //write acknowledge will use the same logic pipeline as the read acknowledge. 
@@ -897,8 +902,8 @@ module ddr3_controller #(
                 
                 //read request
                 else if(!stage2_we && delay_before_read_counter_q[stage2_bank]==0) begin     
-                    o_wb_stall_d = 0;     
-                    pipe_stall = 0; //move pipeline forward since read access is already done
+                    stage2_stall = 0;
+                    stage2_update = 1;
                     cmd_odt = 1'b0;
                     //set-up delay before precharge, read, and write
                     if(delay_before_precharge_counter_q[stage2_bank] <= READ_TO_PRECHARGE_DELAY) begin
@@ -984,18 +989,48 @@ module ddr3_controller #(
             
         end //end of stage1 anticipate
 
+        // control stage 1 stall
         if(stage1_pending) begin //raise stall only if stage2 will still be busy next clock
             // Stage1 bank and row will determine if transaction will be
             // stalled (bank is idle OR wrong row is active). 
-            if(!bank_status_q[stage1_bank] || (bank_status_q[stage1_bank] && bank_active_row_q[stage1_bank] != stage1_row)) begin 
-                o_wb_stall_d = 1;
+            if(!bank_status_d[stage1_bank] || (bank_status_d[stage1_bank] && bank_active_row_d[stage1_bank] != stage1_row)) begin 
+                stage1_stall = 1;
             end
-            else if(!stage1_we && delay_before_read_counter_q[stage1_bank] != 0) o_wb_stall_d = 1;//read
-            else if(stage1_we && delay_before_write_counter_q[stage1_bank] != 0) o_wb_stall_d = 1;//write
+            else if(!stage1_we && delay_before_read_counter_d[stage1_bank] != 0) begin
+                stage1_stall = 1;
+            end
+            else if(stage1_we && delay_before_write_counter_d[stage1_bank] != 0) begin
+                stage1_stall = 1;
+            end
             //different request type will need a delay of more than 1 clk cycle so stall the pipeline 
-            if(stage1_we != stage2_we) o_wb_stall_d = 1;
+            //if(stage1_we != stage2_we) begin
+            //    stage1_stall = 1;
+            //end
         end
-    
+
+        //control stage 2 stall
+        if(stage2_pending) begin
+            //control stage2 stall in advance
+            if(bank_status_d[stage2_bank] &&  bank_active_row_d[stage2_bank] == stage2_row) begin //read/write operation
+                //write request
+                if(stage2_we && delay_before_write_counter_d[stage2_bank] == 0) begin //if counter is 1 now, then next clock it will be zero thus lower stall at next cycle too      
+                    stage2_stall = 0; //to low stall next stage, but not yet at this stage
+                end
+                //read request
+                else if(!stage2_we && delay_before_read_counter_d[stage2_bank]==0) begin //if counter is 1 now, then next clock it will be zero thus lower stall at next cycle too      
+                    stage2_stall = 0;
+                end
+            end
+        end
+
+        // control logic for stall
+        if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
+        else if(!i_wb_stb) o_wb_stall_d = 0;
+        else if(!stage1_pending) o_wb_stall_d = stage2_stall;
+        else o_wb_stall_d = stage1_stall;
+        
+        if(!i_wb_cyc) o_wb_stall_d = 0;
+
     // Vivado Benchmarking
     // LUT = 1254, FF = 2878
     // WNS = 0.924 ns (200MHz clk)
@@ -1359,7 +1394,7 @@ module ddr3_controller #(
                         write_calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
                         state_calibrate <= ISSUE_READ;
                        end    
-          ISSUE_READ: if(!o_wb_stall_d) begin
+          ISSUE_READ: if(!o_wb_stall_q) begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 0; //write-enable
@@ -1396,6 +1431,9 @@ module ddr3_controller #(
        DONE_CALIBRATE: state_calibrate <= DONE_CALIBRATE;
 
             endcase
+        `ifdef FORMAL_COVER
+            state_calibrate <= DONE_CALIBRATE;
+        `endif
         end
     end      
     assign issue_read_command = (state_calibrate == MPR_READ);
@@ -1601,654 +1639,685 @@ module ddr3_controller #(
     
     
 `ifdef  FORMAL
-    // wires and registers used in this formal section
-    localparam F_TEST_CMD_DATA_WIDTH = $bits(i_wb_data) + $bits(i_wb_sel) + $bits(i_aux) + $bits(i_wb_addr) + $bits(i_wb_we);
-    reg f_past_valid = 0; 
-    reg[$bits(instruction_address) - 1: 0] f_addr = 0, f_read = 0 ; 
-    reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
-    reg[3:0] f_count_refreshes = 0; //count how many refresh cycles had already passed
-    reg[24:0] f_wb_inputs[31:0];
-    reg[4:0] f_index = 0;
-    reg[5:0] f_counter = 0;
-    reg[9:0] f_reset_counter = 0;
-
-    reg[4:0] f_index_1 = 0;
-    reg[F_TEST_CMD_DATA_WIDTH - 1:0] f_write_data;
-    reg f_write_fifo = 0, f_read_fifo = 0;
-    wire f_empty, f_full;
-    wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data;
-
-    reg[AUX_WIDTH - 1:0] f_write_data_2;
-    reg f_write_fifo_2 = 0, f_read_fifo_2 = 0;
-    wire f_empty_2, f_full_2;
-    wire[AUX_WIDTH - 1:0] f_read_data_2;
-
-    wire[$bits(instruction) - 1:0]  a= read_rom_instruction(f_const_addr); //retrieve an instruction based on engine's choice
-    wire[1:0] f_write_slot;
-    wire[1:0] f_read_slot;
-    wire[1:0] f_precharge_slot;
-    wire[1:0] f_activate_slot;
-    (*anyconst*) reg[$bits(instruction_address) - 1: 0] f_const_addr;
-    
-    initial assume(!i_rst_n); 
-    
-    always @* begin
-        //assert(tMOD + tZQinit > nCK_to_cycles(tDLLK)); //Initialization sequence requires that tDLLK is satisfied after MRS to mode register 0 and ZQ calibration
-        assert(MR0[18] != 1'b1); //last Mode Register bit should never be zero 
-        assert(MR1_WL_EN[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
-        assert(MR1_WL_DIS[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
-        assert(MR2[18] != 1'b1); //commands in the reset sequence)
-        assert(MR3_MPR_EN[18] != 1'b1);
-        assert(MR3_MPR_DIS[18] != 1'b1);
-        assert(DELAY_COUNTER_WIDTH <= $bits(MR0)); //bitwidth of mode register should be enough for the delay counter
-        //sanity checking to ensure 5 bits is allotted for extra instruction {reset_finished, use_timer , stay_command , cke , reset_n } 
-        assert(($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)) == 5 ); 
-        assert(DELAY_SLOT_WIDTH >= DELAY_COUNTER_WIDTH); //width occupied by delay timer slot on the reset rom must be able to occupy the maximum possible delay value on the reset sequence
-    end
-    
-    always @(posedge i_controller_clk)  f_past_valid <= 1;
-    
-    
-    //The idea below is sourced from https://zipcpu.com/formal/2019/11/18/genuctrlr.html
-    //We will form a packet of information describing each instruction as it goes through the pipeline and make assertions along the way.
-    //2-stage Pipeline: f_addr (update address)  ->  f_read (read instruction from rom)  
-    
-    //pipeline stage logic: f_addr (update address)  ->  f_read (read instruction from rom)  
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n) begin
-            f_addr <= 0;
-            f_read <= 0;
-        end
-        //move the pipeline forward when counter is about to go zero and we are not yet at end of reset sequence
-        else if((delay_counter == 1 || !instruction[USE_TIMER] || skip_reset_seq_delay) /*&& !reset_done*/ )begin             
-            f_addr <= (f_addr == 22)? 19:f_addr + 1;
-            f_read <= f_addr;
-        end     
-    end
-    
-    // assert f_addr and f_read as shadows of next and current instruction address 
-    always @* begin
-        assert(f_addr == instruction_address); //f_addr is the shadow of instruction_address (thus f_addr is the address of NEXT instruction)
-        f_read_inst = read_rom_instruction(f_read); //f_read is the address of CURRENT instruction 
-        assert(f_read_inst == read_rom_instruction(f_read)); // needed for induction to make sure the engine will not create his own instruction
-    if(f_addr == 0) begin
-        f_read_inst = INITIAL_RESET_INSTRUCTION; //will only happen at the very start:  f_addr (0)  ->  f_read (0)  where we are reading the initial reset instruction and not the rom
-    end
-    assert(f_read_inst == instruction);  // f_read_inst is the shadow of current instruction 
-    end
-    
-    // main assertions for the reset sequence 
-    always @(posedge i_controller_clk) begin
-            if(!i_rst_n || !$past(i_rst_n)) begin
-                assert(f_addr == 0);
-                assert(f_read == 0);
-                assert(instruction_address == 0);
-                assert(delay_counter == (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0]));
-                assert(delay_counter_is_zero == (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0));
-            end
-            else if(f_past_valid) begin
-                //if counter is zero previously and current instruction needs timer delay, then this cycle should now have the new updated counter value
-                if( $past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER]) /*&& !$past(reset_done)*/)  
-                    `ifndef FORMAL_COVER
-                        assert(delay_counter == (f_read_inst[DELAY_COUNTER_WIDTH - 1:0]));
-                    `else
-                        //use fixed low value delay to cover the whole reset seqeunce using formal verification
-                        if(instruction[DELAY_COUNTER_WIDTH - 1:0] > `COVER_DELAY) assert(delay_counter == `COVER_DELAY); 
-                        //use delay from rom if that is smaller than the COVER_DELAY macro
-                        else assert(delay_counter == f_read_inst[DELAY_COUNTER_WIDTH - 1:0]); 
-                    `endif
-
-                 //delay_counter_is_zero can be high when counter is zero and current instruction needs delay
-                if($past(f_read_inst[USE_TIMER]) && !$past(skip_reset_seq_delay) /*&& !$past(reset_done)*/) assert( delay_counter_is_zero  == (delay_counter == 0) ); 
-                 //delay_counter_is_zero will go high this cycle when we received a don't-use-timer instruction
-                else if(!$past(f_read_inst[USE_TIMER]) && !$past(skip_reset_seq_delay)/*&& !$past(reset_done)*/) assert(delay_counter_is_zero); 
-                
-                //we are on the middle of a delay thus all values must remain constant while only delay_counter changes (decrement)
-                if(!delay_counter_is_zero) begin 
-                    assert(f_addr == $past(f_addr));
-                    assert(f_read == $past(f_read));
-                    assert(f_read_inst == $past(f_read_inst));
-                end
-                
-                //if delay is not yet zero and timer delay is enabled, then delay_counter should decrement
-                if(!$past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER])) begin
-                    assert(delay_counter == $past(delay_counter) - 1); 
-                    assert(delay_counter < $past(delay_counter) ); //just to make sure delay_counter will never overflow back to all 1's
-                end
-                
-                //sanity checking for the comment "delay_counter will be zero AT NEXT CLOCK CYCLE when counter is now one"
-            if($past(delay_counter) == 1 && !$past(skip_reset_seq_delay,2)) begin
-                assert(delay_counter == 0 && delay_counter_is_zero); 
-            end
-            //assert the relationship between the stages FOR RESET SEQUENCE
-            if(!reset_done) begin
-                if(f_addr == 0) begin
-                    assert(f_read == 0); //will only happen at the very start:  f_addr (0)  ->  f_read (0)  
-                end
-                else if(f_read == 0) begin 
-                    assert(f_addr <= 1); //will only happen at the very first two cycles: f_addr (1)  ->  f_read (0) or f_addr (0)  ->  f_read (0)  
-                end
-                //else if($past(reset_done)) assert(f_read == $past(f_read)); //reset instruction does not repeat after reaching end address thus it must saturate when pipeline reaches end
-                else begin
-                    assert(f_read + 1 == f_addr); //address increments continuously
-                end
-                assert($past(f_read) < 21); //only instruction address 0-to-13 is for reset sequence (reset_done is asserted at address 14)
-            end
-                    
-            //assert the relationship between the stages FOR REFRESH SEQUENCE
-            else begin
-                if(f_read == 22) assert(f_addr == 19); //if current instruction is 22, then next instruction must be at 19 (instruction address wraps from 15 to 12)
-                else if(f_addr == 19) assert(f_read == 22); //if next instruction is at 12, then current instruction must be at 15 (instruction address wraps from 15 to 12)
-                else assert(f_read + 1 == f_addr); //if there is no need to wrap around, then instruction address must increment 
-                assert((f_read >= 19 && f_read <= 22) ); //refresh sequence is only on instruction address 19,20,21,22
-            end
-            
-            // reset_done must retain high when it was already asserted once
-            if($past(reset_done)) assert(reset_done);
-            
-            // reset is already done at address 21 and up
-            if($past(f_read) >= 21 ) assert(reset_done);
-            
-            //if reset is done, the REF_IDLE must only be high at instruction address 14 (on the middle of tREFI)
-            if(reset_done &&  f_read_inst[REF_IDLE]) assert(f_read == 21);
-                    
-        end
-
-    end
-    
-    
-    // assertions on the instructions stored on the rom
-    always @* begin
-     //there MUST BE no instruction which USE_TIMER is high but delay is zero since it can cause the logic to lock-up (delay must be at least 1)    
-    if(a[USE_TIMER]) begin
-        assert( a[DELAY_COUNTER_WIDTH - 1:0] > 0);      
-    end
-    end
-    
-    // assertion on FSM calibration
-    always @* begin
-        if(instruction_address < 13) begin
-            assert(state_calibrate == IDLE);
-        end
-
-        if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
-            assert(instruction_address == 13);
-        end
-
-        if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
-            assert(instruction_address == 17);
-        end
-
-        if(instruction_address == 13 || instruction_address == 17) begin
-            assume(delay_counter != 1); //read (address 13) and write(17) will not take more than the max delay (500us)
-        end
-        
-        if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
-            assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
-            assert(reset_done);
-        end
-
-        if(state_calibrate == DONE_CALIBRATE) begin
-            assert(reset_done);
-            assert(instruction_address >= 19);
-        end
-
-        if(reset_done) begin
-            assert(instruction_address >= 19);
-        end
-    end
-    //cover statements
     `ifdef FORMAL_COVER
-    always @(posedge i_controller_clk) begin
-        if($past(f_read) == 15 && f_read == 12) f_count_refreshes = f_count_refreshes + 1; //every time address wrap around refresh is completed
-    end
-    always @(posedge i_controller_clk) begin
-        cover(f_count_refreshes == 5);
-        //MUST FAIL: find an instance where RST_DONE will go low after it already goes high (except when i_rst_n is activated)
-        //cover($past(instruction[RST_DONE]) && !instruction[RST_DONE] && i_rst_n); 
-    end
-    `endif
-    
-    always @* begin
-        //make sure each command has distinct slot number (except for read/write which can have the same or different slot number)
-        //assert((WRITE_SLOT != ACTIVATE_SLOT != PRECHARGE_SLOT) && (READ_SLOT != ACTIVATE_SLOT != PRECHARGE_SLOT) );
-        assert(WRITE_SLOT != ACTIVATE_SLOT);
-        assert(WRITE_SLOT != PRECHARGE_SLOT);
-        assert(READ_SLOT != ACTIVATE_SLOT);
-        assert(READ_SLOT != PRECHARGE_SLOT);
-        //make sure slot number for read command is correct
-    end
-    //create a formal assertion that says during refresh ack should be low always
-    //make an assertion that there will be no request pending before actual refresh starts at instruction 4'd12
-        
-        
-    initial begin
-    /*
-        f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
-        f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read on same bank (tCCD)
-        f_wb_inputs[2] = {1'b1, {14'd0,3'd1, 7'd2}}; //write on same bank (tRTW)
-        f_wb_inputs[3] = {1'b1, {14'd0,3'd1, 7'd3}}; //write on same bank (tCCD)
-        f_wb_inputs[4] = {1'b0, {14'd0,3'd2, 7'd0}}; //read on different bank 
-        f_wb_inputs[5] = {1'b1, {14'd0,3'd2, 7'd1}}; //write on same bank (tRTW)
-        f_wb_inputs[6] = {1'b1, {14'd0,3'd1, 7'd4}}; //write on different bank (already activated)
-        f_wb_inputs[7] = {1'b1, {14'd0,3'd1, 7'd5}}; //write (tCCD)
-        f_wb_inputs[8] = {1'b1, {14'd1,3'd2, 7'd0}}; //write on different bank (already activated but wrong row)
-        f_wb_inputs[9] = {1'b1, {14'd1,3'd2, 7'd1}}; //write (tCCD)
-        f_wb_inputs[10] = {1'b1, {14'd1,3'd2, 7'd2}}; //write (tCCD)
-        f_wb_inputs[11] = {1'b0, {14'd2,3'd2, 7'd0}}; //read (same bank but wrong row so precharge first) 
-        f_wb_inputs[12] = {1'b0, {14'd2,3'd2, 7'd1}}; //read (tCCD)
-        f_wb_inputs[13] = {1'b0, {14'd2,3'd2, 7'd2}}; //read (tCCD)
-        */
-        /*
-        f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
-        f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read on same bank (tCCD)
-        f_wb_inputs[2] = {1'b1, {14'd0,3'd2, 7'd0}}; //write on the anticipated bank 
-        f_wb_inputs[3] = {1'b1, {14'd0,3'd2, 7'd1}}; //write on same bank (tCCD)
-        f_wb_inputs[4] = {1'b0, {14'd0,3'd3, 7'd0}}; //read on the anticipated bank 
-        f_wb_inputs[5] = {1'b0, {14'd0,3'd3, 7'd1}}; //read on same bank (tCCD)
-        f_wb_inputs[6] = {1'b1, {14'd0,3'd7, 7'd0}}; //write on the un-anticipated idle bank (activate first) 
-        f_wb_inputs[7] = {1'b1, {14'd0,3'd1, 7'd1}}; //write on the un-anticipated active bank and row (write)
-        f_wb_inputs[8] = {1'b1, {14'd1,3'd7, 7'd0}}; //write on the un-anticipated active bank but wrong row (precharge first) 
-        */
-        /*
-        f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
-        f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read 
-        f_wb_inputs[2] = {1'b0, {14'd0,3'd1, 7'd2}}; //read 
-        f_wb_inputs[3] = {1'b0, {14'd0,3'd1, 7'd3}}; //read 
-        f_wb_inputs[4] = {1'b0, {14'd0,3'd1, 7'd4}}; //read 
-        f_wb_inputs[5] = {1'b0, {14'd0,3'd1, 7'd5}}; //read 
-        f_wb_inputs[6] = {1'b0, {14'd0,3'd1, 7'd6}}; //write 
-        f_wb_inputs[7] = {1'b0, {14'd0,3'd1, 7'd7}}; //write 
-        f_wb_inputs[8] = {1'b0, {14'd0,3'd1, 7'd8}}; //write 
-        f_wb_inputs[9] = {1'b0, {14'd0,3'd1, 7'd9}}; //write 
-        f_wb_inputs[10] = {1'b0, {14'd0,3'd1, 7'd10}}; //write 
-        f_wb_inputs[11] = {1'b0, {14'd0,3'd1, 7'd11}}; //write 
-        */
-        f_wb_inputs[0] = {1'b0, {14'd1,3'd1, 7'd120}}; //write on same bank (tRTW)
-        f_wb_inputs[1] = {1'b0, {14'd1,3'd1, 7'd121}}; //write on different bank (already activated)
-        f_wb_inputs[2] = {1'b0, {14'd1,3'd1, 7'd122}}; //write (tCCD)
-        f_wb_inputs[3] = {1'b0, {14'd1,3'd1, 7'd123}}; //write on different bank (already activated but wrong row)
-        f_wb_inputs[4] = {1'b0, {14'd1,3'd1, 7'd124}}; //write (tCCD)
-        f_wb_inputs[5] = {1'b0, {14'd1,3'd1, 7'd125}}; //write (tCCD)
-        f_wb_inputs[6] = {1'b0, {14'd1,3'd1, 7'd126}}; //read (same bank but wrong row so precharge first) 
-        f_wb_inputs[7] = {1'b0, {14'd1,3'd1, 7'd127}}; //read (tCCD)
-        f_wb_inputs[8] = {1'b0, {14'd1,3'd2, 7'd0}}; //read (tCCD)
-        f_wb_inputs[9] = {1'b0, {14'd1,3'd2, 7'd1}}; //read (tCCD)
-        f_wb_inputs[10] = {1'b0, {14'd1,3'd2, 7'd2}}; //read (tCCD)
-        
-    end
-    always @(posedge i_controller_clk) begin
-            if(!o_wb_stall) begin
-                f_index <= f_index + 1;
-                f_counter <= 0;
-            end
-            else begin
-                f_counter <= f_counter + 1;
-            end
-            if(o_wb_stall && i_rst_n) begin
-                f_reset_counter = f_reset_counter + 1;
-            end
-            else f_reset_counter = 10;
-    end
-    
-    /*
-    always @* begin
-        assume(i_wb_cyc == 1);
-        assume(i_wb_stb == 1);
-        if(f_past_valid) assume(i_rst_n);
-        assume(i_wb_we == f_wb_inputs[f_index][24]);
-        assume(i_wb_addr == f_wb_inputs[f_index][23:0]);
-        cover(f_index == 12);
-        //cover(f_reset_counter == 10);
-    end
-    */
+        initial assume(!i_rst_n); 
+        reg[24:0] f_wb_inputs[31:0];
+        reg[9:0] f_reset_counter = 0;
+        reg[4:0] f_index = 0;
+        reg f_past_valid = 0; 
+        initial begin
+            /*
+            // Sequential read to row 0 then jump to row 2
+            f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
+            f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read on same bank (tCCD)
+            f_wb_inputs[2] = {1'b0, {14'd0,3'd1, 7'd2}}; //write on same bank (tRTW)
+            f_wb_inputs[3] = {1'b0, {14'd0,3'd1, 7'd3}}; //write on same bank (tCCD)
+            f_wb_inputs[4] = {1'b0, {14'd0,3'd1, 7'd4}}; //read on different bank 
+            f_wb_inputs[5] = {1'b0, {14'd0,3'd1, 7'd5}}; //write on same bank (tRTW)
+            f_wb_inputs[6] = {1'b0, {14'd2,3'd1, 7'd6}}; //write on different bank (already activated)
+            f_wb_inputs[7] = {1'b0, {14'd2,3'd1, 7'd7}}; //write (tCCD)
+            f_wb_inputs[8] = {1'b0, {14'd2,3'd1, 7'd8}}; //write on different bank (already activated but wrong row)
+            f_wb_inputs[9] = {1'b0, {14'd2,3'd1, 7'd9}}; //write (tCCD)
+            f_wb_inputs[10] = {1'b0, {14'd3,3'd1, 7'd10}}; //write (tCCD)
+            f_wb_inputs[11] = {1'b0, {14'd3,3'd1, 7'd11}}; //read (same bank but wrong row so precharge first) 
+            f_wb_inputs[12] = {1'b0, {14'd3,3'd1, 7'd12}}; //read (tCCD)
+            f_wb_inputs[13] = {1'b0, {14'd3,3'd1, 7'd13}}; //read (tCCD)
+            */
 
-    mini_fifo #(
-        .FIFO_WIDTH(1), //the fifo will have 2**FIFO_WIDTH positions
-        .DATA_WIDTH(F_TEST_CMD_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
-   ) fifo_1 (
-        .i_clk(i_controller_clk), 
-        .i_rst_n(i_rst_n && i_wb_cyc),
-        .read_fifo(f_read_fifo), 
-        .write_fifo(f_write_fifo),
-        .empty(f_empty), 
-        .full(f_full),
-        .write_data(f_write_data),
-        .read_data(f_read_data)
-   ); 
-
-
-   /*
-    mini_fifo #(
-        .FIFO_WIDTH($clog2(READ_ACK_PIPE_WIDTH+5)), //the fifo will have 2**FIFO_WIDTH positions
-        .DATA_WIDTH(AUX_WIDTH) //each FIFO position can store DATA_WIDTH bits
-   ) fifo_2 (
-        .i_clk(i_controller_clk), 
-        .i_rst_n(i_rst_n),
-        .read_fifo(f_read_fifo_2), 
-        .write_fifo(f_write_fifo_2),
-        .empty(f_empty_2), 
-        .full(f_full_2),
-        .write_data(f_write_data_2),
-        .read_data(f_read_data_2)
-   ); 
-
-    always @* begin
-        //write the wb request to fifo
-        if(i_wb_stb && i_wb_cyc && !o_wb_stall && state_calibrate == DONE_CALIBRATE) begin
-            f_write_fifo_2 = 1;
-            f_write_data_2 = i_aux;
-        end 
-        else begin
-            f_write_fifo_2 = 0;
+            f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
+            f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read on same bank (tCCD)
+            f_wb_inputs[2] = {1'b1, {14'd0,3'd1, 7'd2}}; //write on same bank (tRTW)
+            f_wb_inputs[3] = {1'b1, {14'd0,3'd1, 7'd3}}; //write on same bank (tCCD)
+            f_wb_inputs[4] = {1'b0, {14'd0,3'd2, 7'd0}}; //read on different bank 
+            f_wb_inputs[5] = {1'b1, {14'd0,3'd2, 7'd1}}; //write on same bank (tRTW)
+            f_wb_inputs[6] = {1'b1, {14'd0,3'd1, 7'd4}}; //write on different bank (already activated)
+            f_wb_inputs[7] = {1'b1, {14'd0,3'd1, 7'd5}}; //write (tCCD)
+            f_wb_inputs[8] = {1'b1, {14'd1,3'd2, 7'd0}}; //write on different bank (already activated but wrong row)
+            f_wb_inputs[9] = {1'b1, {14'd1,3'd2, 7'd1}}; //write (tCCD)
+            f_wb_inputs[10] = {1'b1, {14'd1,3'd2, 7'd2}}; //write (tCCD)
+            f_wb_inputs[11] = {1'b0, {14'd2,3'd2, 7'd0}}; //read (same bank but wrong row so precharge first) 
+            f_wb_inputs[12] = {1'b0, {14'd2,3'd2, 7'd1}}; //read (tCCD)
+            f_wb_inputs[13] = {1'b0, {14'd2,3'd2, 7'd2}}; //read (tCCD)
+            /*
+            f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
+            f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read on same bank (tCCD)
+            f_wb_inputs[2] = {1'b1, {14'd0,3'd2, 7'd0}}; //write on the anticipated bank 
+            f_wb_inputs[3] = {1'b1, {14'd0,3'd2, 7'd1}}; //write on same bank (tCCD)
+            f_wb_inputs[4] = {1'b0, {14'd0,3'd3, 7'd0}}; //read on the anticipated bank 
+            f_wb_inputs[5] = {1'b0, {14'd0,3'd3, 7'd1}}; //read on same bank (tCCD)
+            f_wb_inputs[6] = {1'b1, {14'd0,3'd7, 7'd0}}; //write on the un-anticipated idle bank (activate first) 
+            f_wb_inputs[7] = {1'b1, {14'd0,3'd1, 7'd1}}; //write on the un-anticipated active bank and row (write)
+            f_wb_inputs[8] = {1'b1, {14'd1,3'd7, 7'd0}}; //write on the un-anticipated active bank but wrong row (precharge first) 
+            */
+            /*
+            f_wb_inputs[0] = {1'b0, {14'd0,3'd1, 7'd0}}; //read 
+            f_wb_inputs[1] = {1'b0, {14'd0,3'd1, 7'd1}}; //read 
+            f_wb_inputs[2] = {1'b0, {14'd0,3'd1, 7'd2}}; //read 
+            f_wb_inputs[3] = {1'b0, {14'd0,3'd1, 7'd3}}; //read 
+            f_wb_inputs[4] = {1'b0, {14'd0,3'd1, 7'd4}}; //read 
+            f_wb_inputs[5] = {1'b0, {14'd0,3'd1, 7'd5}}; //read 
+            f_wb_inputs[6] = {1'b0, {14'd0,3'd1, 7'd6}}; //write 
+            f_wb_inputs[7] = {1'b0, {14'd0,3'd1, 7'd7}}; //write 
+            f_wb_inputs[8] = {1'b0, {14'd0,3'd1, 7'd8}}; //write 
+            f_wb_inputs[9] = {1'b0, {14'd0,3'd1, 7'd9}}; //write 
+            f_wb_inputs[10] = {1'b0, {14'd0,3'd1, 7'd10}}; //write 
+            f_wb_inputs[11] = {1'b0, {14'd0,3'd1, 7'd11}}; //write 
+            */
+           /*
+            f_wb_inputs[0] = {1'b0, {14'd1,3'd1, 7'd120}}; //write on same bank (tRTW)
+            f_wb_inputs[1] = {1'b0, {14'd1,3'd1, 7'd121}}; //write on different bank (already activated)
+            f_wb_inputs[2] = {1'b0, {14'd1,3'd1, 7'd122}}; //write (tCCD)
+            f_wb_inputs[3] = {1'b0, {14'd1,3'd1, 7'd123}}; //write on different bank (already activated but wrong row)
+            f_wb_inputs[4] = {1'b0, {14'd1,3'd1, 7'd124}}; //write (tCCD)
+            f_wb_inputs[5] = {1'b0, {14'd1,3'd1, 7'd125}}; //write (tCCD)
+            f_wb_inputs[6] = {1'b0, {14'd1,3'd1, 7'd126}}; //read (same bank but wrong row so precharge first) 
+            f_wb_inputs[7] = {1'b0, {14'd1,3'd1, 7'd127}}; //read (tCCD)
+            f_wb_inputs[8] = {1'b0, {14'd1,3'd2, 7'd0}}; //read (tCCD)
+            f_wb_inputs[9] = {1'b0, {14'd1,3'd2, 7'd1}}; //read (tCCD)
+            f_wb_inputs[10] = {1'b0, {14'd1,3'd2, 7'd2}}; //read (tCCD)
+            */
         end
-        f_read_fifo_2 = 0;
-        //check if an ack is received
-        if(o_wb_ack && i_wb_cyc) begin //
-            assert(f_read_data_2 == o_aux); //the AUX ID must match the corresponding request AUX ID
-            assert(!f_empty_2);
-            f_read_fifo_2 = 1;
-            assert(state_calibrate == DONE_CALIBRATE); //o_wb_ack must only go high after done calibration
-        end
-
-        if(state_calibrate != DONE_CALIBRATE) assert(f_empty_2); //if not yet finished calibrating, stall should never go low
-        if(!f_empty_2) assert(state_calibrate == DONE_CALIBRATE);
-    end
-    */
-    
-    always @* begin
-        if(state_calibrate == DONE_CALIBRATE) begin
-            if(f_full) assert(stage1_pending && stage2_pending);//there are 2 contents
-            if(stage1_pending && stage2_pending) assert(f_full);
-
-            if(!f_empty && !f_full) assert(stage1_pending ^ stage2_pending);//there is 1 content
-            if(stage1_pending ^ stage2_pending) assert(!f_empty && !f_full);
-
-            if(f_empty) assert(stage1_pending == 0 && stage2_pending==0); //there is 0 content
-            if(stage1_pending == 0 && stage2_pending == 0) assert(f_empty);
-
-        end
-
-        if(state_calibrate < ISSUE_WRITE_1) assert(!stage1_pending && !stage2_pending);
-        if(stage1_pending && state_calibrate == ISSUE_READ) assert(stage1_we);
-        if(stage2_pending && state_calibrate == ISSUE_READ) assert(stage2_we);
-        if(stage1_pending && state_calibrate == READ_DATA) assert(!stage1_we);
-        if(state_calibrate == ANALYZE_DATA) assert(!stage1_pending && !stage2_pending);
-    end
-
-
-
-
-    // wishbone protocol assumptions
-    always @(posedge i_controller_clk) begin
-        if(f_past_valid) begin
-            //wishbone request should not change when stalled
-            if($past(i_wb_stb && o_wb_stall)) begin
-                assume(i_wb_stb == $past(i_wb_stb));
-                assume(i_wb_we == $past(i_wb_we));
-                assume(i_wb_addr == $past(i_wb_addr));
-                assume(i_wb_data == $past(i_wb_data));
-                assume(i_wb_sel == $past(i_wb_sel));
-            end
-            if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE) begin
-                assert($past(state_calibrate) == ANALYZE_DATA);
-                assert(f_empty);
-                assert(!stage1_pending);
-                assert(!stage2_pending);
-            end
-        end
-    end
-    //wishbone request should have a corresponding DDR3 command at the output
-    //wishbone request will be written to fifo, then once a DDR3 command is
-    //issued the fifo will be read to check if the DDR3 command matches the
-    //corresponding wishbone request
-    //
-    always @* begin
-        //write the wb request to fifo
-        if(i_wb_stb && i_wb_cyc && !o_wb_stall && state_calibrate == DONE_CALIBRATE) begin
-            f_write_fifo = 1;
-            f_write_data = {i_wb_data, i_wb_sel, i_aux, i_wb_addr,i_wb_we};
-        end 
-        else f_write_fifo = 0;
-        f_read_fifo = 0;
-        //check if a DDR3 command is issued
-        for(f_index_1 = 0; f_index_1 < 4; f_index_1 = f_index_1 + 1) begin
-            if(!cmd_d[f_index_1][CMD_CS_N]) begin //only if already done calibrate and controller can accept wb request 
-                case(cmd_d[f_index_1][CMD_CS_N:CMD_WE_N])
-                    4'b0100: begin //WRITE
-                                if(state_calibrate == DONE_CALIBRATE) begin
-                                   assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                                   assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                                   assert(stage2_aux == f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]); //UAX ID must match 
-                                   assert(stage2_dm_unaligned == f_read_data[$bits(i_wb_addr) + AUX_WIDTH + 1 +: $bits(i_wb_sel)]); //wb sel must match to data mask
-                                   //assert(stage2_data_unaligned == f_read_data[$bits(i_wb_sel) + $bits(i_wb_addr) + AUX_WIDTH + 1 +: $bits(i_wb_data)]); //actual data must match 
-                                   assert(f_read_data[0]); //i_wb_we must be high
-                                   f_read_fifo = 1; //advance read pointer to prepare for next read
-                                end
-                                else if(state_calibrate > ISSUE_WRITE_1) begin
-                                    assert(stage2_aux == 1);
-                                end
-                             end
-                    4'b0101: begin //READ
-                               if(state_calibrate == DONE_CALIBRATE) begin
-                                   assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank and address must match 
-                                   assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //bank and address must match 
-                                   assert(stage2_aux == f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]); //UAX ID must match 
-                                   assert(!f_read_data[0]); //i_wb_we must be low
-                                   f_read_fifo = 1; //advance read pointer to prepare for next read
-                               end
-                                else if(state_calibrate > ISSUE_WRITE_1) begin
-                                    assert(stage2_aux == 0);
-                                end
-                             end
-                 `ifdef OKAY reg[ROW_BITS-1:0] f_bank_active_row_q[(1<<BA_BITS)-1:0]; reg[(1<<BA_BITS)-1:0] f_bank_status; 
-                    4'b0010: begin //PRECHARGE
-                                assert(f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] == 1); //the bank that should be precharged must initially be active 
-                                f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 0;
-                             end
-                    4'b0011: begin //ACTIVATE
-                                assert(f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] == 0); //the bank that should be activated must initially be precharged 
-                                f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 1; //bank will be turned active
-                                f_active_row[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= cmd_d[CMD_ADDRESS_START:0]; //save row to be activated 
-                             end
-                    cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
-                    cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
-                    bank_status_d[stage1_next_bank] = 1'b0; 
-                 `endif
-                endcase
-            end
-            if(reset_done) begin
-                assert(cmd_d[f_index_1][CMD_CKE] && cmd_d[f_index_1][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
-            end
-        end
-        if(state_calibrate == DONE_CALIBRATE) assert(reset_done);
-        if(state_calibrate != DONE_CALIBRATE) assert(o_wb_stall); //if not yet finished calibrating, stall should never go low
-        if(state_calibrate != DONE_CALIBRATE) assert(f_empty); //if not yet finished calibrating, stall should never go low
-        if(!f_empty) assert(state_calibrate == DONE_CALIBRATE);
-    end
-    assign f_write_slot = WRITE_SLOT;
-    assign f_read_slot = READ_SLOT;
-    assign f_precharge_slot = PRECHARGE_SLOT;
-    assign f_activate_slot = ACTIVATE_SLOT;
-
-    always @(posedge i_controller_clk) begin
-        if(!f_empty) begin//there is an ongoing wb request
-            assert(stage1_pending || stage2_pending);
-        end
-        if((stage1_pending || stage2_pending) && state_calibrate == DONE_CALIBRATE) assert(!f_empty || f_write_fifo);
-    end
-    always @(posedge i_controller_clk) begin
-            if(f_past_valid) begin
-                if(instruction_address != 22 && $past(instruction_address) != 22) assert(!f_write_fifo); //must have no new request when not inside tREFI 
-                if(instruction_address != 22 && $past(instruction_address) != 22) assert(o_wb_stall);
-                //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
-                if(instruction_address == 19 && delay_counter != 0) assert(o_wb_stall);
-                if(instruction_address == 19 && delay_counter == PRE_STALL_DELAY/2) assert(!stage1_pending);
-            end
-    end
-    
-    always @* begin
-        if(stage2_pending) begin 
-            if(bank_status_q[stage2_bank] &&  bank_active_row_q[stage2_bank] == stage2_row) begin //read/write operation
-                if(stage2_we && delay_before_write_counter_q[stage2_bank] != 0) begin       
-                    assert(o_wb_stall);
-                end
-                else if(!stage2_we && delay_before_read_counter_q[stage2_bank] != 0) begin     
-                    assert(o_wb_stall);
-                end
-            end
-            else if(!bank_status_q[stage2_bank]) begin 
-                if(delay_before_activate_counter_q[stage2_bank] != 0) begin
-                    assert(o_wb_stall);
-                end
-            end
-            else if(bank_status_q[stage2_bank] &&  bank_active_row_q[stage2_bank] != stage2_row ) begin       
-                if(delay_before_precharge_counter_q[stage2_bank] != 0) begin
-                    assert(o_wb_stall);
-                end
-            end
-        end
-        if(instruction_address != 22 && instruction_address != 19) assert(!stage1_pending && !stage2_pending); //must be pending except in tREFI and in prestall delay
-        if(!reset_done) assert(stage1_pending == 0 && stage2_pending == 0);
-        if(state_calibrate <= ISSUE_READ) begin
-            for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
-                assert(o_wb_ack_read_q[index] == 0);
-            end
-            for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                assert(shift_reg_read_pipe_q[index] == 0);
-            end
-        end
-        if(state_calibrate <= ISSUE_WRITE_1) begin
-            assert(bank_status_q == 0);
-        end
-        assert(state_calibrate <= DONE_CALIBRATE);
-        if(!DONE_CALIBRATE) assert(o_wb_ack == 0); //o_wb_ack must not go high before done calibration
-    end
-
-
-        wire[4:0] f_nreqs, f_nacks, f_outstanding;
-
-        integer f_sum_of_pending_acks = 0;
-        always @* begin
-                if(!i_rst_n) begin
-                    assume(f_nreqs == 0);
-                    assume(f_nacks == 0);
-                end
-                //assume(added_read_pipe_max == 1);
-                f_sum_of_pending_acks = stage1_pending + stage2_pending;
-                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                    f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
-                end
-                for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
-                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
-                end
-                if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
-                    assert(f_outstanding == f_sum_of_pending_acks);
-                end
-                else if(!i_rst_n) begin
-                    assert(f_sum_of_pending_acks == 0);
-                end
-                if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
-                    assert(f_outstanding == 0);
-                end
-                if(state_calibrate <= ISSUE_WRITE_1 && i_rst_n) begin
-                    //not inside tREFI, prestall delay, nor precharge
-                    assert(f_outstanding == 0); 
-                    assert(f_sum_of_pending_acks == 0);
-                end
-                if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
-                    assert(f_outstanding == 0); 
-                    assert(f_sum_of_pending_acks == 0);
-                end
-                if(state_calibrate != DONE_CALIBRATE  && i_rst_n) begin //if not yet done calibration, no request should be accepted
-                    assert(f_nreqs == 0);
-                    assert(f_nacks == 0);
-                    assert(f_outstanding == 0); 
-                end
-               if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
-                   if(write_calib_stb == 1) begin
-                        assert(write_calib_aux == 1);          
-                        assert(write_calib_we == 1);
-                    end
-               end
+        initial begin
+            f_reset_counter = 0;
         end
         always @(posedge i_controller_clk) begin
-            if(f_past_valid) begin
-                if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && i_rst_n) begin
-                   assert(f_nreqs == $past(f_nreqs));           
+                if(!o_wb_stall) begin
+                    f_index <= f_index + 1; //number of requests accepted
                 end
-                if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && i_rst_n) begin//just started DONE_CALBRATION
-                    assert(f_nreqs == 0);
-                    assert(f_nacks == 0);
-                    assert(f_outstanding == 0); 
-                    assert(f_sum_of_pending_acks == 0);
+                f_reset_counter <= f_reset_counter + 1;
+        end
+        
+        always @(posedge i_controller_clk) begin
+            assume(i_wb_cyc == 1);
+            assume(i_wb_stb == 1);
+            if(f_past_valid) begin
+                assume(i_rst_n);
+            end
+            assume(i_wb_we == f_wb_inputs[f_index][24]);
+            assume(i_wb_addr == f_wb_inputs[f_index][23:0]);
+            cover(f_index == 10);
+            if(f_index != 0) begin
+                assume(i_rst_n); //dont reset just to skip a request forcefully
+            end
+        end
+
+    `else
+        // wires and registers used in this formal section
+        localparam F_TEST_CMD_DATA_WIDTH = $bits(i_wb_data) + $bits(i_wb_sel) + $bits(i_aux) + $bits(i_wb_addr) + $bits(i_wb_we);
+        reg f_past_valid = 0; 
+        reg[$bits(instruction_address) - 1: 0] f_addr = 0, f_read = 0 ; 
+        reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
+        reg[3:0] f_count_refreshes = 0; //count how many refresh cycles had already passed
+        reg[24:0] f_wb_inputs[31:0];
+        reg[4:0] f_index = 0;
+        reg[5:0] f_counter = 0;
+
+        reg[4:0] f_index_1 = 0;
+        reg[F_TEST_CMD_DATA_WIDTH - 1:0] f_write_data;
+        reg f_write_fifo = 0, f_read_fifo = 0;
+        wire f_empty, f_full;
+        wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data;
+
+        wire[$bits(instruction) - 1:0]  a= read_rom_instruction(f_const_addr); //retrieve an instruction based on engine's choice
+        wire[1:0] f_write_slot;
+        wire[1:0] f_read_slot;
+        wire[1:0] f_precharge_slot;
+        wire[1:0] f_activate_slot;
+        (*anyconst*) reg[$bits(instruction_address) - 1: 0] f_const_addr;
+        
+        initial assume(!i_rst_n); 
+        
+        always @* begin
+            //assert(tMOD + tZQinit > nCK_to_cycles(tDLLK)); //Initialization sequence requires that tDLLK is satisfied after MRS to mode register 0 and ZQ calibration
+            assert(MR0[18] != 1'b1); //last Mode Register bit should never be zero 
+            assert(MR1_WL_EN[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
+            assert(MR1_WL_DIS[18] != 1'b1); //(as this is used for A10-AP control for non-MRS 
+            assert(MR2[18] != 1'b1); //commands in the reset sequence)
+            assert(MR3_MPR_EN[18] != 1'b1);
+            assert(MR3_MPR_DIS[18] != 1'b1);
+            assert(DELAY_COUNTER_WIDTH <= $bits(MR0)); //bitwidth of mode register should be enough for the delay counter
+            //sanity checking to ensure 5 bits is allotted for extra instruction {reset_finished, use_timer , stay_command , cke , reset_n } 
+            assert(($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)) == 5 ); 
+            assert(DELAY_SLOT_WIDTH >= DELAY_COUNTER_WIDTH); //width occupied by delay timer slot on the reset rom must be able to occupy the maximum possible delay value on the reset sequence
+        end
+        
+        always @(posedge i_controller_clk)  f_past_valid <= 1;
+        
+        
+        //The idea below is sourced from https://zipcpu.com/formal/2019/11/18/genuctrlr.html
+        //We will form a packet of information describing each instruction as it goes through the pipeline and make assertions along the way.
+        //2-stage Pipeline: f_addr (update address)  ->  f_read (read instruction from rom)  
+        
+        //pipeline stage logic: f_addr (update address)  ->  f_read (read instruction from rom)  
+        always @(posedge i_controller_clk, negedge i_rst_n) begin
+            if(!i_rst_n) begin
+                f_addr <= 0;
+                f_read <= 0;
+            end
+            //move the pipeline forward when counter is about to go zero and we are not yet at end of reset sequence
+            else if((delay_counter == 1 || !instruction[USE_TIMER] || skip_reset_seq_delay)) begin             
+                f_addr <= (f_addr == 22)? 19:f_addr + 1;
+                f_read <= f_addr;
+            end     
+        end
+        
+        // assert f_addr and f_read as shadows of next and current instruction address 
+        always @* begin
+            assert(f_addr == instruction_address); //f_addr is the shadow of instruction_address (thus f_addr is the address of NEXT instruction)
+            f_read_inst = read_rom_instruction(f_read); //f_read is the address of CURRENT instruction 
+            assert(f_read_inst == read_rom_instruction(f_read)); // needed for induction to make sure the engine will not create his own instruction
+        if(f_addr == 0) begin
+            f_read_inst = INITIAL_RESET_INSTRUCTION; //will only happen at the very start:  f_addr (0)  ->  f_read (0)  where we are reading the initial reset instruction and not the rom
+        end
+        assert(f_read_inst == instruction);  // f_read_inst is the shadow of current instruction 
+        end
+        
+        // main assertions for the reset sequence 
+        always @(posedge i_controller_clk) begin
+                if(!i_rst_n || !$past(i_rst_n)) begin
+                    assert(f_addr == 0);
+                    assert(f_read == 0);
+                    assert(instruction_address == 0);
+                    assert(delay_counter == (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0]));
+                    assert(delay_counter_is_zero == (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0));
+                end
+                else if(f_past_valid) begin
+                    //if counter is zero previously and current instruction needs timer delay, then this cycle should now have the new updated counter value
+                    if( $past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER]) ) begin 
+                            assert(delay_counter == f_read_inst[DELAY_COUNTER_WIDTH - 1:0]); 
+                    end
+                     //delay_counter_is_zero can be high when counter is zero and current instruction needs delay
+                     if($past(f_read_inst[USE_TIMER]) && !$past(skip_reset_seq_delay) ) begin
+                         assert( delay_counter_is_zero  == (delay_counter == 0) ); 
+                     end
+                     //delay_counter_is_zero will go high this cycle when we received a don't-use-timer instruction
+                     else if(!$past(f_read_inst[USE_TIMER]) && !$past(skip_reset_seq_delay)) begin
+                         assert(delay_counter_is_zero); 
+                     end
+                    
+                    //we are on the middle of a delay thus all values must remain constant while only delay_counter changes (decrement)
+                    if(!delay_counter_is_zero) begin 
+                        assert(f_addr == $past(f_addr));
+                        assert(f_read == $past(f_read));
+                        assert(f_read_inst == $past(f_read_inst));
+                    end
+                    
+                    //if delay is not yet zero and timer delay is enabled, then delay_counter should decrement
+                    if(!$past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER])) begin
+                        assert(delay_counter == $past(delay_counter) - 1); 
+                        assert(delay_counter < $past(delay_counter) ); //just to make sure delay_counter will never overflow back to all 1's
+                    end
+                    
+                    //sanity checking for the comment "delay_counter will be zero AT NEXT CLOCK CYCLE when counter is now one"
+                if($past(delay_counter) == 1 && !$past(skip_reset_seq_delay,2)) begin
+                    assert(delay_counter == 0 && delay_counter_is_zero); 
+                end
+                //assert the relationship between the stages FOR RESET SEQUENCE
+                if(!reset_done) begin
+                    if(f_addr == 0) begin
+                        assert(f_read == 0); //will only happen at the very start:  f_addr (0)  ->  f_read (0)  
+                    end
+                    else if(f_read == 0) begin 
+                        assert(f_addr <= 1); //will only happen at the very first two cycles: f_addr (1)  ->  f_read (0) or f_addr (0)  ->  f_read (0)  
+                    end
+                    //else if($past(reset_done)) assert(f_read == $past(f_read)); //reset instruction does not repeat after reaching end address thus it must saturate when pipeline reaches end
+                    else begin
+                        assert(f_read + 1 == f_addr); //address increments continuously
+                    end
+                    assert($past(f_read) < 21); //only instruction address 0-to-13 is for reset sequence (reset_done is asserted at address 14)
+                end
+                        
+                //assert the relationship between the stages FOR REFRESH SEQUENCE
+                else begin
+                    if(f_read == 22) begin
+                        assert(f_addr == 19); //if current instruction is 22, then next instruction must be at 19 (instruction address wraps from 15 to 12)
+                    end
+                    else if(f_addr == 19) begin
+                        assert(f_read == 22); //if next instruction is at 12, then current instruction must be at 15 (instruction address wraps from 15 to 12)
+                    end
+                    else begin
+                        assert(f_read + 1 == f_addr); //if there is no need to wrap around, then instruction address must increment 
+                    end
+                    assert((f_read >= 19 && f_read <= 22) ); //refresh sequence is only on instruction address 19,20,21,22
+                end
+                
+                // reset_done must retain high when it was already asserted once
+                if($past(reset_done)) begin
+                    assert(reset_done);
+                end
+                
+                // reset is already done at address 21 and up
+                if($past(f_read) >= 21 ) begin
+                    assert(reset_done);
+                end
+                
+                //if reset is done, the REF_IDLE must only be high at instruction address 14 (on the middle of tREFI)
+                if(reset_done &&  f_read_inst[REF_IDLE]) begin
+                    assert(f_read == 21);
+                end
+                        
+            end
+
+        end
+        
+        
+        // assertions on the instructions stored on the rom
+        always @* begin
+             //there MUST BE no instruction which USE_TIMER is high but delay is zero since it can cause the logic to lock-up (delay must be at least 1)    
+            if(a[USE_TIMER]) begin
+                assert( a[DELAY_COUNTER_WIDTH - 1:0] > 0);      
+            end
+        end
+        
+        // assertion on FSM calibration
+        always @* begin
+            if(instruction_address < 13) begin
+                assert(state_calibrate == IDLE);
+            end
+
+            if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
+                assert(instruction_address == 13);
+            end
+
+            if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
+                assert(instruction_address == 17);
+            end
+
+            if(instruction_address == 13 || instruction_address == 17) begin
+                assume(delay_counter != 1); //read (address 13) and write(17) will not take more than the max delay (500us)
+            end
+            
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
+                assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
+                assert(reset_done);
+            end
+
+            if(state_calibrate == DONE_CALIBRATE) begin
+                assert(reset_done);
+                assert(instruction_address >= 19);
+            end
+
+            if(reset_done) begin
+                assert(instruction_address >= 19);
+            end
+        end
+        
+        always @* begin
+            //make sure each command has distinct slot number (except for read/write which can have the same or different slot number)
+            //assert((WRITE_SLOT != ACTIVATE_SLOT != PRECHARGE_SLOT) && (READ_SLOT != ACTIVATE_SLOT != PRECHARGE_SLOT) );
+            assert(WRITE_SLOT != ACTIVATE_SLOT);
+            assert(WRITE_SLOT != PRECHARGE_SLOT);
+            assert(READ_SLOT != ACTIVATE_SLOT);
+            assert(READ_SLOT != PRECHARGE_SLOT);
+            //make sure slot number for read command is correct
+        end
+        //create a formal assertion that says during refresh ack should be low always
+        //make an assertion that there will be no request pending before actual refresh starts at instruction 4'd12
+            
+
+        mini_fifo #(
+            .FIFO_WIDTH(1), //the fifo will have 2**FIFO_WIDTH positions
+            .DATA_WIDTH(F_TEST_CMD_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
+       ) fifo_1 (
+            .i_clk(i_controller_clk), 
+            .i_rst_n(i_rst_n && i_wb_cyc), //reset outstanding request at reset or when cyc goes low
+            .read_fifo(f_read_fifo), 
+            .write_fifo(f_write_fifo),
+            .empty(f_empty), 
+            .full(f_full),
+            .write_data(f_write_data),
+            .read_data(f_read_data)
+       ); 
+
+        always @* begin
+            if(state_calibrate == DONE_CALIBRATE && i_wb_cyc) begin
+                if(f_full) begin
+                    assert(stage1_pending && stage2_pending);//there are 2 contents
+                end
+                if(stage1_pending && stage2_pending) begin
+                    assert(f_full);
+                end
+
+                if(!f_empty && !f_full) begin
+                    assert(stage1_pending ^ stage2_pending);//there is 1 content
+                end
+                if(stage1_pending ^ stage2_pending) begin
+                    assert(!f_empty && !f_full);
+                end
+
+                if(f_empty) begin
+                    assert(stage1_pending == 0 && stage2_pending==0); //there is 0 content
+                end
+                if(stage1_pending == 0 && stage2_pending == 0) begin
+                    assert(f_empty);
+                end
+            end
+
+            if(state_calibrate < ISSUE_WRITE_1) begin
+                assert(!stage1_pending && !stage2_pending);
+            end
+            if(stage1_pending && state_calibrate == ISSUE_READ) begin
+                assert(stage1_we);
+            end
+            if(stage2_pending && state_calibrate == ISSUE_READ) begin
+                assert(stage2_we);
+            end
+            if(state_calibrate == ANALYZE_DATA) begin
+                assert(!stage1_pending && !stage2_pending);
+            end
+        end
+
+        always @(posedge i_controller_clk) begin
+            if(f_past_valid) begin
+                if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE) begin
+                    assert($past(state_calibrate) == ANALYZE_DATA);
+                    assert(f_empty);
+                    assert(!stage1_pending);
+                    assert(!stage2_pending);
+                end
+                if(stage1_pending && $past(state_calibrate) == READ_DATA && state_calibrate == READ_DATA) begin
+                    assert(!stage1_we);
                 end
             end
         end
 
-fwb_slave #(
-		// {{{
-		.AW(wb_addr_bits), 
-        .DW(wb_data_bits),
-		.F_MAX_STALL(15),
-		.F_MAX_ACK_DELAY(15),
-		.F_LGDEPTH(4),
-		.F_MAX_REQUESTS(10),
-		// OPT_BUS_ABORT: If true, the master can drop CYC at any time
-		// and must drop CYC following any bus error
-		.OPT_BUS_ABORT(0),
-		//
-		// If true, allow the bus to be kept open when there are no
-		// outstanding requests.  This is useful for any master that
-		// might execute a read modify write cycle, such as an atomic
-		// add.
-		.F_OPT_RMW_BUS_OPTION(1),
-		//
-		// 
-		// If true, allow the bus to issue multiple discontinuous
-		// requests.
-		// Unlike F_OPT_RMW_BUS_OPTION, these requests may be issued
-		// while other requests are outstanding
-		.F_OPT_DISCONTINUOUS(1),
-		//
-		//
-		// If true, insist that there be a minimum of a single clock
-		// delay between request and response.  This defaults to off
-		// since the wishbone specification specifically doesn't
-		// require this.  However, some interfaces do, so we allow it
-		// as an option here.
-		.F_OPT_MINCLOCK_DELAY(1),
-		//
-		//
-		//
-        .F_WB_ERR(0)
-		// }}}
-	) wb_properties (
-		// {{{
-		.i_clk(i_controller_clk), 
-        .i_reset(!i_rst_n),
-        .i_check_assert(state_calibrate == DONE_CALIBRATE && instruction_address == 22),
-		// The Wishbone bus
-		.i_wb_cyc(i_wb_cyc), 
-        .i_wb_stb(i_wb_stb), 
-        .i_wb_we(i_wb_we),
-		.i_wb_addr(i_wb_addr),
-		.i_wb_data(i_wb_data),
-		.i_wb_sel(i_wb_sel),
-		//
-		.i_wb_ack(o_wb_ack),
-		.i_wb_stall(o_wb_stall),
-		.i_wb_idata(o_wb_data),
-		.i_wb_err(),
-		// Some convenience output parameters
-		.f_nreqs(f_nreqs), 
-        .f_nacks(f_nacks),
-		.f_outstanding(f_outstanding)
-		// }}}
-		// }}}
-	);
+        //wishbone request should have a corresponding DDR3 command at the output
+        //wishbone request will be written to fifo, then once a DDR3 command is
+        //issued the fifo will be read to check if the DDR3 command matches the
+        //corresponding wishbone request
+        reg[ROW_BITS-1:0] f_read_data_col;
+        reg[BA_BITS-1:0] f_read_data_bank;
+        reg[AUX_WIDTH-1:0] f_read_data_aux;
+        reg[wb_sel_bits-1:0] f_read_data_wb_sel;
+        always @* begin
+            //write the wb request to fifo
+            if(i_wb_stb && i_wb_cyc && !o_wb_stall && state_calibrate == DONE_CALIBRATE) begin
+                f_write_fifo = 1;
+                f_write_data = {i_wb_data, i_wb_sel, i_aux, i_wb_addr,i_wb_we};
+            end 
+            else begin
+                f_write_fifo = 0;
+            end
+            f_read_fifo = 0;
+            //check if a DDR3 command is issued
+            for(f_index_1 = 0; f_index_1 < 4; f_index_1 = f_index_1 + 1) begin
+                if(!cmd_d[f_index_1][CMD_CS_N] && i_wb_cyc) begin //only if already done calibrate and controller can accept wb request 
+                    case(cmd_d[f_index_1][CMD_CS_N:CMD_WE_N])
+                        4'b0100: begin //WRITE
+                                    if(state_calibrate == DONE_CALIBRATE) begin
+                                       f_read_data_col = {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}; //column address must match 
+                                       assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == f_read_data_col);
 
-`endif
+                                       f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                                       assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
+
+                                       f_read_data_aux = f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]; //UAX ID must match 
+                                       assert(stage2_aux == f_read_data_aux);
+
+                                       f_read_data_wb_sel = (f_read_data[$bits(i_wb_addr) + AUX_WIDTH + 1 +: $bits(i_wb_sel)]); 
+                                       assert(stage2_dm_unaligned == ~f_read_data_wb_sel); //data mask mst match inverse of wb sel
+
+                                       //assert(stage2_data_unaligned == f_read_data[$bits(i_wb_sel) + $bits(i_wb_addr) + AUX_WIDTH + 1 +: $bits(i_wb_data)]); //actual data must match 
+                                       assert(f_read_data[0]); //i_wb_we must be high
+                                       f_read_fifo = 1; //advance read pointer to prepare for next read
+                                    end
+                                    else if(state_calibrate > ISSUE_WRITE_1) begin
+                                        assert(stage2_aux == 1);
+                                    end
+                                 end
+                        4'b0101: begin //READ
+                                   if(state_calibrate == DONE_CALIBRATE) begin
+                                       f_read_data_col = {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}; //column address must match 
+                                       assert(cmd_d[f_index_1][CMD_ADDRESS_START:0] == f_read_data_col);
+
+                                       f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                                       assert(cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
+
+                                       f_read_data_aux = f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]; //UAX ID must match 
+                                       assert(stage2_aux == f_read_data_aux);
+
+                                       assert(!f_read_data[0]); //i_wb_we must be low
+                                       f_read_fifo = 1; //advance read pointer to prepare for next read
+                                   end
+                                    else if(state_calibrate > ISSUE_WRITE_1) begin
+                                        assert(stage2_aux == 0);
+                                    end
+                                 end
+                     `ifdef OKAY reg[ROW_BITS-1:0] f_bank_active_row_q[(1<<BA_BITS)-1:0]; reg[(1<<BA_BITS)-1:0] f_bank_status; 
+                        4'b0010: begin //PRECHARGE
+                                    assert(f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] == 1); //the bank that should be precharged must initially be active 
+                                    f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 0;
+                                 end
+                        4'b0011: begin //ACTIVATE
+                                    assert(f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] == 0); //the bank that should be activated must initially be precharged 
+                                    f_bank_status[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 1; //bank will be turned active
+                                    f_active_row[cmd_d[f_index_1][CMD_BANK_START:CMD_ADDRESS_START+1]] <= cmd_d[CMD_ADDRESS_START:0]; //save row to be activated 
+                                 end
+                        cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
+                        cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
+                        bank_status_d[stage1_next_bank] = 1'b0; 
+                     `endif
+                    endcase
+                end
+                if(reset_done) begin
+                    assert(cmd_d[f_index_1][CMD_CKE] && cmd_d[f_index_1][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
+                end
+            end
+            if(state_calibrate == DONE_CALIBRATE) begin
+                assert(reset_done);
+            end
+            if(state_calibrate != DONE_CALIBRATE) begin
+                assert(o_wb_stall); //if not yet finished calibrating, stall should never go low
+            end
+            if(state_calibrate != DONE_CALIBRATE) begin
+                assert(f_empty); //if not yet finished calibrating, stall should never go low
+            end
+            if(!f_empty) begin
+                assert(state_calibrate == DONE_CALIBRATE);
+            end
+        end
+        assign f_write_slot = WRITE_SLOT;
+        assign f_read_slot = READ_SLOT;
+        assign f_precharge_slot = PRECHARGE_SLOT;
+        assign f_activate_slot = ACTIVATE_SLOT;
+
+        always @(posedge i_controller_clk) begin
+            if(!f_empty) begin//there is an ongoing wb request
+                assert(stage1_pending || stage2_pending);
+            end
+            if((stage1_pending || stage2_pending) && state_calibrate == DONE_CALIBRATE && i_wb_cyc) begin
+                assert(!f_empty || f_write_fifo);
+            end
+        end
+        always @(posedge i_controller_clk) begin
+                if(f_past_valid) begin
+                    if(instruction_address != 22 && $past(instruction_address) != 22) begin
+                        assert(!f_write_fifo); //must have no new request when not inside tREFI 
+                    end
+                    if(instruction_address != 22 && $past(instruction_address) != 22) begin
+                        assert(o_wb_stall);
+                    end
+                    //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
+                    if(instruction_address == 19 && delay_counter != 0) begin
+                        assert(o_wb_stall);
+                    end
+                    if(instruction_address == 19 && delay_counter == PRE_STALL_DELAY/2) begin
+                        assert(!stage1_pending);
+                    end
+                end
+        end
+        
+        always @* begin
+            if(instruction_address != 22 && instruction_address != 19) begin
+               assert(!stage1_pending && !stage2_pending); //must be pending except in tREFI and in prestall delay
+            end
+
+            if(!reset_done) begin 
+                assert(stage1_pending == 0 && stage2_pending == 0);
+            end
+
+            if(state_calibrate <= ISSUE_READ) begin
+                for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                    assert(o_wb_ack_read_q[index] == 0);
+                end
+                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                    assert(shift_reg_read_pipe_q[index] == 0);
+                end
+            end
+
+            if(state_calibrate <= ISSUE_WRITE_1) begin
+                assert(bank_status_q == 0);
+            end
+
+            if(!DONE_CALIBRATE) begin
+                assert(o_wb_ack == 0); //o_wb_ack must not go high before done calibration
+            end
+
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
+                if(stage1_pending) begin
+                    assert(stage1_we == stage1_aux); //if write, then aux id must be 1 else 0
+                end
+                if(stage2_pending) begin
+                    assert(stage2_we == stage2_aux); //if write, then aux id must be 1 else 0
+                end
+            end
+
+            assert(state_calibrate <= DONE_CALIBRATE);
+        end
+
+            wire[4:0] f_nreqs, f_nacks, f_outstanding;
+
+            integer f_sum_of_pending_acks = 0;
+            always @* begin
+                    if(!i_rst_n) begin
+                        assume(f_nreqs == 0);
+                        assume(f_nacks == 0);
+                    end
+
+                    //assume(added_read_pipe_max == 1);
+                    f_sum_of_pending_acks = stage1_pending + stage2_pending;
+                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                        f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
+                    end
+                    for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                        f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
+                    end
+
+                    if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
+                        assert(f_outstanding == f_sum_of_pending_acks || !i_wb_cyc);
+                    end
+                    else if(!i_rst_n) begin
+                        assert(f_sum_of_pending_acks == 0);
+                    end
+                    if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
+                        assert(f_outstanding == 0 || !i_wb_cyc);
+                    end
+                    if(state_calibrate <= ISSUE_WRITE_1 && i_rst_n) begin
+                        //not inside tREFI, prestall delay, nor precharge
+                        assert(f_outstanding == 0 || !i_wb_cyc); 
+                        assert(f_sum_of_pending_acks == 0);
+                    end
+                    if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
+                        assert(f_outstanding == 0 || !i_wb_cyc); 
+                        assert(f_sum_of_pending_acks == 0);
+                    end
+                    if(state_calibrate != DONE_CALIBRATE  && i_rst_n) begin //if not yet done calibration, no request should be accepted
+                        assert(f_nreqs == 0);
+                        assert(f_nacks == 0);
+                        assert(f_outstanding == 0 || !i_wb_cyc); 
+                    end
+
+                   if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
+                       if(write_calib_stb == 1) begin
+                            assert(write_calib_aux == 1);          
+                            assert(write_calib_we == 1);
+                        end
+                   end
+                    if(!stage1_pending) begin
+                        assert(!stage1_stall);
+                    end
+
+                    if(!stage2_pending) begin
+                        assert(!stage2_stall);
+                    end
+            end
+            always @(posedge i_controller_clk) begin
+                if(f_past_valid) begin
+                    if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && i_rst_n) begin
+                       assert(f_nreqs == $past(f_nreqs));           
+                    end
+                    if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && i_rst_n) begin//just started DONE_CALBRATION
+                        assert(f_nreqs == 0);
+                        assert(f_nacks == 0);
+                        assert(f_outstanding == 0); 
+                        assert(f_sum_of_pending_acks == 0);
+                    end
+                    if((!stage1_pending || !stage2_pending) && $past(state_calibrate) == DONE_CALIBRATE && state_calibrate == DONE_CALIBRATE 
+                        && instruction_address == 22 && $past(instruction_address == 22)) begin
+                            assert(!o_wb_stall);//if even 1 of the stage is empty, o_wb_stall must be low
+                    end
+                end
+            end
+
+    fwb_slave #(
+            // {{{
+            .AW(wb_addr_bits), 
+            .DW(wb_data_bits),
+            .F_MAX_STALL(9),
+            .F_MAX_ACK_DELAY(15),
+            .F_LGDEPTH(4),
+            .F_MAX_REQUESTS(10),
+            // OPT_BUS_ABORT: If true, the master can drop CYC at any time
+            // and must drop CYC following any bus error
+            .OPT_BUS_ABORT(1),
+            //
+            // If true, allow the bus to be kept open when there are no
+            // outstanding requests.  This is useful for any master that
+            // might execute a read modify write cycle, such as an atomic
+            // add.
+            .F_OPT_RMW_BUS_OPTION(1),
+            //
+            // 
+            // If true, allow the bus to issue multiple discontinuous
+            // requests.
+            // Unlike F_OPT_RMW_BUS_OPTION, these requests may be issued
+            // while other requests are outstanding
+            .F_OPT_DISCONTINUOUS(1),
+            //
+            //
+            // If true, insist that there be a minimum of a single clock
+            // delay between request and response.  This defaults to off
+            // since the wishbone specification specifically doesn't
+            // require this.  However, some interfaces do, so we allow it
+            // as an option here.
+            .F_OPT_MINCLOCK_DELAY(1),
+            // }}}
+        ) wb_properties (
+            // {{{
+            .i_clk(i_controller_clk), 
+            .i_reset(!i_rst_n),
+            .i_slave_busy(!(state_calibrate == DONE_CALIBRATE && instruction_address == 22)),
+            // The Wishbone bus
+            .i_wb_cyc(i_wb_cyc), 
+            .i_wb_stb(i_wb_stb), 
+            .i_wb_we(i_wb_we),
+            .i_wb_addr(i_wb_addr),
+            .i_wb_data(i_wb_data),
+            .i_wb_sel(i_wb_sel),
+            //
+            .i_wb_ack(o_wb_ack),
+            .i_wb_stall(o_wb_stall),
+            .i_wb_idata(o_wb_data),
+            .i_wb_err(0),
+            // Some convenience output parameters
+            .f_nreqs(f_nreqs), 
+            .f_nacks(f_nacks),
+            .f_outstanding(f_outstanding)
+            // }}}
+            // }}}
+        );
+    `endif //endif for FORMAL_COVER
+`endif //endif for FORMAL
 endmodule
 
 
@@ -2304,8 +2373,12 @@ module mini_fifo #(
     `ifdef FORMAL
     //mini-FiFo assertions
     always @* begin
-        if(empty || full) assert(write_pointer == read_pointer); 
-        if(write_pointer == read_pointer) assert(empty || full);
+        if(empty || full) begin
+            assert(write_pointer == read_pointer); 
+        end
+        if(write_pointer == read_pointer) begin
+            assert(empty || full);
+        end
         assert(!(empty && full));
         //TASK ADD MORE ASSERTIONS
     end
