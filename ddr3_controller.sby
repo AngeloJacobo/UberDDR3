@@ -1,6 +1,8 @@
 [options]
 mode prove
 depth 17 # 13 for 20/5, 17 for 10/2.5, 26 for 5/1.25
+#mode cover
+#depth 50
 
 [engines]
 smtbmc
