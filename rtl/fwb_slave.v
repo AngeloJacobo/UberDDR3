@@ -92,8 +92,6 @@ module	fwb_slave #(
 		parameter	[0:0]	F_OPT_MINCLOCK_DELAY = 0,
 		//
 		//
-		//If true, then the slave has wb_error output port
-        parameter [0:0] F_WB_ERR = 1, 
 		localparam [(F_LGDEPTH-1):0] MAX_OUTSTANDING
 						= {(F_LGDEPTH){1'b1}},
 		localparam	MAX_DELAY = (F_MAX_STALL > F_MAX_ACK_DELAY)
@@ -105,7 +103,7 @@ module	fwb_slave #(
 	) (
 		// {{{
 		input	wire			i_clk, i_reset,
-        input wire              i_check_assert,
+        input wire              i_slave_busy,
 		// The Wishbone bus
 		input	wire			i_wb_cyc, i_wb_stb, i_wb_we,
 		input	wire	[(AW-1):0]	i_wb_addr,
@@ -121,10 +119,10 @@ module	fwb_slave #(
 		output	wire	[(F_LGDEPTH-1):0]	f_outstanding
 		// }}}
 	);
+
     always @* begin
-        if(!F_WB_ERR) begin
-            //if slave dont have wb_err, we assume then it is always 0
-            assume(i_wb_err == 0);
+        if(i_slave_busy) begin //if slave busy (initialization/refresh sequence), no request should come in
+            assume(!i_wb_stb);
         end
     end
 `define	SLAVE_ASSUME	assume
@@ -337,14 +335,14 @@ module	fwb_slave #(
 
 		initial	f_stall_count = 0;
 		always @(posedge i_clk)
-		if ((!i_reset)&&(i_wb_stb)&&(i_wb_stall) && i_check_assert)
+		if ((!i_reset)&&(i_wb_stb)&&(i_wb_stall))
 			f_stall_count <= f_stall_count + 1'b1;
 		else
 			f_stall_count <= 0;
 
 		always @(*)
 		if (i_wb_cyc)
-			`SLAVE_ASSERT(f_stall_count < F_MAX_STALL || !i_check_assert);
+			`SLAVE_ASSERT(f_stall_count < F_MAX_STALL);
 	end endgenerate
 	// }}}
 	////////////////////////////////////////////////////////////////////////
@@ -368,7 +366,7 @@ module	fwb_slave #(
 		always @(posedge i_clk)
 		if ((!i_reset)&&(i_wb_cyc)&&(!i_wb_stb)
 				&&(!i_wb_ack)&&(!i_wb_err)
-				&&(f_outstanding > 0) && i_check_assert)
+				&&(f_outstanding > 0))
 			f_ackwait_count <= f_ackwait_count + 1'b1;
 		else
 			f_ackwait_count <= 0;
@@ -377,7 +375,7 @@ module	fwb_slave #(
 		if ((!i_reset)&&(i_wb_cyc)&&(!i_wb_stb)
 					&&(!i_wb_ack)&&(!i_wb_err)
 					&&(f_outstanding > 0))
-			`SLAVE_ASSERT(f_ackwait_count < F_MAX_ACK_DELAY || !i_check_assert);
+			`SLAVE_ASSERT(f_ackwait_count < F_MAX_ACK_DELAY);
 	end endgenerate
 	// }}}
 	////////////////////////////////////////////////////////////////////////
