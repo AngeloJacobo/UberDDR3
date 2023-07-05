@@ -1,0 +1,12 @@
+0.7
+2020.2
+Oct 19 2021
+02:56:52
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_controller.v,1688533172,verilog,,/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v,,ddr3_controller;mini_fifo,,uvm,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench;/home/angelo/Desktop/switch_fpga/switch_fpga.srcs/sources_1/imports/rtl,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_phy.v,1688382102,verilog,,/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_top.v,,ddr3_phy,,uvm,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench;/home/angelo/Desktop/switch_fpga/switch_fpga.srcs/sources_1/imports/rtl,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/rtl/ddr3_top.v,1687245962,verilog,,,,ddr3_top,,uvm,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench;/home/angelo/Desktop/switch_fpga/switch_fpga.srcs/sources_1/imports/rtl,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/8192Mb_ddr3_parameters.vh,1688546597,verilog,,,,,,,,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3.v,1687236268,systemVerilog,,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm.v,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/8192Mb_ddr3_parameters.vh,ddr3,,uvm,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench;/home/angelo/Desktop/switch_fpga/switch_fpga.srcs/sources_1/imports/rtl,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm.v,1686204490,systemVerilog,,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/8192Mb_ddr3_parameters.vh,ddr3_dimm,,uvm,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench;/home/angelo/Desktop/switch_fpga/switch_fpga.srcs/sources_1/imports/rtl,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v,1688462732,systemVerilog,,,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/8192Mb_ddr3_parameters.vh,ddr3_dimm_micron_sim,,uvm,/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench;/home/angelo/Desktop/switch_fpga/switch_fpga.srcs/sources_1/imports/rtl,,,,,
+/home/angelo/Desktop/switch_fpga/DDR3_Controller/xsim/glbl.v,1634335545,verilog,,,,glbl,,uvm,,,,,,

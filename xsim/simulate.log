@@ -1,0 +1,150 @@
+#-----------------------------------------------------------
+# xsim v2021.2 (64-bit)
+# SW Build 3367213 on Tue Oct 19 02:47:39 MDT 2021
+# IP Build 3369179 on Thu Oct 21 08:25:16 MDT 2021
+# Start of session at: Wed Jul  5 16:46:56 2023
+# Process ID: 11548
+# Current directory: /home/angelo/Desktop/switch_fpga/DDR3_Controller/xsim
+# Command line: xsim -log simulate.log -mode tcl -source {xsim.dir/ddr3_dimm_micron_sim/xsim_script.tcl}
+# Log file: /home/angelo/Desktop/switch_fpga/DDR3_Controller/xsim/simulate.log
+# Journal file: /home/angelo/Desktop/switch_fpga/DDR3_Controller/xsim/xsim.jou
+# Running On: angelo-desktop, OS: Linux, CPU Frequency: 3552.564 MHz, CPU Physical cores: 2, Host memory: 7450 MB
+#-----------------------------------------------------------
+source xsim.dir/ddr3_dimm_micron_sim/xsim_script.tcl
+# xsim {ddr3_dimm_micron_sim} -autoloadwcfg -tclbatch {cmd.tcl} -key {Behavioral:sim_1:Functional:ddr3_dimm_micron_sim}
+Time resolution is 1 ps
+source cmd.tcl
+## set curr_wave [current_wave_config]
+## if { [string length $curr_wave] == 0 } {
+##   if { [llength [get_objects]] > 0} {
+##     add_wave /
+##     set_property needs_save false [current_wave_config]
+##   } else {
+##      send_msg_id Add_Wave-1 WARNING "No top level signals found. Simulator will start without a wave window. If you want to open a wave window go to 'File->New Waveform Configuration' or type 'create_wave_config' in the TCL console."
+##   }
+## }
+## run -all
+Test ns_to_cycles() function:
+	ns_to_cycles(15) = 3 = 2 [exact]
+	ns_to_cycles(14.5) = 3 = 2 [round-off]
+	ns_to_cycles(11) = 3 = 2 [round-up]
+
+Test nCK_to_cycles() function:
+	ns_to_cycles(16) = 4 = 4 [exact]
+	ns_to_cycles(15) = 4 = 4 [round-off]
+	ns_to_cycles(13) = 4 = 4 [round-up]
+
+Test ns_to_nCK() function:
+	ns_to_cycles(15) = 12 = 6 [exact]
+	ns_to_cycles(14.875) = 12 = 6 [round-off]
+	ns_to_cycles(13.875) = 12 = 6 [round-up]
+	ns_to_nCK(tRCD) =  11 = 6 [WRONG]
+	tRTP =  7.5 = 10.000000 
+	ns_to_nCK(tRTP) =  6= 4.000000 [WRONG]
+
+Test nCK_to_ns() function:
+	ns_to_cycles(4)  = 5 = 10 [exact]
+	ns_to_cycles(14.875) = 4 = 8 [round-off]
+	ns_to_cycles(13.875) = 7 = 13 [round-up]
+
+Test nCK_to_ns() function:
+	ns_to_cycles(4)  = 5 = 10 [exact]
+	ns_to_cycles(14.875) = 4 = 8 [round-off]
+	ns_to_cycles(13.875) = 7 = 13 [round-up]
+
+Test $floor() function:
+	$floor(5/2) = 2.5 = 2
+	$floor(9/4) = 2.25 = 2
+	$floor(9/4) = 2 = 2
+	$floor(9/5) = 1.8 = 1
+
+
+DELAY_COUNTER_WIDTH = 16
+DELAY_SLOT_WIDTH = 19
+serdes_ratio = 4
+wb_addr_bits = 24
+wb_data_bits = 512
+wb_sel_bits = 64
+
+
+READ_SLOT = 2
+WRITE_SLOT = 3
+ACTIVATE_SLOT = 0
+PRECHARGE_SLOT = 1
+
+
+DELAYS:
+	ns_to_nCK(tRCD): 6
+	ns_to_nCK(tRP): 6
+	ns_to_nCK(tRTP): 4
+	tCCD: 4
+	(CL_nCK + tCCD + 3'd2 - CWL_nCK): 7
+	(CWL_nCK + 3'd4 + ns_to_nCK(tWR)): 15
+	(CWL_nCK + 3'd4 + ns_to_nCK(tWTR)): 13
+	$signed(4'b1100)>>>4: 1111
+
+
+PRECHARGE_TO_ACTIVATE_DELAY = 3 = 1
+ACTIVATE_TO_WRITE_DELAY = 3 = 0
+ACTIVATE_TO_READ_DELAY = 2 = 0
+READ_TO_WRITE_DELAY = 2 = 1
+READ_TO_READ_DELAY = 0 = 0
+READ_TO_PRECHARGE_DELAY = 1 =1
+WRITE_TO_WRITE_DELAY = 0 = 0
+WRITE_TO_READ_DELAY = 4 = 3
+WRITE_TO_PRECHARGE_DELAY = 5 = 4
+STAGE2_DATA_DEPTH = 2 = 2
+READ_ACK_PIPE_WIDTH = 6
+ddr3_dimm_micron_sim.ddr3_dimm.U1.file_io_open: at time                    0 WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U2.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U3.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U4.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U6.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U7.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U8.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+ddr3_dimm_micron_sim.ddr3_dimm.U9.file_io_open: at time 0.0 ps WARNING: no +model_data option specified, using /tmp.
+[x ps] MRS -> [ 7500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_dimm.U1.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U2.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U3.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U4.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U6.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U7.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U8.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+ddr3_dimm_micron_sim.ddr3_dimm.U9.reset at time 304199.0 ps WARNING: 200 us is required before RST_N goes inactive.
+[195000 ps] NOP -> [510000 ps] NOP -> ddr3_dimm_micron_sim.ddr3_dimm.U1.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U2.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U3.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U4.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U6.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U7.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U8.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+ddr3_dimm_micron_sim.ddr3_dimm.U9.cmd_task at time 815475.0 ps WARNING: 500 us is required after RST_N goes inactive before CKE goes active.
+[370000 ps] MRS -> 
+ddr3_dimm_micron_sim.ddr3_dimm.U1.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U2.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U3.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U4.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U6.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U7.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U8.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+ddr3_dimm_micron_sim.ddr3_dimm.U9.cmd_task: at time 1187975.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
+[10000 ps] MRS -> [10000 ps] MRS -> [10000 ps] MRS -> [10000 ps] NOP -> [40000 ps] ZQC -> 
+[1290000 ps] PRE @ (0) -> [30000 ps] MRS -> [10000 ps] NOP -> [40000 ps] NOP -> [262500 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[580000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [580000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[150000 ps]  RD @ (0,     0) -> [580000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
+[140000 ps]  RD @ (0,     0) -> [150000 ps]  RD @ (0,     0) -> 
