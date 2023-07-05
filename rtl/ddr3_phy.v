@@ -94,15 +94,18 @@ module ddr3_phy #(
     reg[$clog2(SYNC_RESET_DELAY):0] delay_before_release_reset;
     reg sync_rst = 0;
     wire ddr3_clk;
+    reg toggle_dqs_q; //past value of i_controller_toggle_dqs
     //synchronous reset
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             sync_rst <= 1'b1;
             delay_before_release_reset <= SYNC_RESET_DELAY;
+            toggle_dqs_q <= 0;
         end
         else begin
             delay_before_release_reset <= (delay_before_release_reset == 0)? 0: delay_before_release_reset - 1;
             sync_rst <= !(delay_before_release_reset == 0);
+            toggle_dqs_q <= i_controller_toggle_dqs;
         end
     end
 
@@ -520,10 +523,10 @@ module ddr3_phy #(
                 .CLK(i_ddr3_clk), // 1-bit input: High speed clock
                 .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
                 // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
-                .D1(1'b1 && i_controller_toggle_dqs),
-                .D2(1'b0 && i_controller_toggle_dqs),
-                .D3(1'b1 && i_controller_toggle_dqs),
-                .D4(1'b0 && i_controller_toggle_dqs),
+                .D1(1'b1 && (i_controller_toggle_dqs || toggle_dqs_q)), //the last part will still have half dqs series
+                .D2(1'b0 && (i_controller_toggle_dqs || toggle_dqs_q)),
+                .D3(1'b1 && (i_controller_toggle_dqs || toggle_dqs_q)),
+                .D4(1'b0 && (i_controller_toggle_dqs || toggle_dqs_q)),
                 .D5(1'b1 && i_controller_toggle_dqs),
                 .D6(1'b0 && i_controller_toggle_dqs),
                 .D7(1'b1 && i_controller_toggle_dqs),
