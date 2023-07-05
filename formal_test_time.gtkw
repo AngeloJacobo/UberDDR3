@@ -1,0 +1,267 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Wed Jul  5 00:16:39 2023
+[*]
+[dumpfile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_controller/engine_0/trace_induct.vcd"
+[dumpfile_mtime] "Wed Jul  5 00:14:12 2023"
+[dumpfile_size] 223124
+[savefile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/formal_test_time.gtkw"
+[timestart] 74
+[size] 1848 1126
+[pos] -51 -51
+*-4.417290 175 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ddr3_controller.
+[sst_width] 391
+[signals_width] 419
+[sst_expanded] 1
+[sst_vpaned_height] 743
+@420
+smt_step
+@28
+ddr3_controller.i_controller_clk
+ddr3_controller.i_rst_n
+ddr3_controller.reset_done
+@24
+ddr3_controller.state_calibrate[4:0]
+ddr3_controller.instruction_address[4:0]
+ddr3_controller.delay_counter[15:0]
+@28
+ddr3_controller.o_wb_stall_q
+ddr3_controller.o_wb_stall
+ddr3_controller.delay_counter_is_zero
+@29
+ddr3_controller.pause_counter
+@200
+-
+-
+@28
++{ddr3_controller.[ACT] cmd_d<0>[23:0]} ddr3_controller.cmd_d<0>[23:0]
+@c00028
++{ddr3_controller.[PRE] cmd_d<1>[23:0]} ddr3_controller.cmd_d<1>[23:0]
+@28
+(0)ddr3_controller.cmd_d<1>[23:0]
+(1)ddr3_controller.cmd_d<1>[23:0]
+(2)ddr3_controller.cmd_d<1>[23:0]
+(3)ddr3_controller.cmd_d<1>[23:0]
+(4)ddr3_controller.cmd_d<1>[23:0]
+(5)ddr3_controller.cmd_d<1>[23:0]
+(6)ddr3_controller.cmd_d<1>[23:0]
+(7)ddr3_controller.cmd_d<1>[23:0]
+(8)ddr3_controller.cmd_d<1>[23:0]
+(9)ddr3_controller.cmd_d<1>[23:0]
+(10)ddr3_controller.cmd_d<1>[23:0]
+(11)ddr3_controller.cmd_d<1>[23:0]
+(12)ddr3_controller.cmd_d<1>[23:0]
+(13)ddr3_controller.cmd_d<1>[23:0]
+(14)ddr3_controller.cmd_d<1>[23:0]
+(15)ddr3_controller.cmd_d<1>[23:0]
+(16)ddr3_controller.cmd_d<1>[23:0]
+(17)ddr3_controller.cmd_d<1>[23:0]
+(18)ddr3_controller.cmd_d<1>[23:0]
+(19)ddr3_controller.cmd_d<1>[23:0]
+(20)ddr3_controller.cmd_d<1>[23:0]
+(21)ddr3_controller.cmd_d<1>[23:0]
+(22)ddr3_controller.cmd_d<1>[23:0]
+(23)ddr3_controller.cmd_d<1>[23:0]
+@1401200
+-group_end
+@c00028
++{ddr3_controller.[RD] cmd_d<2>[23:0]} ddr3_controller.cmd_d<2>[23:0]
+@28
+(0)ddr3_controller.cmd_d<2>[23:0]
+(1)ddr3_controller.cmd_d<2>[23:0]
+(2)ddr3_controller.cmd_d<2>[23:0]
+(3)ddr3_controller.cmd_d<2>[23:0]
+(4)ddr3_controller.cmd_d<2>[23:0]
+(5)ddr3_controller.cmd_d<2>[23:0]
+(6)ddr3_controller.cmd_d<2>[23:0]
+(7)ddr3_controller.cmd_d<2>[23:0]
+(8)ddr3_controller.cmd_d<2>[23:0]
+(9)ddr3_controller.cmd_d<2>[23:0]
+(10)ddr3_controller.cmd_d<2>[23:0]
+(11)ddr3_controller.cmd_d<2>[23:0]
+(12)ddr3_controller.cmd_d<2>[23:0]
+(13)ddr3_controller.cmd_d<2>[23:0]
+(14)ddr3_controller.cmd_d<2>[23:0]
+(15)ddr3_controller.cmd_d<2>[23:0]
+(16)ddr3_controller.cmd_d<2>[23:0]
+(17)ddr3_controller.cmd_d<2>[23:0]
+(18)ddr3_controller.cmd_d<2>[23:0]
+(19)ddr3_controller.cmd_d<2>[23:0]
+(20)ddr3_controller.cmd_d<2>[23:0]
+(21)ddr3_controller.cmd_d<2>[23:0]
+(22)ddr3_controller.cmd_d<2>[23:0]
+(23)ddr3_controller.cmd_d<2>[23:0]
+@1401200
+-group_end
+@28
++{ddr3_controller.[WR] cmd_d<3>[23:0]} ddr3_controller.cmd_d<3>[23:0]
+@200
+-
+@28
+ddr3_controller.bank_status_q[7:0]
+@200
+-
+@28
+ddr3_controller.stage1_pending
+ddr3_controller.stage2_pending
+ddr3_controller.stage2_update
+@200
+-
+@24
+ddr3_controller.f_timer[6:0]
+ddr3_controller.f_activate_time_stamp<0>[6:0]
+ddr3_controller.f_activate_time_stamp<1>[6:0]
+ddr3_controller.f_activate_time_stamp<2>[6:0]
+ddr3_controller.f_activate_time_stamp<3>[6:0]
+ddr3_controller.f_activate_time_stamp<4>[6:0]
+ddr3_controller.f_activate_time_stamp<5>[6:0]
+ddr3_controller.f_activate_time_stamp<6>[6:0]
+ddr3_controller.f_activate_time_stamp<7>[6:0]
+ddr3_controller.f_precharge_time_stamp<0>[6:0]
+ddr3_controller.f_precharge_time_stamp<1>[6:0]
+ddr3_controller.f_precharge_time_stamp<2>[6:0]
+ddr3_controller.f_precharge_time_stamp<3>[6:0]
+ddr3_controller.f_precharge_time_stamp<4>[6:0]
+ddr3_controller.f_precharge_time_stamp<5>[6:0]
+ddr3_controller.f_precharge_time_stamp<6>[6:0]
+ddr3_controller.f_precharge_time_stamp<7>[6:0]
+ddr3_controller.f_read_time_stamp<0>[6:0]
+ddr3_controller.f_read_time_stamp<1>[6:0]
+ddr3_controller.f_read_time_stamp<2>[6:0]
+ddr3_controller.f_read_time_stamp<3>[6:0]
+ddr3_controller.f_read_time_stamp<4>[6:0]
+ddr3_controller.f_read_time_stamp<5>[6:0]
+ddr3_controller.f_read_time_stamp<6>[6:0]
+ddr3_controller.f_read_time_stamp<7>[6:0]
+ddr3_controller.f_write_time_stamp<0>[6:0]
+ddr3_controller.f_write_time_stamp<1>[6:0]
+ddr3_controller.f_write_time_stamp<2>[6:0]
+ddr3_controller.f_write_time_stamp<3>[6:0]
+ddr3_controller.f_write_time_stamp<4>[6:0]
+ddr3_controller.f_write_time_stamp<5>[6:0]
+ddr3_controller.f_write_time_stamp<6>[6:0]
+ddr3_controller.f_write_time_stamp<7>[6:0]
+@28
+ddr3_controller.i_wb_stb
+ddr3_controller.o_wb_stall
+ddr3_controller.i_wb_cyc
+ddr3_controller.o_wb_ack
+ddr3_controller.o_wb_stall_d
+ddr3_controller.o_wb_stall_q
+ddr3_controller.delay_counter_is_zero
+@200
+-
+@28
+ddr3_controller.stage1_stall
+ddr3_controller.stage1_pending
+ddr3_controller.stage1_we
+@22
+ddr3_controller.stage1_aux[15:0]
+@24
+ddr3_controller.stage1_bank[2:0]
+@22
+ddr3_controller.stage1_col[9:0]
+ddr3_controller.stage1_row[13:0]
+@200
+-
+@28
+ddr3_controller.stage2_stall
+ddr3_controller.stage2_pending
+ddr3_controller.stage2_update
+ddr3_controller.stage2_we
+@c00022
+ddr3_controller.stage2_aux[15:0]
+@28
+(0)ddr3_controller.stage2_aux[15:0]
+(1)ddr3_controller.stage2_aux[15:0]
+(2)ddr3_controller.stage2_aux[15:0]
+(3)ddr3_controller.stage2_aux[15:0]
+(4)ddr3_controller.stage2_aux[15:0]
+(5)ddr3_controller.stage2_aux[15:0]
+(6)ddr3_controller.stage2_aux[15:0]
+(7)ddr3_controller.stage2_aux[15:0]
+(8)ddr3_controller.stage2_aux[15:0]
+(9)ddr3_controller.stage2_aux[15:0]
+(10)ddr3_controller.stage2_aux[15:0]
+(11)ddr3_controller.stage2_aux[15:0]
+(12)ddr3_controller.stage2_aux[15:0]
+(13)ddr3_controller.stage2_aux[15:0]
+(14)ddr3_controller.stage2_aux[15:0]
+(15)ddr3_controller.stage2_aux[15:0]
+@1401200
+-group_end
+@24
+ddr3_controller.stage2_bank[2:0]
+@22
+ddr3_controller.stage2_col[9:0]
+ddr3_controller.stage2_row[13:0]
+@200
+-
+@28
++{ddr3_controller.[ACT] cmd_d<0>[23:0]} ddr3_controller.cmd_d<0>[23:0]
+@c00028
++{ddr3_controller.[PRE] cmd_d<1>[23:0]} ddr3_controller.cmd_d<1>[23:0]
+@28
+(0)ddr3_controller.cmd_d<1>[23:0]
+(1)ddr3_controller.cmd_d<1>[23:0]
+(2)ddr3_controller.cmd_d<1>[23:0]
+(3)ddr3_controller.cmd_d<1>[23:0]
+(4)ddr3_controller.cmd_d<1>[23:0]
+(5)ddr3_controller.cmd_d<1>[23:0]
+(6)ddr3_controller.cmd_d<1>[23:0]
+(7)ddr3_controller.cmd_d<1>[23:0]
+(8)ddr3_controller.cmd_d<1>[23:0]
+(9)ddr3_controller.cmd_d<1>[23:0]
+(10)ddr3_controller.cmd_d<1>[23:0]
+(11)ddr3_controller.cmd_d<1>[23:0]
+(12)ddr3_controller.cmd_d<1>[23:0]
+(13)ddr3_controller.cmd_d<1>[23:0]
+(14)ddr3_controller.cmd_d<1>[23:0]
+(15)ddr3_controller.cmd_d<1>[23:0]
+(16)ddr3_controller.cmd_d<1>[23:0]
+(17)ddr3_controller.cmd_d<1>[23:0]
+(18)ddr3_controller.cmd_d<1>[23:0]
+(19)ddr3_controller.cmd_d<1>[23:0]
+(20)ddr3_controller.cmd_d<1>[23:0]
+(21)ddr3_controller.cmd_d<1>[23:0]
+(22)ddr3_controller.cmd_d<1>[23:0]
+(23)ddr3_controller.cmd_d<1>[23:0]
+@1401200
+-group_end
+@c00028
++{ddr3_controller.[RD] cmd_d<2>[23:0]} ddr3_controller.cmd_d<2>[23:0]
+@28
+(0)ddr3_controller.cmd_d<2>[23:0]
+(1)ddr3_controller.cmd_d<2>[23:0]
+(2)ddr3_controller.cmd_d<2>[23:0]
+(3)ddr3_controller.cmd_d<2>[23:0]
+(4)ddr3_controller.cmd_d<2>[23:0]
+(5)ddr3_controller.cmd_d<2>[23:0]
+(6)ddr3_controller.cmd_d<2>[23:0]
+(7)ddr3_controller.cmd_d<2>[23:0]
+(8)ddr3_controller.cmd_d<2>[23:0]
+(9)ddr3_controller.cmd_d<2>[23:0]
+(10)ddr3_controller.cmd_d<2>[23:0]
+(11)ddr3_controller.cmd_d<2>[23:0]
+(12)ddr3_controller.cmd_d<2>[23:0]
+(13)ddr3_controller.cmd_d<2>[23:0]
+(14)ddr3_controller.cmd_d<2>[23:0]
+(15)ddr3_controller.cmd_d<2>[23:0]
+(16)ddr3_controller.cmd_d<2>[23:0]
+(17)ddr3_controller.cmd_d<2>[23:0]
+(18)ddr3_controller.cmd_d<2>[23:0]
+(19)ddr3_controller.cmd_d<2>[23:0]
+(20)ddr3_controller.cmd_d<2>[23:0]
+(21)ddr3_controller.cmd_d<2>[23:0]
+(22)ddr3_controller.cmd_d<2>[23:0]
+(23)ddr3_controller.cmd_d<2>[23:0]
+@1401200
+-group_end
+@28
++{ddr3_controller.[WR] cmd_d<3>[23:0]} ddr3_controller.cmd_d<3>[23:0]
+@200
+-
+-
+[pattern_trace] 1
+[pattern_trace] 0
