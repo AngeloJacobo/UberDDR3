@@ -186,7 +186,9 @@ module ddr3_controller #(
     localparam CWL_nCK = 5; //create a function for this
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
-    localparam PRE_STALL_DELAY = ((PRECHARGE_TO_ACTIVATE_DELAY+1) + (ACTIVATE_TO_WRITE_DELAY+1) + (WRITE_TO_PRECHARGE_DELAY+1) + 1)*2; 
+    localparam CALIBRATION_DELAY = 2;
+    localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
+    //localparam PRE_STALL_DELAY = ((PRECHARGE_TO_ACTIVATE_DELAY+1) + (ACTIVATE_TO_WRITE_DELAY+1) + (WRITE_TO_PRECHARGE_DELAY+1) + 1)*2; 
                                     //worst case scenario: two consecutive writes at same bank but different row
                                     //delay will be: PRECHARGE -> PRECHARGE_TO_ACTIVATE_DELAY -> ACTIVATE -> ACTIVATE_TO_WRITE_DELAY -> WRITE -> WRITE_TO_PRECHARGE_DELAY ->
                                     //PRECHARGE -> PRECHARGE_TO_ACTIVATE_DELAY -> ACTIVATE -> ACTIVATE_TO_WRITE_DELAY -> WRITE -> WRITE_TO_PRECHARGE_DELAY 
@@ -303,7 +305,7 @@ module ddr3_controller #(
     reg[ DELAY_COUNTER_WIDTH - 1:0] delay_counter = INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0]; //counter used for delays
     reg delay_counter_is_zero = (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0); //counter is now zero so retrieve next delay
     reg reset_done = 0; //high if reset has already finished
-    reg skip_reset_seq_delay = 0; //flag to skip delay and go to next reset instruction
+    reg pause_counter = 0;
     wire issue_read_command;
     wire issue_write_command;
     reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
@@ -523,7 +525,7 @@ module ddr3_controller #(
             5'd11: read_rom_instruction = {5'b01011, CMD_NOP, tMOD};
             //11. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
-            5'd12: read_rom_instruction = {5'b01011, CMD_NOP, {(DELAY_SLOT_WIDTH){1'b1}}}; 
+            5'd12: read_rom_instruction = {5'b01011, CMD_NOP, CALIBRATION_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
             //12. Delay for read calibration
             
             5'd13: read_rom_instruction = {{2'b00,MR3_MPR_DIS[10], 2'b11}, CMD_MRS, MR3_MPR_DIS}; 
@@ -535,7 +537,7 @@ module ddr3_controller #(
             5'd15: read_rom_instruction = {5'b01011, CMD_NOP, tWLMRD};
             //15. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
-            5'd16: read_rom_instruction = {5'b01011, CMD_NOP, {(DELAY_SLOT_WIDTH){1'b1}}}; 
+            5'd16: read_rom_instruction = {5'b01011, CMD_NOP, CALIBRATION_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
             //16. Delay for write calibration
             
             5'd17: read_rom_instruction = {{2'b00,MR1_WL_DIS[10], 2'b11}, CMD_MRS, MR1_WL_DIS}; 
@@ -555,7 +557,7 @@ module ddr3_controller #(
             5'd21: read_rom_instruction = {5'b11011, CMD_NOP, ns_to_cycles(tREFI)};
             //21. Reset ends now. The refresh interval also starts to count.
             
-            5'd22: read_rom_instruction = {5'b01011, CMD_NOP, PRE_STALL_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
+            5'd22: read_rom_instruction = {5'b01011, CMD_NOP, PRE_REFRESH_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
             // 22. Extra delay needed before starting the refresh sequence. 
                 // (this already sets the wishbone stall high to make sure no user request is on-going when refresh seqeunce starts)
             
@@ -590,11 +592,15 @@ module ddr3_controller #(
             end
             
             //else: decrement delay counter when current instruction needs delay
-            else if(instruction[USE_TIMER]) delay_counter <= delay_counter - 1; 
+            //don't decrement (has infinite time) when last bit of
+            //delay_counter is 1 (for r/w calibration and prestall delay)
+            //address will only move forward for these kinds of delay only
+            //when skip_reset_seq_delay is toggled
+            else if(instruction[USE_TIMER] /*&& delay_counter != {(DELAY_COUNTER_WIDTH){1'b1}}*/ && !pause_counter) delay_counter <= delay_counter - 1; 
             
             //delay_counter of 1 means we will need to update the delay_counter next clock cycle (delay_counter of zero) so we need to retrieve 
             //now the next instruction. The same thing needs to be done when current instruction does not need the timer delay.
-            if(delay_counter == 1 || !instruction[USE_TIMER] || skip_reset_seq_delay) begin
+            if(delay_counter == 1 || !instruction[USE_TIMER]/* || skip_reset_seq_delay*/) begin
                 delay_counter_is_zero <= 1; 
                 instruction <= read_rom_instruction(instruction_address);
                 instruction_address <= (instruction_address == 5'd22)? 5'd19:instruction_address+1; //wrap back of address to repeat refresh sequence 
@@ -956,7 +962,7 @@ module ddr3_controller #(
         end //end of stage 2 pending
 
         //pending request on stage 1
-        if(stage1_pending && (stage1_next_bank != stage2_bank)) begin
+        if(stage1_pending && !((stage1_next_bank == stage2_bank) && stage2_pending)) begin
             //stage 1 will mainly be for anticipation, but it can also handle
             //precharge and activate request. This will depend if the request
             //is on the end of the row and must start the anticipation. For
@@ -1202,7 +1208,7 @@ module ddr3_controller #(
             write_calib_we <= 0; //write-enable
             write_calib_col <= 0;
             write_calib_data <= 0;
-            skip_reset_seq_delay <= 0;
+            pause_counter <= 0;
             read_data_store <= 0;
             write_pattern <= 0;
             added_read_pipe_max <= 0;
@@ -1225,7 +1231,6 @@ module ddr3_controller #(
             write_calib_we <= 0; //write-enable
             write_calib_col <= 0;
             write_calib_data <= 0;
-            skip_reset_seq_delay <= 0;
             write_calib_dqs <= 0;
             write_calib_dq <= 0;
             train_delay <= (train_delay==0)? 0:(train_delay - 1);
@@ -1264,6 +1269,10 @@ module ddr3_controller #(
                         o_phy_odelay_dqs_ld <= {LANES{1'b1}};
                         o_phy_idelay_data_ld <= {LANES{1'b1}};
                         o_phy_idelay_dqs_ld <= {LANES{1'b1}};
+                        pause_counter <= 1; //pause instruction address @13 until read calibration finishes
+                      end
+                      else if(instruction_address == 13) begin
+                        pause_counter <= 1; //pause instruction address @13 until read calibration finishes
                       end
   BITSLIP_DQS_TRAIN_1: if(train_delay == 0) begin
                         /* Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
@@ -1286,7 +1295,6 @@ module ddr3_controller #(
                       end
                       
             MPR_READ: begin //align the incoming DQS during reads to the controller clock 
-                             //skip_reset_seq_delay = 1;
                              //issue_read_command = 1;
                              delay_before_read_data <= READ_DELAY + 1 + 2 + 1 /*- 1*/; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
                              state_calibrate <= COLLECT_DQS;
@@ -1333,7 +1341,7 @@ module ddr3_controller #(
   BITSLIP_DQS_TRAIN_2: if(train_delay == 0) begin //train again the ISERDES to capture the DQ correctly
                             if(i_phy_iserdes_bitslip_reference[lane*LANES +: 8] == dqs_bitslip_arrangement) begin
                                 if(lane == LANES - 1) begin
-                                    skip_reset_seq_delay <= 1;
+                                    pause_counter <= 0; //read calibration now complete so continue the reset instruction sequence
                                     lane <= 0;
                                     prev_write_level_feedback <= 1'b1;
                                     state_calibrate <= START_WRITE_LEVEL;
@@ -1355,6 +1363,7 @@ module ddr3_controller #(
                             write_calib_odt <= 1'b1;
                             delay_before_write_level_feedback <= DELAY_BEFORE_WRITE_LEVEL_FEEDBACK;
                             state_calibrate <= WAIT_FOR_FEEDBACK;
+                            pause_counter <= 1; // pause instruction address @17 until write calibration finishes
                        end
                        
     WAIT_FOR_FEEDBACK: if(delay_before_write_level_feedback == 0) begin
@@ -1362,7 +1371,7 @@ module ddr3_controller #(
                             if({prev_write_level_feedback, i_phy_iserdes_data[lane<<3]} == 2'b01) begin
                                 if(lane == LANES - 1) begin
                                     write_calib_odt <= 0;
-                                    skip_reset_seq_delay <= 1;
+                                    pause_counter <= 0; //write calibration now complete so continue the reset instruction sequence
                                     lane <= 0;
                                     state_calibrate <= ISSUE_WRITE_1;
                                 end
@@ -1386,7 +1395,7 @@ module ddr3_controller #(
                         write_calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
                         state_calibrate <= ISSUE_WRITE_2;
                        end    
-        ISSUE_WRITE_2: if(!o_wb_stall_q) begin
+        ISSUE_WRITE_2: begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 1; //write-enable
@@ -1394,7 +1403,7 @@ module ddr3_controller #(
                         write_calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
                         state_calibrate <= ISSUE_READ;
                        end    
-          ISSUE_READ: if(!o_wb_stall_q) begin
+          ISSUE_READ: if(!o_wb_stall_q && write_calib_stb == 0) begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 0; //write-enable
@@ -1428,7 +1437,17 @@ module ddr3_controller #(
                       else begin
                         data_start_index[lane] <= data_start_index[lane] + 8;
                       end             
-       DONE_CALIBRATE: state_calibrate <= DONE_CALIBRATE;
+      DONE_CALIBRATE: begin
+                        state_calibrate <= DONE_CALIBRATE;
+                        if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
+                            pause_counter <= 1; // pause instruction address until pre-stall delay before refresh sequence finishes
+                            //skip to instruction address 20 (precharge all before refresh) when no pending requests anymore
+                            //toggle it for 1 clk cycle only
+                            if(!stage1_pending && !stage2_pending && o_wb_stall) begin 
+                               pause_counter <= 0; // pre-stall delay done since all remaining requests are completed
+                            end
+                        end
+                      end
 
             endcase
         `ifdef FORMAL_COVER
@@ -1638,7 +1657,9 @@ module ddr3_controller #(
 `endif
     
     
-`ifdef  FORMAL
+`ifdef FORMAL
+    `define TEST_TIME_PARAMETERS
+
     `ifdef FORMAL_COVER
         initial assume(!i_rst_n); 
         reg[24:0] f_wb_inputs[31:0];
@@ -1740,9 +1761,157 @@ module ddr3_controller #(
                 assume(i_rst_n); //dont reset just to skip a request forcefully
             end
         end
+    `endif //endif for FORMAL_COVER
 
-    `else
-        //`define TEST_DATA
+
+     `ifdef TEST_TIME_PARAMETERS
+        // Test time parameter violations
+        (*keep*) reg[6:0] f_precharge_time_stamp[(1<<BA_BITS)-1:0]; 
+        (*keep*) reg[6:0] f_activate_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_read_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_timer = 0;
+        reg f_past_valid = 0;
+
+        initial assume(!i_rst_n); 
+        always @(posedge i_controller_clk)  f_past_valid <= 1;
+
+        always @(posedge i_controller_clk) begin
+            f_timer <= f_timer + 4;
+            if(f_past_valid) begin
+                assume($past(f_timer) < f_timer); //assume that counter will never overflow
+            end
+        end
+
+        always @(posedge i_controller_clk, negedge i_rst_n) begin
+            if(!i_rst_n) begin
+                for(index=0; index < (1<<BA_BITS); index=index+1) begin
+                    f_precharge_time_stamp[index] <= 0;
+                    f_activate_time_stamp[index] <= 0;
+                    f_read_time_stamp[index] <= 0;
+                    f_write_time_stamp[index] <= 0;
+                end
+            end
+            else begin
+                //check if a DDR3 command is issued
+                if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
+                    f_precharge_time_stamp[cmd_d[PRECHARGE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + PRECHARGE_SLOT; 
+                end
+
+                if(cmd_d[ACTIVATE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0011) begin //ACTIVATE
+                    f_activate_time_stamp[cmd_d[ACTIVATE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + ACTIVATE_SLOT; 
+                end
+
+                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
+                    f_write_time_stamp[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + WRITE_SLOT;
+                end
+
+                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
+                    f_read_time_stamp[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + READ_SLOT;
+                end
+            end
+        end
+
+        always @* begin
+
+            // to make sure saved time stamp is valid
+            for(index=0; index < (1<<BA_BITS); index=index+1) begin
+                assert(f_precharge_time_stamp[index] <= f_timer);
+                assert(f_activate_time_stamp[index] <= f_timer);
+                assert(f_read_time_stamp[index] <= f_timer);
+                assert(f_write_time_stamp[index] <= f_timer);
+                    
+                // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
+                if(f_precharge_time_stamp[index] > f_read_time_stamp[index]) begin
+                    assert((f_precharge_time_stamp[index] - f_read_time_stamp[index]) >= ns_to_nCK(tRTP));
+                end
+
+                /*
+                // Check tWTR (Delay from start of internal write transaction to internal read command)
+                if(f_read_time_stamp[index] > f_write_time_stamp[index]) begin
+                    assert((f_read_time_stamp[index] - f_write_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tWTR)
+                end
+                */
+
+                // Check tRCD (ACT to internal read or write delay time)
+                if(f_read_time_stamp[index] > f_activate_time_stamp[index]) begin
+                    assert((f_read_time_stamp[index] - f_activate_time_stamp[index]) >= ns_to_nCK(tRCD));
+                end
+                if(f_write_time_stamp[index] > f_activate_time_stamp[index]) begin
+                    assert((f_write_time_stamp[index] - f_activate_time_stamp[index]) >= ns_to_nCK(tRCD));
+                end
+
+                // Check tRP (PRE command period)
+                if(f_activate_time_stamp[index] > f_precharge_time_stamp[index]) begin
+                    assert((f_activate_time_stamp[index] - f_precharge_time_stamp[index]) >= ns_to_nCK(tRP));
+                end
+                
+                // Check tRAS (ACTIVE to PRECHARGE command period)
+                if(f_precharge_time_stamp[index] > f_activate_time_stamp[index]) begin
+                    assert((f_precharge_time_stamp[index] - f_activate_time_stamp[index]) >= ns_to_nCK(tRAS));
+                end
+            end
+        end
+
+        // assertion on FSM calibration
+        always @* begin
+            assert(instruction_address <= 22);
+            assert(state_calibrate <= DONE_CALIBRATE);
+            if(instruction_address < 13) begin
+                assert(state_calibrate == IDLE);
+            end
+
+            if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
+                assert(instruction_address == 13);
+                assert(pause_counter);
+            end
+
+
+            if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
+                assert(instruction_address == 17);
+                assert(pause_counter);
+            end
+            
+            if(pause_counter) begin
+                assert(delay_counter != 0);
+            end
+            
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
+                assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
+                assert(reset_done);
+            end
+
+            if(state_calibrate == DONE_CALIBRATE) begin
+                assert(reset_done);
+                assert(instruction_address >= 19);
+            end
+
+            if(reset_done) begin
+                assert(instruction_address >= 19);
+            end
+
+            if(!reset_done) begin
+                assert(!stage1_pending && !stage2_pending);
+                assert(o_wb_stall);
+            end
+            if(reset_done) begin
+                assert(instruction_address >= 19 && instruction_address <= 22);
+            end
+            //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
+            if(instruction_address == 19 && delay_counter != 0) begin
+                assert(o_wb_stall);
+            end
+
+            if(instruction_address == 19 && pause_counter) begin //pre-stall delay to finish all remaining requests
+               assert(delay_counter == PRE_REFRESH_DELAY); 
+               assert(reset_done);
+               assert(DONE_CALIBRATE);
+            end
+        end
+    `endif //endif for TEST_TIME_PARAMETERS
+
+
+    `ifdef TEST_CONTROLLER_PIPELINE 
         // wires and registers used in this formal section
         `ifdef TEST_DATA
             localparam F_TEST_CMD_DATA_WIDTH = $bits(i_wb_data) + $bits(i_wb_sel) + $bits(i_aux) + $bits(i_wb_addr) + $bits(i_wb_we);
@@ -1809,7 +1978,7 @@ module ddr3_controller #(
                 f_read <= 0;
             end
             //move the pipeline forward when counter is about to go zero and we are not yet at end of reset sequence
-            else if((delay_counter == 1 || !instruction[USE_TIMER] || skip_reset_seq_delay)) begin             
+            else if((delay_counter == 1 || !instruction[USE_TIMER])) begin             
                 f_addr <= (f_addr == 22)? 19:f_addr + 1;
                 f_read <= f_addr;
             end     
@@ -1841,11 +2010,11 @@ module ddr3_controller #(
                             assert(delay_counter == f_read_inst[DELAY_COUNTER_WIDTH - 1:0]); 
                     end
                      //delay_counter_is_zero can be high when counter is zero and current instruction needs delay
-                     if($past(f_read_inst[USE_TIMER]) && !$past(skip_reset_seq_delay) ) begin
+                     if($past(f_read_inst[USE_TIMER]) && !$past(pause_counter) ) begin
                          assert( delay_counter_is_zero  == (delay_counter == 0) ); 
                      end
                      //delay_counter_is_zero will go high this cycle when we received a don't-use-timer instruction
-                     else if(!$past(f_read_inst[USE_TIMER]) && !$past(skip_reset_seq_delay)) begin
+                     else if(!$past(f_read_inst[USE_TIMER]) && !$past(pause_counter)) begin
                          assert(delay_counter_is_zero); 
                      end
                     
@@ -1857,13 +2026,13 @@ module ddr3_controller #(
                     end
                     
                     //if delay is not yet zero and timer delay is enabled, then delay_counter should decrement
-                    if(!$past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER])) begin
+                    if(!$past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER]) && !$past(pause_counter) ) begin
                         assert(delay_counter == $past(delay_counter) - 1); 
                         assert(delay_counter < $past(delay_counter) ); //just to make sure delay_counter will never overflow back to all 1's
                     end
                     
                     //sanity checking for the comment "delay_counter will be zero AT NEXT CLOCK CYCLE when counter is now one"
-                if($past(delay_counter) == 1 && !$past(skip_reset_seq_delay,2)) begin
+                if($past(delay_counter) == 1) begin
                     assert(delay_counter == 0 && delay_counter_is_zero); 
                 end
                 //assert the relationship between the stages FOR RESET SEQUENCE
@@ -1931,14 +2100,17 @@ module ddr3_controller #(
 
             if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
                 assert(instruction_address == 13);
+                assert(pause_counter);
             end
+
 
             if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
                 assert(instruction_address == 17);
+                assert(pause_counter);
             end
-
-            if(instruction_address == 13 || instruction_address == 17) begin
-                assume(delay_counter != 1); //read (address 13) and write(17) will not take more than the max delay (500us)
+            
+            if(pause_counter) begin
+                assert(delay_counter != 0);
             end
             
             if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
@@ -2035,7 +2207,7 @@ module ddr3_controller #(
                 if(stage1_pending && $past(state_calibrate) == READ_DATA && state_calibrate == READ_DATA) begin
                     assert(!stage1_we);
                 end
-                if(instruction_address == 21 || (instruction_address == 20 && delay_counter != 0) || instruction_address < 19) begin //not inside active or calibration
+                if(instruction_address == 21 || ($past(instruction_address) == 20 && $past(instruction_address,2) == 19) || instruction_address < 19) begin //not inside active or calibration
                    assert(f_bank_status == 0);
                    assert(bank_status_q == 0);
                 end
@@ -2105,6 +2277,7 @@ module ddr3_controller #(
                     else if(state_calibrate > ISSUE_WRITE_1) begin
                         assert(stage2_aux == 1);
                     end
+                    //assert(f_bank_active_row[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == current_row); //column to be written must be the current active row
                 end
 
                 if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
@@ -2127,6 +2300,7 @@ module ddr3_controller #(
                     else if(state_calibrate > ISSUE_WRITE_1) begin
                         assert(stage2_aux == 0);
                     end
+                    //assert(f_bank_active_row[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == current_row);//column to be written must be the current active row
                 end
 
                 if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
@@ -2186,14 +2360,13 @@ module ddr3_controller #(
                 //check if a DDR3 command is issued
                 if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
                     bank = cmd_d[PRECHARGE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1];
-                    f_precharge_time_stamp[bank] <= f_timer; 
+                    f_precharge_time_stamp[bank] <= f_timer + PRECHARGE_SLOT; 
                     if(cmd_d[PRECHARGE_SLOT][10]) begin //A10 precharge all banks
                         for(index=0; index < (1<<BA_BITS); index=index+1) begin
                                 f_bank_status_2[index] = 0;  
                         end
                     end
                     else begin
-                        f_precharge_time_stamp[bank] <= 1; 
                         //f_bank_status <= f_bank_status & ~(1<<bank); //set to zero to idle bank
                         //f_bank_status[bank] <= 0; //set to zero to idle bank
                         f_bank_status_2 = f_bank_status_2 & ~(1<<bank); //set to zero to idle bank
@@ -2203,7 +2376,7 @@ module ddr3_controller #(
 
                 if(cmd_d[ACTIVATE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0011) begin //ACTIVATE
                     bank = cmd_d[ACTIVATE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1];
-                    f_activate_time_stamp[bank] <= f_timer; 
+                    f_activate_time_stamp[bank] <= f_timer + ACTIVATE_SLOT; 
                    // f_bank_status <= f_bank_status | (1<<bank); //bank will be turned active
                     //f_bank_status[bank] <= 1;
                     assert(bank <= 7);
@@ -2211,6 +2384,14 @@ module ddr3_controller #(
                     f_bank_active_row[bank] <= cmd_d[ACTIVATE_SLOT][CMD_ADDRESS_START:0]; //save row to be activated 
                 end
                 f_bank_status <= f_bank_status_2;
+
+                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
+                    f_write_time_stamp[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + WRITE_SLOT;
+                end
+
+                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
+                    f_read_time_stamp[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + READ_SLOT;
+                end
                     /*
                     if(!cmd_d[f_index_2][CMD_CS_N]) begin //only if already done calibrate and controller can accept wb request 
                         case(cmd_d[f_index_2][CMD_CS_N:CMD_WE_N])
@@ -2269,8 +2450,9 @@ module ddr3_controller #(
                     if(instruction_address == 19 && delay_counter != 0) begin
                         assert(o_wb_stall);
                     end
-                    if(instruction_address == 19 && delay_counter == PRE_STALL_DELAY/2) begin
+                    if(instruction_address == 20 || instruction_address == 21) begin //no pending request at precharge all and refresh command
                         assert(!stage1_pending);
+                        assert(!stage2_pending);
                     end
                     if($past(o_wb_stall_q) && stage1_pending) begin //if pipe did not move forward
                        assert(stage1_we == $past(stage1_we));
@@ -2395,67 +2577,6 @@ module ddr3_controller #(
                 end
             end
 
-            // Test time parameter violations
-            always @(posedge i_controller_clk) begin
-                f_timer <= f_timer + 1;
-                if(f_past_valid) begin
-                    assume($past(f_timer) < f_timer); //assume that counter will never overflow
-                end
-            end
-            `ifdef UNDER_CONSTRUCTION
-            always @* begin
-                // to make sure saved time stamp is valid
-                for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                    assert(f_precharge_time_stamp[index] <= f_timer);
-                    assert(f_activate_time_stamp[index] <= f_timer);
-                    assert(f_read_time_stamp[index] <= f_timer);
-                    assert(f_write_time_stamp[index] <= f_timer);
-                        
-                    // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
-                    if(f_precharge_time_stamp[index] > f_read_time_stamp[index]) begin
-                        assert((f_precharge_time_stamp[index] - f_read_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tRTP);
-                    end
-
-                    /*
-                    // Check tWTR (Delay from start of internal write transaction to internal read command)
-                    if(f_read_time_stamp[index] > f_write_time_stamp[index]) begin
-                        assert((f_read_time_stamp[index] - f_write_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tWTR)
-                    end
-                    */
-
-                    // Check tRCD (ACT to internal read or write delay time)
-                    if(f_read_time_stamp[index] > f_activate_time_stamp[index]) begin
-                        assert((f_read_time_stamp[index] - f_activate_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tRCD);
-                    end
-                    if(f_write_time_stamp[index] > f_activate_time_stamp[index]) begin
-                        assert((f_write_time_stamp[index] - f_activate_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tRCD);
-                    end
-
-                    // Check tRP (PRE command period)
-                    if(f_activate_time_stamp[index] > f_precharge_time_stamp[index]) begin
-                        assert((f_activate_time_stamp[index] - f_precharge_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tRP);
-                    end
-                    
-                    // Check tRAS (ACTIVE to PRECHARGE command period)
-                    if(f_precharge_time_stamp[index] > f_activate_time_stamp[index]) begin
-                        assert((f_precharge_time_stamp[index] - f_activate_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tRAS);
-                    end
-
-                end
-
-            end
-
-    localparam PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ns_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
-    localparam ACTIVATE_TO_PRECHARGE_DELAY = find_delay(ns_to_nCK(tRAS), ACTIVATE_SLOT, PRECHARGE_SLOT);
-    localparam ACTIVATE_TO_WRITE_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
-    localparam ACTIVATE_TO_READ_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, READ_SLOT); //2
-    localparam READ_TO_WRITE_DELAY = find_delay((CL_nCK + tCCD + 3'd2 - CWL_nCK), READ_SLOT, WRITE_SLOT); //2
-    localparam READ_TO_READ_DELAY = 0;
-    localparam READ_TO_PRECHARGE_DELAY =  find_delay(ns_to_nCK(tRTP), READ_SLOT, PRECHARGE_SLOT);  //1
-    localparam WRITE_TO_WRITE_DELAY = 0;
-    localparam WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
-    localparam WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 3'd4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
-            `endif
 
     fwb_slave #(
             // {{{
@@ -2514,7 +2635,7 @@ module ddr3_controller #(
             // }}}
             // }}}
         );
-    `endif //endif for FORMAL_COVER
+    `endif //endif for TEST_CONTROLLER_PIPELINE
 `endif //endif for FORMAL
 endmodule
 
