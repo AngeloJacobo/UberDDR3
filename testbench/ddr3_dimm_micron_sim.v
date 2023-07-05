@@ -250,7 +250,8 @@ ddr3_top #(
             @(posedge i_controller_clk);
         end
         i_wb_stb <= 0;
-        $display("\nDONE TEST 1: FIRST ROW\nNumber of Operations: %0d\nTime Started: %0d ps\nTime Done: %0d ps\n",number_of_op,time_started, $time);
+        $display("\n--------------------------------\nDONE TEST 1: FIRST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
+            number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
         
         @(posedge i_controller_clk)
@@ -303,7 +304,8 @@ ddr3_top #(
             @(posedge i_controller_clk);
         end
         i_wb_stb <= 0;
-        $display("\nDONE TEST 1: MIDDLE ROW\nNumber of Operations: %0d\nTime Started: %0d ps\nTime Done: %0d ps\n",number_of_op,time_started, $time);
+        $display("\n--------------------------------\nDONE TEST 1: MIDDLE ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
+            number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
 
 
@@ -356,7 +358,8 @@ ddr3_top #(
             @(posedge i_controller_clk);
         end
         i_wb_stb <= 0;
-        $display("\nDONE TEST 1: LAST ROW\nNumber of Operations: %0d\nTime Started: %0d ps\nTime Done: %0d ps\n",number_of_op,time_started, $time);
+        $display("\n--------------------------------\nDONE TEST 1: LAST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
+            number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
        
         
@@ -411,7 +414,8 @@ ddr3_top #(
             @(posedge i_controller_clk);
         end
         i_wb_stb <= 0;
-        $display("\nDONE TEST 2: RANDOM\nNumber of Operations: %0d\nTime Started: %0d ps\nTime Done: %0d ps\n",number_of_op,time_started, $time);
+        $display("\n--------------------------------\nDONE TEST 2: RANDOM\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
+            number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
        
         
