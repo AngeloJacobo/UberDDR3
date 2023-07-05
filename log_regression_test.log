@@ -1,0 +1,106 @@
+BUS_DELAY: 0 ps
+FLY_BY_DELAY: 0 ps
+Log File: sim_busdelay0_flybydelay0.log
+------- SUMMARY -------
+Number of Writes = 4608
+Number of Reads = 4608
+Number of Success = 4604
+Number of Fails = 4
+Number of Injected Errors = 4
+
+$stop called at time : 250810 ns : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 456
+run: Time (s): cpu = 00:00:16 ; elapsed = 00:47:46 . Memory (MB): peak = 2833.148 ; gain = 8.004 ; free physical = 1332 ; free virtual = 24744
+## quit
+INFO: xsimkernel Simulation Memory Usage: 305696 KB (Peak: 371232 KB), Simulation CPU Usage: 2805770 ms
+INFO: [Common 17-206] Exiting xsim at Wed Jul  5 14:58:39 2023...
+
+
+BUS_DELAY: 625 ps
+FLY_BY_DELAY: 0 ps
+Log File: sim_busdelay625_flybydelay0.log
+------- SUMMARY -------
+Number of Writes = 4608
+Number of Reads = 4608
+Number of Success = 4604
+Number of Fails = 4
+Number of Injected Errors = 4
+
+$stop called at time : 234810 ns : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 456
+run: Time (s): cpu = 00:00:15 ; elapsed = 00:44:56 . Memory (MB): peak = 2833.148 ; gain = 8.004 ; free physical = 1358 ; free virtual = 24780
+## quit
+INFO: xsimkernel Simulation Memory Usage: 305696 KB (Peak: 371232 KB), Simulation CPU Usage: 2640970 ms
+INFO: [Common 17-206] Exiting xsim at Wed Jul  5 15:46:48 2023...
+
+
+BUS_DELAY: 1250 ps
+FLY_BY_DELAY: 600 ps
+Log File: sim_busdelay1250_flybydelay600.log
+------- SUMMARY -------
+Number of Writes = 4608
+Number of Reads = 4608
+Number of Success = 4604
+Number of Fails = 4
+Number of Injected Errors = 4
+
+$stop called at time : 284 us : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 456
+run: Time (s): cpu = 00:00:17 ; elapsed = 00:53:20 . Memory (MB): peak = 2833.148 ; gain = 8.004 ; free physical = 1238 ; free virtual = 24677
+## quit
+INFO: xsimkernel Simulation Memory Usage: 305696 KB (Peak: 371232 KB), Simulation CPU Usage: 3147150 ms
+INFO: [Common 17-206] Exiting xsim at Wed Jul  5 16:43:17 2023...
+
+
+BUS_DELAY: 1875 ps
+FLY_BY_DELAY: 1000 ps
+Log File: sim_busdelay1875_flybydelay1000.log
+------- SUMMARY -------
+Number of Writes = 4608
+Number of Reads = 4608
+Number of Success = 4604
+Number of Fails = 4
+Number of Injected Errors = 4
+
+$stop called at time : 261610 ns : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 456
+run: Time (s): cpu = 00:00:17 ; elapsed = 00:57:38 . Memory (MB): peak = 2833.148 ; gain = 8.004 ; free physical = 174 ; free virtual = 23702
+## quit
+INFO: xsimkernel Simulation Memory Usage: 305696 KB (Peak: 371232 KB), Simulation CPU Usage: 2965430 ms
+INFO: [Common 17-206] Exiting xsim at Wed Jul  5 17:44:52 2023...
+
+
+BUS_DELAY: 2500 ps
+FLY_BY_DELAY: 1500 ps
+Log File: sim_busdelay2500_flybydelay1500.log
+------- SUMMARY -------
+Number of Writes = 4608
+Number of Reads = 4608
+Number of Success = 4604
+Number of Fails = 4
+Number of Injected Errors = 4
+
+$stop called at time : 277970 ns : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 456
+run: Time (s): cpu = 00:00:18 ; elapsed = 00:59:53 . Memory (MB): peak = 2833.148 ; gain = 476.559 ; free physical = 1580 ; free virtual = 24408
+## quit
+INFO: xsimkernel Simulation Memory Usage: 305696 KB (Peak: 371232 KB), Simulation CPU Usage: 3147790 ms
+INFO: [Common 17-206] Exiting xsim at Wed Jul  5 18:48:36 2023...
+
+
+BUS_DELAY: 5000 ps
+FLY_BY_DELAY: 2200 ps
+Log File: sim_busdelay5000_flybydelay2200.log
+------- SUMMARY -------
+Number of Writes = 4608
+Number of Reads = 4608
+Number of Success = 4604
+Number of Fails = 4
+Number of Injected Errors = 4
+
+$stop called at time : 273380 ns : File "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" Line 456
+run: Time (s): cpu = 00:00:16 ; elapsed = 00:52:07 . Memory (MB): peak = 2833.148 ; gain = 8.004 ; free physical = 1814 ; free virtual = 24675
+## quit
+INFO: xsimkernel Simulation Memory Usage: 305696 KB (Peak: 371232 KB), Simulation CPU Usage: 3030440 ms
+INFO: [Common 17-206] Exiting xsim at Wed Jul  5 19:44:03 2023...
+
+
+BUS_DELAY: 10000 ps
+FLY_BY_DELAY: 3000 ps
+Log File: sim_busdelay10000_flybydelay3000.log
+
