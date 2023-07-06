@@ -1658,7 +1658,7 @@ module ddr3_controller #(
     
     
 `ifdef FORMAL
-    `define TEST_TIME_PARAMETERS
+    `define TEST_CONTROLLER_PIPELINE
 
     `ifdef FORMAL_COVER
         initial assume(!i_rst_n); 
@@ -1766,11 +1766,12 @@ module ddr3_controller #(
 
      `ifdef TEST_TIME_PARAMETERS
         // Test time parameter violations
-        (*keep*) reg[6:0] f_precharge_time_stamp[(1<<BA_BITS)-1:0]; 
-        (*keep*) reg[6:0] f_activate_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_precharge_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_activate_time_stamp[(1<<BA_BITS)-1:0]; 
         reg[6:0] f_read_time_stamp[(1<<BA_BITS)-1:0]; 
         reg[6:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
         reg[6:0] f_timer = 0;
+        (*anyconst*) reg[2:0] bank_const;
         reg f_past_valid = 0;
 
         initial assume(!i_rst_n); 
@@ -1804,59 +1805,88 @@ module ddr3_controller #(
 
                 if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
                     f_write_time_stamp[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + WRITE_SLOT;
+                    //Check tCCD (write-to-write delay)
+                    assert((f_timer+WRITE_SLOT) - f_write_time_stamp[bank_const] >= tCCD); 
                 end
 
                 if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
                     f_read_time_stamp[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + READ_SLOT;
+                    //Check tCCD (read-to-read delay)
+                    assert((f_timer+READ_SLOT) - f_read_time_stamp[bank_const] >= tCCD); 
                 end
             end
         end
 
         always @* begin
-
-            // to make sure saved time stamp is valid
-            for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                assert(f_precharge_time_stamp[index] <= f_timer);
-                assert(f_activate_time_stamp[index] <= f_timer);
-                assert(f_read_time_stamp[index] <= f_timer);
-                assert(f_write_time_stamp[index] <= f_timer);
-                    
-                // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
-                if(f_precharge_time_stamp[index] > f_read_time_stamp[index]) begin
-                    assert((f_precharge_time_stamp[index] - f_read_time_stamp[index]) >= ns_to_nCK(tRTP));
-                end
-
-                /*
-                // Check tWTR (Delay from start of internal write transaction to internal read command)
-                if(f_read_time_stamp[index] > f_write_time_stamp[index]) begin
-                    assert((f_read_time_stamp[index] - f_write_time_stamp[index])*CONTROLLER_CLK_PERIOD >= tWTR)
-                end
-                */
-
-                // Check tRCD (ACT to internal read or write delay time)
-                if(f_read_time_stamp[index] > f_activate_time_stamp[index]) begin
-                    assert((f_read_time_stamp[index] - f_activate_time_stamp[index]) >= ns_to_nCK(tRCD));
-                end
-                if(f_write_time_stamp[index] > f_activate_time_stamp[index]) begin
-                    assert((f_write_time_stamp[index] - f_activate_time_stamp[index]) >= ns_to_nCK(tRCD));
-                end
-
-                // Check tRP (PRE command period)
-                if(f_activate_time_stamp[index] > f_precharge_time_stamp[index]) begin
-                    assert((f_activate_time_stamp[index] - f_precharge_time_stamp[index]) >= ns_to_nCK(tRP));
-                end
+            // make sure saved time stamp is valid
+            assert(f_precharge_time_stamp[bank_const] <= f_timer);
+            assert(f_activate_time_stamp[bank_const] <= f_timer);
+            assert(f_read_time_stamp[bank_const] <= f_timer);
+            assert(f_write_time_stamp[bank_const] <= f_timer);
                 
-                // Check tRAS (ACTIVE to PRECHARGE command period)
-                if(f_precharge_time_stamp[index] > f_activate_time_stamp[index]) begin
-                    assert((f_precharge_time_stamp[index] - f_activate_time_stamp[index]) >= ns_to_nCK(tRAS));
-                end
+            // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
+            if(f_precharge_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
+                assert((f_precharge_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= ns_to_nCK(10));
             end
+
+            // Check tWTR (Delay from start of internal write transaction to internal read command)
+            if(f_read_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
+                assert((f_read_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWTR)));
+            end
+
+            // Check tRCD (ACT to internal read delay time)
+            if(f_read_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
+                assert((f_read_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
+            end 
+            
+            // Check tRCD (ACT to internal write delay time)
+            if(f_write_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
+                assert((f_write_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
+            end
+
+            // Check tRP (PRE command period)
+            if(f_activate_time_stamp[bank_const] > f_precharge_time_stamp[bank_const]) begin
+                assert((f_activate_time_stamp[bank_const] - f_precharge_time_stamp[bank_const]) >= ns_to_nCK(tRP));
+            end
+            
+            // Check tRAS (ACTIVE to PRECHARGE command period)
+            if(f_precharge_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
+                assert((f_precharge_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRAS));
+            end
+
+            // Check tWR (WRITE recovery time for write-to-precharge)
+            if(f_precharge_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
+                assert((f_precharge_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWR)));
+            end
+
+            // Check delay from read-to-write
+            if(f_write_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
+                assert((f_write_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= (CL_nCK + tCCD + 3'd2 - CWL_nCK));
+            end
+
         end
 
-        // assertion on FSM calibration
+        // extra assertions to make sure engine starts properly
         always @* begin
             assert(instruction_address <= 22);
             assert(state_calibrate <= DONE_CALIBRATE);
+
+            if(!o_wb_stall) begin
+                assert(state_calibrate == DONE_CALIBRATE);
+                assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0));
+            end
+
+            if(instruction_address == 19 && delay_counter != 0 && state_calibrate == DONE_CALIBRATE) begin
+                if(stage1_pending || stage2_pending) begin
+                    assert(pause_counter);
+                end
+            end
+
+            if(stage1_pending || stage2_pending) begin
+               assert(state_calibrate > ISSUE_WRITE_1); 
+               assert(instruction_address == 22 || instruction_address == 19);
+            end
+
             if(instruction_address < 13) begin
                 assert(state_calibrate == IDLE);
             end
@@ -1908,6 +1938,16 @@ module ddr3_controller #(
                assert(DONE_CALIBRATE);
             end
         end
+
+        /*
+        always @(posedge i_controller_clk) begin
+            if(f_past_valid) begin
+                if($past(instruction_address) == 22 && instruction_address == 19) begin
+                    assert(state_calibrate == DONE_CALIBRATE);
+                end
+            end
+        end
+        */
     `endif //endif for TEST_TIME_PARAMETERS
 
 
@@ -1933,11 +1973,6 @@ module ddr3_controller #(
         reg[ROW_BITS-1:0] f_bank_active_row[(1<<BA_BITS)-1:0]; 
         reg[(1<<BA_BITS)-1:0] f_bank_status;
         (*keep*) reg[(1<<BA_BITS)-1:0] f_bank_status_2; 
-        integer f_timer = 0;
-        (*keep*) reg[31:0] f_precharge_time_stamp[(1<<BA_BITS)-1:0]; 
-        (*keep*) reg[31:0] f_activate_time_stamp[(1<<BA_BITS)-1:0]; 
-        reg[31:0] f_read_time_stamp[(1<<BA_BITS)-1:0]; 
-        reg[31:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
         wire f_empty, f_full;
         wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data;
 
@@ -2211,16 +2246,6 @@ module ddr3_controller #(
                    assert(f_bank_status == 0);
                    assert(bank_status_q == 0);
                 end
-                /*
-                if(state_calibrate == ANALYZE_DATA || state_calibrate == READ_DATA) begin
-                    assert(f_bank_status == 1); //only first bank is activated
-                    assert(bank_status_q == 1);
-                end
-                if(state_calibrate <= ISSUE_WRITE_2) begin
-                    assert(f_bank_status == 0); //only first bank is activated
-                    assert(bank_status_q == 0);
-                end
-                */
                if(state_calibrate != DONE_CALIBRATE) begin
                     assert(f_bank_status == 0 || f_bank_status == 1); //only first bank is activated
                     assert(bank_status_q == 0 || f_bank_status == 1);
@@ -2349,18 +2374,11 @@ module ddr3_controller #(
                         f_bank_status_2[index] = 0;  
                         f_bank_active_row[index] <= 0; 
                 end
-                for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                    f_precharge_time_stamp[index] <= 0;
-                    f_activate_time_stamp[index] <= 0;
-                    f_read_time_stamp[index] <= 0;
-                    f_write_time_stamp[index] <= 0;
-                end
             end
             else begin
                 //check if a DDR3 command is issued
                 if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
                     bank = cmd_d[PRECHARGE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1];
-                    f_precharge_time_stamp[bank] <= f_timer + PRECHARGE_SLOT; 
                     if(cmd_d[PRECHARGE_SLOT][10]) begin //A10 precharge all banks
                         for(index=0; index < (1<<BA_BITS); index=index+1) begin
                                 f_bank_status_2[index] = 0;  
@@ -2376,7 +2394,6 @@ module ddr3_controller #(
 
                 if(cmd_d[ACTIVATE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0011) begin //ACTIVATE
                     bank = cmd_d[ACTIVATE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1];
-                    f_activate_time_stamp[bank] <= f_timer + ACTIVATE_SLOT; 
                    // f_bank_status <= f_bank_status | (1<<bank); //bank will be turned active
                     //f_bank_status[bank] <= 1;
                     assert(bank <= 7);
@@ -2385,43 +2402,6 @@ module ddr3_controller #(
                 end
                 f_bank_status <= f_bank_status_2;
 
-                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
-                    f_write_time_stamp[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + WRITE_SLOT;
-                end
-
-                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
-                    f_read_time_stamp[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + READ_SLOT;
-                end
-                    /*
-                    if(!cmd_d[f_index_2][CMD_CS_N]) begin //only if already done calibrate and controller can accept wb request 
-                        case(cmd_d[f_index_2][CMD_CS_N:CMD_WE_N])
-                            4'b0100: begin //WRITE
-                                           f_write_time_stamp[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer;
-                                     end
-                            4'b0101: begin //READ
-                                           f_read_time_stamp[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer;
-                                     end
-                            4'b0010: begin //PRECHARGE
-                                            f_precharge_time_stamp[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer; 
-                                            if(cmd_d[f_index_2][10]) begin //A10 precharge all banks
-                                                for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                                                        f_bank_status[index] <= 0;  
-                                                end
-                                            end
-                                            else begin
-                                                f_bank_status[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 0; //set to zero to idle bank
-                                            end
-                                     end
-                            4'b0011: begin //ACTIVATE
-                                        f_activate_time_stamp[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer; 
-                                        f_bank_status[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= 1'b1; //bank will be turned active
-                                        f_bank_active_row[cmd_d[f_index_2][CMD_BANK_START:CMD_ADDRESS_START+1]] <= cmd_d[f_index_2][CMD_ADDRESS_START:0]; //save row to be activated 
-                                     end
-                            //4'b0001: begin //REFRESH
-                              //      end
-                        endcase
-                    end
-                    */
             end
         end
 
