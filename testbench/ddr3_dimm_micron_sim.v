@@ -186,178 +186,200 @@ ddr3_top #(
     localparam MAX_READS = (2**COL_BITS)*(2**BA_BITS + 1)/8; //1 row = 2**(COL_BITS) addresses/8 burst = 128 words per row. Times 8 to pass all 8 banks
       initial begin
         //toggle reset for 1 slow clk 
-        @(posedge i_controller_clk)
-        i_rst_n <= 0;
-        i_wb_cyc <= 0;
-        i_wb_stb <= 0;
-        i_wb_we <= 0;
-        i_wb_sel <= {LANES{1'b1}}; //write to all lanes
-        i_aux <= 0;
-        i_wb_addr <= 0;
-        i_wb_data <= 0;
-        @(posedge i_controller_clk)
-        i_rst_n <= 1;
+        @(posedge i_controller_clk) begin
+            i_rst_n <= 0;
+            i_wb_cyc <= 0;
+            i_wb_stb <= 0;
+            i_wb_we <= 0;
+            i_wb_sel <= {LANES{1'b1}}; //write to all lanes
+            i_aux <= 0;
+            i_wb_addr <= 0;
+            i_wb_data <= 0;
+        end
+        @(posedge i_controller_clk) begin
+            i_rst_n <= 1;
+        end
         wait(ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE);
         
         // test 1 phase 1: Write random word sequentially
         // write to row 1
-        number_of_op = 0;
-        time_started = $time;
-        number_of_injected_errors = 0;
-        start_address = 0;
-        address = start_address;
+        number_of_op <= 0;
+        time_started <= $time;
+        number_of_injected_errors <= 0;
+        start_address <= 0;
+        #1; //just to make sure the non-blocking are assignments are all over
+        address <= start_address;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-            @(posedge i_controller_clk)
-            if(!o_wb_stall) begin 
-                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+            @(posedge i_controller_clk) begin
+                if(!i_wb_stb || !o_wb_stall) begin 
+                    for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                    end
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 1; 
+                    i_aux <= 1;
+                    i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
+                    if(address == start_address + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
+                        number_of_injected_errors <= number_of_injected_errors + 1;
+                        i_wb_data <= 64'h123456789;
+                    end
+                    //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                    number_of_writes <= number_of_writes + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
                 end
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 1; 
-                i_aux <= 1;
-                i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
-                i_wb_data <= write_data;
-                if(address == start_address + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
-                    number_of_injected_errors = number_of_injected_errors + 1;
-                    i_wb_data = 64'h123456789;
-                end
-                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
-                number_of_writes = number_of_writes + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
         
         //Read sequentially
-        address = start_address;
+        address <= start_address;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-           @(posedge i_controller_clk)
-           if(!o_wb_stall) begin 
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 0; 
-                i_aux <= 0;
-                i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
-                //$display("Read: Address = %0d", i_wb_addr);
-                number_of_reads = number_of_reads + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+           @(posedge i_controller_clk) begin
+               if(!i_wb_stb || !o_wb_stall) begin 
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 0; 
+                    i_aux <= 0;
+                    i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
+                    //$display("Read: Address = %0d", i_wb_addr);
+                    number_of_reads <= number_of_reads + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
+                end
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
-        @(posedge i_controller_clk)
-        while(o_wb_stall) begin
-            @(posedge i_controller_clk);
+        while(i_wb_stb) begin
+           @(posedge clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
         end
-        i_wb_stb <= 0;
+
         $display("\n--------------------------------\nDONE TEST 1: FIRST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
         
-        @(posedge i_controller_clk)
-        // write to middle row
-        start_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS)/2)*($bits(ddr3_top.i_wb_data)/32)/8; //start at the middle row
-        address = start_address;
-        number_of_op = 0; 
-        time_started = $time;
+        @(posedge i_controller_clk) begin
+            // write to middle row
+            start_address <= ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS)/2)*($bits(ddr3_top.i_wb_data)/32)/8; //start at the middle row
+        end
+        #1; //just to make sure the non-blocking are assignments are all over
+        address <= start_address;
+        number_of_op <= 0; 
+        time_started <= $time;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-            @(posedge i_controller_clk)
-            if(!o_wb_stall) begin 
-                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+            @(posedge i_controller_clk) begin
+                if(!i_wb_stb || !o_wb_stall) begin 
+                    for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                    end
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 1; 
+                    i_aux <= 1;
+                    i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
+                    if(address == start_address + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
+                        number_of_injected_errors <= number_of_injected_errors + 1;
+                        i_wb_data <= 64'h123456789;
+                    end
+                    //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                    number_of_writes <= number_of_writes + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
                 end
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 1; 
-                i_aux <= 1;
-                i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
-                i_wb_data <= write_data;
-                if(address == start_address + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
-                    number_of_injected_errors = number_of_injected_errors + 1;
-                    i_wb_data = 64'h123456789;
-                end
-                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
-                number_of_writes = number_of_writes + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
         
         // Read sequentially
-        address = start_address;
+        address <= start_address;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-           @(posedge i_controller_clk)
-           if(!o_wb_stall) begin 
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 0; 
-                i_aux <= 0;
-                i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
-                //$display("Read: Address = %0d", i_wb_addr);
-                number_of_reads = number_of_reads + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            @(posedge i_controller_clk) begin
+               if(!i_wb_stb || !o_wb_stall) begin 
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 0; 
+                    i_aux <= 0;
+                    i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
+                    //$display("Read: Address = %0d", i_wb_addr);
+                    number_of_reads <= number_of_reads + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
+                end
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
-        @(posedge i_controller_clk);
-        while(o_wb_stall) begin
-            @(posedge i_controller_clk);
+        while(i_wb_stb) begin
+           @(posedge clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
         end
-        i_wb_stb <= 0;
         $display("\n--------------------------------\nDONE TEST 1: MIDDLE ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
 
 
          // write to last row (then go back to first row)
-        start_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
-        address = start_address; 
-        number_of_op = 0; 
-        time_started = $time;
+        start_address <= ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
+        #1; //just to make sure the non-blocking are assignments are all over
+        address <= start_address; 
+        number_of_op <= 0; 
+        time_started <= $time;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-            @(posedge i_controller_clk)
-            if(!o_wb_stall) begin 
-                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+            @(posedge i_controller_clk) begin
+                if(!i_wb_stb || !o_wb_stall) begin 
+                    for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                    end
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 1; 
+                    i_aux <= 1;
+                    i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
+                    if(address == start_address + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin//inject error at last row
+                        number_of_injected_errors <= number_of_injected_errors + 1;
+                        i_wb_data <= 64'h123456789;
+                    end
+                    //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                    number_of_writes <= number_of_writes + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
                 end
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 1; 
-                i_aux <= 1;
-                i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
-                i_wb_data <= write_data;
-                if(address == start_address + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin//inject error at last row
-                    number_of_injected_errors = number_of_injected_errors + 1;
-                    i_wb_data = 64'h123456789;
-                end
-                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
-                number_of_writes = number_of_writes + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
         
         // Read sequentially
-        address = start_address;
+        address <= start_address;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < start_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-           @(posedge i_controller_clk)
-           if(!o_wb_stall) begin 
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 0; 
-                i_aux <= 0;
-                i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
-                //$display("Read: Address = %0d", i_wb_addr);
-                number_of_reads = number_of_reads + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            @(posedge i_controller_clk) begin
+               if(!i_wb_stb || !o_wb_stall) begin 
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 0; 
+                    i_aux <= 0;
+                    i_wb_addr <= address/ ($bits(ddr3_top.i_wb_data)/32);
+                    //$display("Read: Address = %0d", i_wb_addr);
+                    number_of_reads <= number_of_reads + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
+                end
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
-        @(posedge i_controller_clk);
-        while(o_wb_stall) begin
-            @(posedge i_controller_clk);
+        while(i_wb_stb) begin
+           @(posedge clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
         end
-        i_wb_stb <= 0;
         $display("\n--------------------------------\nDONE TEST 1: LAST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
@@ -366,54 +388,58 @@ ddr3_top #(
         
         // Test 2:Random Access
         // write randomly
-        address = random_start; //this will just be used as the seed to generate a random number 
-        number_of_op = 0; 
-        time_started = $time;
+        address <= random_start; //this will just be used as the seed to generate a random number 
+        number_of_op <= 0; 
+        time_started <= $time;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < random_start + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-            @(posedge i_controller_clk)
-            if(!o_wb_stall) begin 
-                for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                  write_data[index*32 +: 32] = $random(address + index); //each $random only has 32 bits
+            @(posedge i_controller_clk) begin
+                if(!i_wb_stb || !o_wb_stall) begin 
+                    for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
+                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                    end
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 1; 
+                    i_aux <= 1;
+                    i_wb_addr <= $random(~address); //write at random address
+                    if(address == random_start + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
+                        number_of_injected_errors <= number_of_injected_errors + 1;
+                        i_wb_data <= 64'h123456789;
+                    end
+                    //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
+                    number_of_writes <= number_of_writes + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
                 end
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 1; 
-                i_aux <= 1;
-                i_wb_addr <= $random(~address); //write at random address
-                i_wb_data <= write_data; //write random data
-                if(address == random_start + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
-                    number_of_injected_errors = number_of_injected_errors + 1;
-                    i_wb_data = 64'h123456789;
-                end
-                //$display("Write: Address = %0d, Data = %h", i_wb_addr, i_wb_data);
-                number_of_writes = number_of_writes + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
             end
+            #1; //just to make sure the non-blocking are assignments are all over
         end
         
         // Read sequentially
         // Read the random words written at the random addresses
-        address = random_start;
+        address <= random_start;
+        #1; //just to make sure the non-blocking are assignments are all over
         while(address < random_start + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
-           @(posedge i_controller_clk)
-           if(!o_wb_stall) begin 
-                i_wb_cyc <= 1;
-                i_wb_stb <= 1;
-                i_wb_we <= 0; 
-                i_aux <= 0;
-                i_wb_addr <= $random(~address);
-                //$display("Read: Address = %0d", i_wb_addr);
-                number_of_reads = number_of_reads + 1;
-                number_of_op = number_of_op + 1;
-                address = address + ($bits(ddr3_top.i_wb_data)/32); 
+            @(posedge i_controller_clk) begin
+               if(!i_wb_stb || !o_wb_stall) begin 
+                    i_wb_cyc <= 1;
+                    i_wb_stb <= 1;
+                    i_wb_we <= 0; 
+                    i_aux <= 0;
+                    i_wb_addr <= $random(~address);
+                    //$display("Read: Address = %0d", i_wb_addr);
+                    number_of_reads <= number_of_reads + 1;
+                    number_of_op <= number_of_op + 1;
+                    address <= address + ($bits(ddr3_top.i_wb_data)/32); 
+                end
             end
         end
-        @(posedge i_controller_clk)
-        while(o_wb_stall) begin
-            @(posedge i_controller_clk);
+        while(i_wb_stb) begin
+           @(posedge clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
         end
-        i_wb_stb <= 0;
         $display("\n--------------------------------\nDONE TEST 2: RANDOM\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         #100_000;
