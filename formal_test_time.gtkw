@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Wed Jul  5 00:16:39 2023
+[*] Thu Jul  6 11:33:00 2023
 [*]
 [dumpfile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_controller/engine_0/trace_induct.vcd"
-[dumpfile_mtime] "Wed Jul  5 00:14:12 2023"
-[dumpfile_size] 223124
+[dumpfile_mtime] "Thu Jul  6 11:26:58 2023"
+[dumpfile_size] 118405
 [savefile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/formal_test_time.gtkw"
-[timestart] 74
+[timestart] 0
 [size] 1848 1126
-[pos] -51 -51
-*-4.417290 175 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[pos] -1 -1
+*-4.455849 76 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ddr3_controller.
 [sst_width] 391
 [signals_width] 419
@@ -24,12 +24,17 @@ ddr3_controller.reset_done
 @24
 ddr3_controller.state_calibrate[4:0]
 ddr3_controller.instruction_address[4:0]
+@28
+ddr3_controller.instruction[27:0]
+@24
 ddr3_controller.delay_counter[15:0]
 @28
 ddr3_controller.o_wb_stall_q
+@29
+ddr3_controller.o_wb_stall_d
+@28
 ddr3_controller.o_wb_stall
 ddr3_controller.delay_counter_is_zero
-@29
 ddr3_controller.pause_counter
 @200
 -
@@ -109,6 +114,7 @@ ddr3_controller.stage2_update
 @200
 -
 @24
+ddr3_controller.bank_const[2:0]
 ddr3_controller.f_timer[6:0]
 ddr3_controller.f_activate_time_stamp<0>[6:0]
 ddr3_controller.f_activate_time_stamp<1>[6:0]
@@ -118,7 +124,11 @@ ddr3_controller.f_activate_time_stamp<4>[6:0]
 ddr3_controller.f_activate_time_stamp<5>[6:0]
 ddr3_controller.f_activate_time_stamp<6>[6:0]
 ddr3_controller.f_activate_time_stamp<7>[6:0]
+@22
+ddr3_controller.delay_before_precharge_counter_q<0>[3:0]
+@24
 ddr3_controller.f_precharge_time_stamp<0>[6:0]
+@22
 ddr3_controller.f_precharge_time_stamp<1>[6:0]
 ddr3_controller.f_precharge_time_stamp<2>[6:0]
 ddr3_controller.f_precharge_time_stamp<3>[6:0]
@@ -126,6 +136,7 @@ ddr3_controller.f_precharge_time_stamp<4>[6:0]
 ddr3_controller.f_precharge_time_stamp<5>[6:0]
 ddr3_controller.f_precharge_time_stamp<6>[6:0]
 ddr3_controller.f_precharge_time_stamp<7>[6:0]
+@24
 ddr3_controller.f_read_time_stamp<0>[6:0]
 ddr3_controller.f_read_time_stamp<1>[6:0]
 ddr3_controller.f_read_time_stamp<2>[6:0]
