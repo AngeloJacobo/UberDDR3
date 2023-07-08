@@ -1958,6 +1958,8 @@ module ddr3_controller #(
         `else
             localparam F_TEST_CMD_DATA_WIDTH = $bits(i_wb_addr) + $bits(i_wb_we);
         `endif
+        localparam F_MAX_ACK_DELAY = 15,
+                    F_MAX_STALL = 8;
         reg f_past_valid = 0; 
         reg[$bits(instruction_address) - 1: 0] f_addr = 0, f_read = 0 ; 
         reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
@@ -1975,6 +1977,7 @@ module ddr3_controller #(
         (*keep*) reg[(1<<BA_BITS)-1:0] f_bank_status_2; 
         wire f_empty, f_full;
         wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data;
+        wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data_next;
 
         wire[$bits(instruction) - 1:0]  a= read_rom_instruction(f_const_addr); //retrieve an instruction based on engine's choice
         wire[1:0] f_write_slot;
@@ -2187,7 +2190,8 @@ module ddr3_controller #(
             .empty(f_empty), 
             .full(f_full),
             .write_data(f_write_data),
-            .read_data(f_read_data)
+            .read_data(f_read_data),
+            .read_data_next(f_read_data_next)
        ); 
 
         always @* begin
@@ -2361,6 +2365,38 @@ module ddr3_controller #(
             end
         end
 
+    //`ifdef UNDER_CONSTRUCTION
+        //make assertions on what is inside the fifo
+        always @* begin
+            if(!f_empty && !f_full) begin //make assertion when there is only 1 data on the pipe
+                if(stage1_pending) begin //request is still on stage1
+                    assert(stage1_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage1_we == f_read_data[0]); //i_wb_we must be high
+                end
+                if(stage2_pending) begin //request is now on stage2
+                    assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be high
+                end
+            end
+            if(f_full) begin //both stages have request
+                //stage2 is the request on the tip of the fifo
+                assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                assert(stage2_we == f_read_data[0]); //i_wb_we must be high
+                //stage1 is the request on the other element of the fifo
+                //(since the fifo only has 2 elements, the other element that
+                //is not the tip will surely be the 2nd request that is being
+                //handles by stage1)
+                assert(stage1_bank == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                assert(stage1_we == f_read_data_next[0]); //i_wb_we must be high
+            end
+        end
+        
+    //`endif
+
         always @* begin
             assert(f_bank_status == bank_status_q);
         end
@@ -2455,7 +2491,7 @@ module ddr3_controller #(
             end
 
             if(state_calibrate <= ISSUE_READ) begin
-                for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                for(index = 0; index < 1; index = index + 1) begin
                     assert(o_wb_ack_read_q[index] == 0);
                 end
                 for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
@@ -2483,7 +2519,10 @@ module ddr3_controller #(
             assert(state_calibrate <= DONE_CALIBRATE);
         end
 
-            wire[4:0] f_nreqs, f_nacks, f_outstanding;
+            wire[4:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count;
+            reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
+            reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1:0];
+            integer f_ack_pipe_marker;
 
             integer f_sum_of_pending_acks = 0;
             always @* begin
@@ -2497,9 +2536,34 @@ module ddr3_controller #(
                     for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
                         f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
                     end
-                    for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+                    for(index = 0; index < 2; index = index + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
                         f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
                     end
+                    
+                    //the remaining o_wb_ack_read_q (>2) should stay zero at
+                    //all instance
+                    for(index = 2; index < MAX_ADDED_READ_ACK_DELAY ; index = index + 1) begin
+                        assert(o_wb_ack_read_q[index] == 0);
+                    end
+                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1] = o_wb_ack_read_q[0]; //last stage of f_aux_ack_pipe_after_stage2 is also the last ack stage
+                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH] = o_wb_ack_read_q[1];
+                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                        f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - index] = shift_reg_read_pipe_q[index];
+                    end
+                    f_ack_pipe_after_stage2 = {
+                        o_wb_ack_read_q[0][0], 
+                        o_wb_ack_read_q[1][0], 
+                        shift_reg_read_pipe_q[0][0], 
+                        shift_reg_read_pipe_q[1][0],
+                        shift_reg_read_pipe_q[2][0],
+                        shift_reg_read_pipe_q[3][0],
+                        shift_reg_read_pipe_q[4][0]
+                        };
+
+                    if(f_ackwait_count > F_MAX_STALL) begin
+                        assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
+                    end
+
 
                     if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
                         assert(f_outstanding == f_sum_of_pending_acks || !i_wb_cyc);
@@ -2515,6 +2579,30 @@ module ddr3_controller #(
                         assert(f_outstanding == 0 || !i_wb_cyc); 
                         assert(f_sum_of_pending_acks == 0);
                     end
+                    if(state_calibrate == READ_DATA && i_rst_n) begin
+                        assert(f_outstanding == 0 || !i_wb_cyc); 
+                        assert(f_sum_of_pending_acks <= 3);
+
+                        if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
+                            assert(o_wb_ack_read_q[0] == {1, 1'b1});
+                        end
+
+                        f_ack_pipe_marker = 0;
+                        for(index = 0; index < READ_ACK_PIPE_WIDTH + 2; index = index + 1) begin //check each ack stage starting from last stage
+                            if(f_aux_ack_pipe_after_stage2[index][0]) begin //if ack is high
+                                if(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 0) begin //ack for read
+                                    assert(f_ack_pipe_marker == 0); //read ack must be the last ack on the pipe(f_pipe_marker must still be zero)
+                                    f_ack_pipe_marker = f_ack_pipe_marker + 1;
+                                end
+                                else begin //ack for write
+                                    assert(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 1);
+                                    f_ack_pipe_marker = f_ack_pipe_marker + 1;
+                                end
+                            end
+                        end
+                        assert(f_ack_pipe_marker <= 3);
+                    end
+
                     if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
                         assert(f_outstanding == 0 || !i_wb_cyc); 
                         assert(f_sum_of_pending_acks == 0);
@@ -2557,13 +2645,12 @@ module ddr3_controller #(
                 end
             end
 
-
     fwb_slave #(
             // {{{
             .AW(wb_addr_bits), 
             .DW(wb_data_bits),
-            .F_MAX_STALL(9),
-            .F_MAX_ACK_DELAY(15),
+            .F_MAX_STALL(F_MAX_STALL),
+            .F_MAX_ACK_DELAY(F_MAX_ACK_DELAY),
             .F_LGDEPTH(4),
             .F_MAX_REQUESTS(10),
             // OPT_BUS_ABORT: If true, the master can drop CYC at any time
@@ -2611,7 +2698,8 @@ module ddr3_controller #(
             // Some convenience output parameters
             .f_nreqs(f_nreqs), 
             .f_nacks(f_nacks),
-            .f_outstanding(f_outstanding)
+            .f_outstanding(f_outstanding),
+            .f_ackwait_count(f_ackwait_count)
             // }}}
             // }}}
         );
@@ -2619,7 +2707,8 @@ module ddr3_controller #(
 `endif //endif for FORMAL
 endmodule
 
-
+//FiFO with only 2 elements for verifying the contents of the controller
+//2-stage pipeline
 module mini_fifo #(
         parameter FIFO_WIDTH = 1, //the fifo will have 2**FIFO_WIDTH positions
         parameter DATA_WIDTH = 8 //each FIFO position can store DATA_WIDTH bits
@@ -2628,7 +2717,8 @@ module mini_fifo #(
         input wire read_fifo, write_fifo,
         output reg empty, full,
         input wire[DATA_WIDTH - 1:0] write_data,
-        output wire[DATA_WIDTH - 1:0] read_data
+        output wire[DATA_WIDTH - 1:0] read_data,
+        output wire[DATA_WIDTH - 1:0] read_data_next
    ); 
     reg[FIFO_WIDTH-1:0] write_pointer=0, read_pointer=0;
     reg[DATA_WIDTH - 1:0] fifo_reg[2**FIFO_WIDTH-1:0];
@@ -2668,6 +2758,7 @@ module mini_fifo #(
         end
     end
     assign read_data = fifo_reg[read_pointer];
+    assign read_data_next = fifo_reg[!read_pointer]; //data after current pointer
 
     `ifdef FORMAL
     //mini-FiFo assertions
