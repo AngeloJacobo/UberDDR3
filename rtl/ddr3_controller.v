@@ -804,7 +804,11 @@ module ddr3_controller #(
     reg stage2_update = 1;
     reg stage2_stall = 0;
     reg stage1_stall = 0;
+    (*keep*) reg stage1_issue_command = 0;
+    (*keep*) reg stage2_issue_command = 0;
     always @* begin
+        stage1_issue_command = 0;
+        stage2_issue_command = 0;
         cmd_odt = cmd_odt_q || write_calib_odt;
         cmd_ck_en = instruction[CLOCK_EN];
         cmd_reset_n = instruction[RESET_N];
@@ -835,12 +839,6 @@ module ddr3_controller #(
             delay_before_activate_counter_d[index] = (delay_before_activate_counter_q[index] == 0)? 0: delay_before_activate_counter_q[index] - 1;
             delay_before_write_counter_d[index] = (delay_before_write_counter_q[index] == 0)? 0:delay_before_write_counter_q[index] - 1;
             delay_before_read_counter_d[index] = (delay_before_read_counter_q[index] == 0)? 0:delay_before_read_counter_q[index] - 1;
-            `ifdef FORMAL
-                assert(delay_before_precharge_counter_d[index] <= max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY));
-                assert(delay_before_activate_counter_d[index] <= PRECHARGE_TO_ACTIVATE_DELAY); 
-                assert(delay_before_write_counter_d[index] <= max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY));
-                assert(delay_before_read_counter_d[index] <= max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY));
-            `endif
         end
         for(index = 1; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
             shift_reg_read_pipe_d[index-1] = shift_reg_read_pipe_q[index];
@@ -903,6 +901,7 @@ module ddr3_controller #(
                     cmd_d[3][CMD_ODT] = cmd_odt;
                     write_dqs_d=1;
                     write_dq_d=1;
+                    stage2_issue_command = 1;
                    // write_data = 1;
                 end
                 
@@ -931,6 +930,7 @@ module ddr3_controller #(
                     cmd_d[1][CMD_ODT] = cmd_odt;
                     cmd_d[2][CMD_ODT] = cmd_odt;
                     cmd_d[3][CMD_ODT] = cmd_odt;
+                    stage2_issue_command = 1;
                 end
             end
             
@@ -948,6 +948,7 @@ module ddr3_controller #(
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b1;
                 bank_active_row_d[stage2_bank] = stage2_row;
+                stage2_issue_command = 1;
             end
             //bank is not idle but wrong row is activated so do precharge
             else if(bank_status_q[stage2_bank] &&  bank_active_row_q[stage2_bank] != stage2_row &&  delay_before_precharge_counter_q[stage2_bank] ==0) begin       
@@ -958,6 +959,7 @@ module ddr3_controller #(
                 cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b0; 
+                stage2_issue_command = 1;
             end
         end //end of stage 2 pending
 
@@ -978,6 +980,7 @@ module ddr3_controller #(
                  delay_before_activate_counter_d[stage1_next_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
                 cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-4'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
                 bank_status_d[stage1_next_bank] = 1'b0; 
+                stage1_issue_command = 1;
             end //end of anticipate precharge
             
             //anticipated bank is idle so do activate
@@ -991,6 +994,7 @@ module ddr3_controller #(
                 cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
                 bank_status_d[stage1_next_bank] = 1'b1;
                 bank_active_row_d[stage1_next_bank] = stage1_next_row;
+                stage1_issue_command = 1;
             end //end of anticipate activate
             
         end //end of stage1 anticipate
@@ -1958,8 +1962,15 @@ module ddr3_controller #(
         `else
             localparam F_TEST_CMD_DATA_WIDTH = $bits(i_wb_addr) + $bits(i_wb_we);
         `endif
-        localparam F_MAX_ACK_DELAY = 15,
-                    F_MAX_STALL = 8;
+        localparam F_MAX_STALL = max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1 + PRECHARGE_TO_ACTIVATE_DELAY + 1 + max(ACTIVATE_TO_WRITE_DELAY,ACTIVATE_TO_READ_DELAY) + 1 ;
+                                    //worst case delay (Precharge -> Activate-> R/W)
+                                    //add 1 to each delay since they end at zero
+        localparam F_MAX_ACK_DELAY = F_MAX_STALL + (READ_ACK_PIPE_WIDTH + 2); //max_stall + size of shift_reg_read_pipe_q + o_wb_ack_read_q (assume to be two via read_pipe_max) 
+
+        (*keep*) wire[3:0] f_max_stall, f_max_ack_delay;
+        assign f_max_stall = F_MAX_STALL;
+        assign f_max_ack_delay = F_MAX_ACK_DELAY;
+
         reg f_past_valid = 0; 
         reg[$bits(instruction_address) - 1: 0] f_addr = 0, f_read = 0 ; 
         reg[$bits(instruction) - 1:0] f_read_inst = INITIAL_RESET_INSTRUCTION;
@@ -2519,131 +2530,167 @@ module ddr3_controller #(
             assert(state_calibrate <= DONE_CALIBRATE);
         end
 
-            wire[4:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count;
-            reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
-            reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1:0];
-            integer f_ack_pipe_marker;
+        wire[4:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count, f_stall_count;
+        reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
+        reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1:0];
+        integer f_ack_pipe_marker;
 
-            integer f_sum_of_pending_acks = 0;
-            always @* begin
-                    if(!i_rst_n) begin
-                        assume(f_nreqs == 0);
-                        assume(f_nacks == 0);
+        integer f_sum_of_pending_acks = 0;
+        always @* begin
+                if(!i_rst_n) begin
+                    assume(f_nreqs == 0);
+                    assume(f_nacks == 0);
+                end
+
+                if(state_calibrate != IDLE) assume(added_read_pipe_max == 1);
+                f_sum_of_pending_acks = stage1_pending + stage2_pending;
+                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
+                end
+                for(index = 0; index < 2; index = index + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
+                end
+                
+                //the remaining o_wb_ack_read_q (>2) should stay zero at
+                //all instance
+                for(index = 2; index < MAX_ADDED_READ_ACK_DELAY ; index = index + 1) begin
+                    assert(o_wb_ack_read_q[index] == 0);
+                end
+                f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1] = o_wb_ack_read_q[0]; //last stage of f_aux_ack_pipe_after_stage2 is also the last ack stage
+                f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH] = o_wb_ack_read_q[1];
+                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - index] = shift_reg_read_pipe_q[index];
+                end
+                f_ack_pipe_after_stage2 = {
+                    o_wb_ack_read_q[0][0], 
+                    o_wb_ack_read_q[1][0], 
+                    shift_reg_read_pipe_q[0][0], 
+                    shift_reg_read_pipe_q[1][0],
+                    shift_reg_read_pipe_q[2][0],
+                    shift_reg_read_pipe_q[3][0],
+                    shift_reg_read_pipe_q[4][0]
+                    };
+
+                if(f_ackwait_count > F_MAX_STALL) begin
+                    assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
+                end
+
+
+                if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
+                    assert(f_outstanding == f_sum_of_pending_acks || !i_wb_cyc);
+                end
+                else if(!i_rst_n) begin
+                    assert(f_sum_of_pending_acks == 0);
+                end
+                if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
+                    assert(f_outstanding == 0 || !i_wb_cyc);
+                end
+                if(state_calibrate <= ISSUE_WRITE_1 && i_rst_n) begin
+                    //not inside tREFI, prestall delay, nor precharge
+                    assert(f_outstanding == 0 || !i_wb_cyc); 
+                    assert(f_sum_of_pending_acks == 0);
+                end
+                if(state_calibrate == READ_DATA && i_rst_n) begin
+                    assert(f_outstanding == 0 || !i_wb_cyc); 
+                    assert(f_sum_of_pending_acks <= 3);
+
+                    if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
+                        assert(o_wb_ack_read_q[0] == {1, 1'b1});
                     end
 
-                    if(state_calibrate != IDLE) assume(added_read_pipe_max == 1);
-                    f_sum_of_pending_acks = stage1_pending + stage2_pending;
-                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                        f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
-                    end
-                    for(index = 0; index < 2; index = index + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
-                        f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
-                    end
-                    
-                    //the remaining o_wb_ack_read_q (>2) should stay zero at
-                    //all instance
-                    for(index = 2; index < MAX_ADDED_READ_ACK_DELAY ; index = index + 1) begin
-                        assert(o_wb_ack_read_q[index] == 0);
-                    end
-                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1] = o_wb_ack_read_q[0]; //last stage of f_aux_ack_pipe_after_stage2 is also the last ack stage
-                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH] = o_wb_ack_read_q[1];
-                    for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                        f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - index] = shift_reg_read_pipe_q[index];
-                    end
-                    f_ack_pipe_after_stage2 = {
-                        o_wb_ack_read_q[0][0], 
-                        o_wb_ack_read_q[1][0], 
-                        shift_reg_read_pipe_q[0][0], 
-                        shift_reg_read_pipe_q[1][0],
-                        shift_reg_read_pipe_q[2][0],
-                        shift_reg_read_pipe_q[3][0],
-                        shift_reg_read_pipe_q[4][0]
-                        };
-
-                    if(f_ackwait_count > F_MAX_STALL) begin
-                        assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
-                    end
-
-
-                    if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
-                        assert(f_outstanding == f_sum_of_pending_acks || !i_wb_cyc);
-                    end
-                    else if(!i_rst_n) begin
-                        assert(f_sum_of_pending_acks == 0);
-                    end
-                    if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
-                        assert(f_outstanding == 0 || !i_wb_cyc);
-                    end
-                    if(state_calibrate <= ISSUE_WRITE_1 && i_rst_n) begin
-                        //not inside tREFI, prestall delay, nor precharge
-                        assert(f_outstanding == 0 || !i_wb_cyc); 
-                        assert(f_sum_of_pending_acks == 0);
-                    end
-                    if(state_calibrate == READ_DATA && i_rst_n) begin
-                        assert(f_outstanding == 0 || !i_wb_cyc); 
-                        assert(f_sum_of_pending_acks <= 3);
-
-                        if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
-                            assert(o_wb_ack_read_q[0] == {1, 1'b1});
-                        end
-
-                        f_ack_pipe_marker = 0;
-                        for(index = 0; index < READ_ACK_PIPE_WIDTH + 2; index = index + 1) begin //check each ack stage starting from last stage
-                            if(f_aux_ack_pipe_after_stage2[index][0]) begin //if ack is high
-                                if(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 0) begin //ack for read
-                                    assert(f_ack_pipe_marker == 0); //read ack must be the last ack on the pipe(f_pipe_marker must still be zero)
-                                    f_ack_pipe_marker = f_ack_pipe_marker + 1;
-                                end
-                                else begin //ack for write
-                                    assert(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 1);
-                                    f_ack_pipe_marker = f_ack_pipe_marker + 1;
-                                end
+                    f_ack_pipe_marker = 0;
+                    for(index = 0; index < READ_ACK_PIPE_WIDTH + 2; index = index + 1) begin //check each ack stage starting from last stage
+                        if(f_aux_ack_pipe_after_stage2[index][0]) begin //if ack is high
+                            if(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 0) begin //ack for read
+                                assert(f_ack_pipe_marker == 0); //read ack must be the last ack on the pipe(f_pipe_marker must still be zero)
+                                f_ack_pipe_marker = f_ack_pipe_marker + 1;
+                                assert(!stage1_pending && !stage2_pending); //a single read request must be the last request on this calibration
+                            end
+                            else begin //ack for write
+                                assert(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 1);
+                                f_ack_pipe_marker = f_ack_pipe_marker + 1;
                             end
                         end
-                        assert(f_ack_pipe_marker <= 3);
                     end
+                    assert(f_ack_pipe_marker <= 3);
+                end
 
-                    if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
-                        assert(f_outstanding == 0 || !i_wb_cyc); 
-                        assert(f_sum_of_pending_acks == 0);
-                    end
-                    if(state_calibrate != DONE_CALIBRATE  && i_rst_n) begin //if not yet done calibration, no request should be accepted
-                        assert(f_nreqs == 0);
-                        assert(f_nacks == 0);
-                        assert(f_outstanding == 0 || !i_wb_cyc); 
-                    end
+                if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
+                    assert(f_outstanding == 0 || !i_wb_cyc); 
+                    assert(f_sum_of_pending_acks == 0);
+                end
+                if(state_calibrate != DONE_CALIBRATE  && i_rst_n) begin //if not yet done calibration, no request should be accepted
+                    assert(f_nreqs == 0);
+                    assert(f_nacks == 0);
+                    assert(f_outstanding == 0 || !i_wb_cyc); 
+                end
 
-                   if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
-                       if(write_calib_stb == 1) begin
-                            assert(write_calib_aux == 1);          
-                            assert(write_calib_we == 1);
-                        end
-                   end
-                    if(!stage1_pending) begin
-                        assert(!stage1_stall);
+               if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
+                   if(write_calib_stb == 1) begin
+                        assert(write_calib_aux == 1);          
+                        assert(write_calib_we == 1);
                     end
+               end
+                if(!stage1_pending) begin
+                    assert(!stage1_stall);
+                end
 
-                    if(!stage2_pending) begin
-                        assert(!stage2_stall);
-                    end
+                if(!stage2_pending) begin
+                    assert(!stage2_stall);
+                end
+        end
+        always @(posedge i_controller_clk) begin
+            if(f_past_valid) begin
+                if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && i_rst_n) begin
+                   assert(f_nreqs == $past(f_nreqs));           
+                end
+                if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && i_rst_n) begin//just started DONE_CALBRATION
+                    assert(f_nreqs == 0);
+                    assert(f_nacks == 0);
+                    assert(f_outstanding == 0); 
+                    assert(f_sum_of_pending_acks == 0);
+                end
+                if((!stage1_pending || !stage2_pending) && $past(state_calibrate) == DONE_CALIBRATE && state_calibrate == DONE_CALIBRATE 
+                    && instruction_address == 22 && $past(instruction_address == 22)) begin
+                        assert(!o_wb_stall);//if even 1 of the stage is empty, o_wb_stall must be low
+                end
             end
-            always @(posedge i_controller_clk) begin
-                if(f_past_valid) begin
-                    if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && i_rst_n) begin
-                       assert(f_nreqs == $past(f_nreqs));           
+        end
+
+        //test the delay_before*
+        always @* begin 
+            for(index=0; index< (1<<BA_BITS); index=index+1) begin
+                assert(delay_before_precharge_counter_q[index] <= max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY));
+                assert(delay_before_activate_counter_q[index] <= PRECHARGE_TO_ACTIVATE_DELAY); 
+                assert(delay_before_write_counter_q[index] <= max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY));
+                assert(delay_before_read_counter_q[index] <= max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY));
+            end
+            if(stage2_pending) begin
+                if(delay_before_precharge_counter_q[stage2_bank] == max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)) begin
+                  assert(f_stall_count == 0);
+                  //assert(f_ackwait_count == 0);
+                end
+                if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY) begin
+                  assert(f_stall_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1));
+                  //assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 2));
+                end
+
+                //if there is still no pending ack 
+                if(!(|f_ack_pipe_after_stage2)) begin
+                    //At f_ackwait_count == F_MAX_STALL, the
+                    //r/w command must be issued already (or stage2_update is high) 
+                    if(stage2_update) begin
+                        assert(f_ackwait_count <= F_MAX_STALL);
                     end
-                    if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && i_rst_n) begin//just started DONE_CALBRATION
-                        assert(f_nreqs == 0);
-                        assert(f_nacks == 0);
-                        assert(f_outstanding == 0); 
-                        assert(f_sum_of_pending_acks == 0);
+                    if(delay_before_precharge_counter_q[stage2_bank] == max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)) begin
+                      assert(f_ackwait_count == 0);
                     end
-                    if((!stage1_pending || !stage2_pending) && $past(state_calibrate) == DONE_CALIBRATE && state_calibrate == DONE_CALIBRATE 
-                        && instruction_address == 22 && $past(instruction_address == 22)) begin
-                            assert(!o_wb_stall);//if even 1 of the stage is empty, o_wb_stall must be low
+                    if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY) begin
+                      assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 2));
                     end
                 end
             end
+        end
 
     fwb_slave #(
             // {{{
@@ -2699,7 +2746,8 @@ module ddr3_controller #(
             .f_nreqs(f_nreqs), 
             .f_nacks(f_nacks),
             .f_outstanding(f_outstanding),
-            .f_ackwait_count(f_ackwait_count)
+            .f_ackwait_count(f_ackwait_count),
+            .f_stall_count(f_stall_count)
             // }}}
             // }}}
         );
