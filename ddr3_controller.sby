@@ -1,6 +1,6 @@
 [options]
 mode prove
-depth 17 # 13 for 20/5, 17 for 10/2.5, 26 for 5/1.25
+depth 7 # minimum for 100MHz controller clk
 #mode cover
 #depth 50
 
