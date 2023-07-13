@@ -35,14 +35,16 @@
 // PRE_STALL_DELAY
                    
 module ddr3_controller #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //syntax error, unexpected TOK_ID, expecting ',' or '=' or ')' //ns, period of clock input to this DDR3 controller module
+    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
                    DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
-    parameter      ROW_BITS = 14,   //width of row address
+    parameter      ROW_BITS = 16,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
                    LANES = 8, //8 lanes of DQ
                    AUX_WIDTH = 16, 
+                   WB2_ADDR_BITS = 32,
+                   WB2_DATA_BITS = 32,
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
 
@@ -51,6 +53,7 @@ module ddr3_controller #(
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
                 wb_sel_bits = wb_data_bits / 8,
+                wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
                 cmd_len = 4 + 3 + BA_BITS + ROW_BITS
     ) 
@@ -70,6 +73,19 @@ module ddr3_controller #(
         output wire o_wb_ack, //1 = read/write request has completed
         output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         output wire[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
+        //
+        // Wishbone 2 (PHY) inputs
+        input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+        input wire i_wb2_stb, //request a transfer
+        input wire i_wb2_we, //write-enable (1 = write, 0 = read)
+        input wire[WB2_ADDR_BITS - 1:0] i_wb2_addr, //memory-mapped register to be accessed 
+        input wire[wb2_sel_bits - 1:0] i_wb2_sel, //byte strobe for write (1 = write the byte)
+        input wire[WB2_DATA_BITS - 1:0] i_wb2_data, //write data
+        // Wishbone 2 (Controller) outputs
+        output reg o_wb2_stall, //1 = busy, cannot accept requests
+        output reg o_wb2_ack, //1 = read/write request has completed
+        output reg[WB2_DATA_BITS - 1:0] o_wb2_data, //read data
+        //
         // PHY interface
         input wire[DQ_BITS*LANES*8-1:0] i_phy_iserdes_data,
         input wire[LANES*8-1:0] i_phy_iserdes_dqs,
@@ -126,13 +142,6 @@ module ddr3_controller #(
                 ACTIVATE_SLOT = get_slot(CMD_ACT),
                 PRECHARGE_SLOT = get_slot(CMD_PRE);
                 
-    //cmd needs to be center-aligned to the positive edge of the 
-    //ddr3_clk. This means cmd needs to be delayed by half the ddr3
-    //clk period. Subtract by 600ps to include the IODELAY insertion
-    //delay. Divide by a delay resolution of 78.125ps per tap to get 
-    //the needed tap value.
-    localparam CMD_INITIAL_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/2) - 600)/78.125;
-
     // Data does not have to be delayed (DQS is the on that has to be
     // delayed and center-aligned to the center eye of data)
     localparam DATA_INITIAL_ODELAY_TAP = 0; 
@@ -143,11 +152,11 @@ module ddr3_controller #(
     //the IODELAY insertion delay. Divide by a delay resolution of 
     //78.125ps per tap to get the needed tap value. Then add the tap
     //value used in data to have the delay relative to the data.
-    localparam DQS_INITIAL_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_ODELAY_TAP;
+    localparam DQS_INITIAL_ODELAY_TAP = $rtoi(((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_ODELAY_TAP);
     
     //Incoming DQS should be 90 degree delayed relative to incoming data
     localparam DATA_INITIAL_IDELAY_TAP = 0; //600ps delay
-    localparam DQS_INITIAL_IDELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_IDELAY_TAP;
+    localparam DQS_INITIAL_IDELAY_TAP = $rtoi(((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_IDELAY_TAP);
     /*********************************************************************************************************************************************/
 
 
@@ -409,8 +418,25 @@ module ddr3_controller #(
     reg[4:0] idelay_data_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein_prev;
     reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
-    wire[31:0] read_ack_width;
-    assign read_ack_width = READ_ACK_PIPE_WIDTH;
+
+    // Wishbone 2
+    reg wb2_stb = 0;
+    reg wb2_update = 0;
+    reg wb2_we = 0;
+    reg[WB2_ADDR_BITS-1:0] wb2_addr = 0;
+    reg[WB2_DATA_BITS-1:0] wb2_data = 0;
+    reg[wb2_sel_bits-1:0] wb2_sel = 0;
+    reg[$clog2(LANES)-1:0] wb2_read_lane;
+    reg[4:0] wb2_phy_odelay_data_cntvaluein;
+    reg[4:0] wb2_phy_odelay_dqs_cntvaluein;
+    reg[4:0] wb2_phy_idelay_data_cntvaluein;
+    reg[4:0] wb2_phy_idelay_dqs_cntvaluein;
+    reg[LANES-1:0] wb2_phy_odelay_data_ld;
+    reg[LANES-1:0] wb2_phy_odelay_dqs_ld;
+    reg[LANES-1:0] wb2_phy_idelay_data_ld;
+    reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
+    reg[$clog2(LANES)-1:0] wb2_write_lane;
+    
     // initial block for all regs
     initial begin
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
@@ -1246,12 +1272,25 @@ module ddr3_controller #(
             o_phy_idelay_data_ld <= 0;
             o_phy_idelay_dqs_ld <= 0;
             idelay_data_cntvaluein_prev <= idelay_data_cntvaluein[lane];
-            // increase cntvalue every load to prepare for possible next load
-            odelay_data_cntvaluein[lane] <= o_phy_odelay_data_ld[lane]? odelay_data_cntvaluein[lane] + 1: odelay_data_cntvaluein[lane];
-            odelay_dqs_cntvaluein[lane] <= o_phy_odelay_dqs_ld[lane]? odelay_dqs_cntvaluein[lane] + 1: odelay_dqs_cntvaluein[lane];
-            idelay_data_cntvaluein[lane] <= o_phy_idelay_data_ld[lane]? idelay_data_cntvaluein[lane] + 1: idelay_data_cntvaluein[lane];
-            idelay_dqs_cntvaluein[lane] <= o_phy_idelay_dqs_ld[lane]? idelay_dqs_cntvaluein[lane] + 1: idelay_dqs_cntvaluein[lane];
 
+            if(wb2_update) begin
+                odelay_data_cntvaluein[wb2_write_lane] <=  wb2_phy_odelay_data_ld[wb2_write_lane]? wb2_phy_odelay_data_cntvaluein : odelay_data_cntvaluein[wb2_write_lane];
+                odelay_dqs_cntvaluein[wb2_write_lane] <= wb2_phy_odelay_dqs_ld[wb2_write_lane]? wb2_phy_odelay_dqs_cntvaluein : odelay_dqs_cntvaluein[wb2_write_lane];
+                idelay_data_cntvaluein[wb2_write_lane] <= wb2_phy_idelay_data_ld[wb2_write_lane]? wb2_phy_idelay_data_cntvaluein : idelay_data_cntvaluein[wb2_write_lane];
+                idelay_dqs_cntvaluein[wb2_write_lane] <= wb2_phy_idelay_dqs_ld[wb2_write_lane]? wb2_phy_idelay_dqs_cntvaluein : idelay_dqs_cntvaluein[wb2_write_lane];
+                o_phy_odelay_data_ld <= wb2_phy_odelay_data_ld;
+                o_phy_odelay_dqs_ld <= wb2_phy_odelay_dqs_ld;
+                o_phy_idelay_data_ld <= wb2_phy_idelay_data_ld;
+                o_phy_idelay_dqs_ld <= wb2_phy_idelay_dqs_ld;
+                lane <= wb2_write_lane;
+            end
+            else if(state_calibrate != DONE_CALIBRATE) begin
+                // increase cntvalue every load to prepare for possible next load
+                odelay_data_cntvaluein[lane] <= o_phy_odelay_data_ld[lane]? odelay_data_cntvaluein[lane] + 1: odelay_data_cntvaluein[lane];
+                odelay_dqs_cntvaluein[lane] <= o_phy_odelay_dqs_ld[lane]? odelay_dqs_cntvaluein[lane] + 1: odelay_dqs_cntvaluein[lane];
+                idelay_data_cntvaluein[lane] <= o_phy_idelay_data_ld[lane]? idelay_data_cntvaluein[lane] + 1: idelay_data_cntvaluein[lane];
+                idelay_dqs_cntvaluein[lane] <= o_phy_idelay_dqs_ld[lane]? idelay_dqs_cntvaluein[lane] + 1: idelay_dqs_cntvaluein[lane];
+            end
             if(initial_dqs) begin
                 dqs_target_index <= dqs_target_index_value;
                 dq_target_index <= dqs_target_index_value;
@@ -1466,6 +1505,109 @@ module ddr3_controller #(
     assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
     assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1;
+
+    /*********************************************************************************************************************************************/
+
+
+    /******************************************************* Wishbone 2 (PHY) Interface *******************************************************/
+
+   always @(posedge i_controller_clk, negedge i_rst_n) begin
+        if(!i_rst_n) begin
+            wb2_stb <= 0;
+        end
+        else begin
+            if(i_wb2_cyc && !o_wb2_stall) begin 
+                wb2_stb <= i_wb2_stb;
+                wb2_we <= i_wb2_we; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN} 
+                wb2_addr <= i_wb2_addr;
+                wb2_data <= i_wb2_data;
+                wb2_sel <= i_wb2_sel;
+            end
+            else if(!o_wb2_stall) begin
+                wb2_stb <= 0;
+                wb2_we <= 0;
+                wb2_addr <= 0;
+                wb2_data <= 0;
+                wb2_sel <= 0;
+            end
+        end
+   end 
+
+   always @(posedge i_controller_clk, negedge i_rst_n) begin
+       if(!i_rst_n) begin
+           wb2_phy_odelay_data_cntvaluein <= 0;
+           wb2_phy_odelay_data_ld <= 0;
+           wb2_phy_odelay_dqs_cntvaluein <= 0;
+           wb2_phy_odelay_dqs_ld <= 0;
+           wb2_phy_idelay_data_cntvaluein <= 0;
+           wb2_phy_idelay_data_ld <= 0;
+           wb2_phy_idelay_dqs_cntvaluein <= 0;
+           wb2_phy_idelay_dqs_ld <= 0;
+           wb2_update <= 0;
+           wb2_write_lane <= 0;
+           o_wb2_ack <= 0;
+           o_wb2_stall <= 1;
+       end
+       else begin
+           wb2_phy_odelay_data_ld <= 0; 
+           wb2_phy_odelay_dqs_ld <= 0;
+           wb2_phy_idelay_data_ld <= 0;
+           wb2_phy_idelay_dqs_ld <= 0;
+           wb2_update <= 0;
+           wb2_write_lane <= 0;
+           o_wb2_ack <= wb2_stb && i_wb2_cyc; //always ack right after request
+           o_wb2_stall <= state_calibrate != DONE_CALIBRATE; //low stall only after calibration
+           if(wb2_stb) begin
+                case(wb2_addr[3:0]) 
+                    //read/write odelay cntvalue for DQ line
+                    0: if(wb2_we) begin 
+                            wb2_phy_odelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQ
+                            wb2_phy_odelay_data_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //raise the lane to be loaded with new cntvaluein
+                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                       end
+                       else begin
+                            o_wb2_data <= odelay_data_cntvaluein[wb2_addr[4 +: 5]];//use next 5 bits of address as lane number to be read
+                       end
+
+                    //read/write odelay cntvalue for DQS line
+                    1: if(wb2_we) begin 
+                            wb2_phy_odelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQS
+                            wb2_phy_odelay_dqs_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //raise the lane to be loaded with new cntvaluein
+                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                       end
+                       else begin
+                            o_wb2_data <= odelay_dqs_cntvaluein[wb2_addr[4 +: 5]];//use next 5 bits of address as lane number to be read
+                       end
+                       
+                    //read/write idelay cntvalue for DQ line
+                    2: if(wb2_we) begin 
+                            wb2_phy_idelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQ
+                            wb2_phy_idelay_data_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //save next 5 bits for lane number to be loaded with new delay
+                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                       end
+                       else begin
+                            o_wb2_data <= idelay_data_cntvaluein[wb2_addr[4 +: 5]];//send ODELAYE2 cntvaluein of the given lane of DQS
+                       end
+
+                    //read/write idelay cntvalue for DQS line
+                    3: if(wb2_we) begin 
+                            wb2_phy_idelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQS
+                            wb2_phy_idelay_dqs_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //save next 5 bits for lane number to be loaded with new delay
+                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                       end
+                       else begin
+                            o_wb2_data <= idelay_dqs_cntvaluein[wb2_addr[4 +: 5]];//send ODELAYE2 cntvaluein of the given lane of DQS
+                       end
+
+              default: if(!wb2_we) begin //read 
+                           o_wb2_data <= {(WB2_DATA_BITS/8){"?"}}; //return ? when address to be read is invalid 
+                       end
+                endcase
+
+                wb2_write_lane <= wb2_data[5 +: $clog2(LANES)]; //save next 5 bits for lane number to be loaded with new delay
+            end //end of if(wb2_stb)
+        end//end of else
+    end//end of always
 
     /*********************************************************************************************************************************************/
 
@@ -2530,7 +2672,8 @@ module ddr3_controller #(
             assert(state_calibrate <= DONE_CALIBRATE);
         end
 
-        wire[4:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count, f_stall_count;
+        wire[3:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count, f_stall_count;
+        wire[3:0] f_nreqs_2, f_nacks_2, f_outstanding_2;
         reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
         reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1:0];
         integer f_ack_pipe_marker;
@@ -2686,12 +2829,344 @@ module ddr3_controller #(
                       assert(f_ackwait_count == 0);
                     end
                     if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY) begin
-                      assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 2));
+                      assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1));
                     end
+
+                    /*
+                      for(index = 0; index <= PRECHARGE_TO_ACTIVATE_DELAY; index= index +1 ) begin
+                        if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY - index) begin
+                            assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1 + index));
+                        end
+                      end
+                      */
                 end
             end
         end
 
+
+        // Test time parameter violations
+        reg[6:0] f_precharge_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_activate_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_read_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
+        reg[6:0] f_timer = 0;
+        (*anyconst*) reg[2:0] bank_const;
+
+
+        always @(posedge i_controller_clk) begin
+            f_timer <= f_timer + 4;
+            if(f_past_valid) begin
+                assume($past(f_timer) < f_timer); //assume that counter will never overflow
+            end
+        end
+
+        always @(posedge i_controller_clk, negedge i_rst_n) begin
+            if(!i_rst_n) begin
+                for(index=0; index < (1<<BA_BITS); index=index+1) begin
+                    f_precharge_time_stamp[index] <= 0;
+                    f_activate_time_stamp[index] <= 0;
+                    f_read_time_stamp[index] <= 0;
+                    f_write_time_stamp[index] <= 0;
+                end
+            end
+            else begin
+                //check if a DDR3 command is issued
+                if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
+                    f_precharge_time_stamp[cmd_d[PRECHARGE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + PRECHARGE_SLOT; 
+                end
+
+                if(cmd_d[ACTIVATE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0011) begin //ACTIVATE
+                    f_activate_time_stamp[cmd_d[ACTIVATE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + ACTIVATE_SLOT; 
+                end
+
+                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
+                    f_write_time_stamp[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + WRITE_SLOT;
+                    //Check tCCD (write-to-write delay)
+                    assert((f_timer+WRITE_SLOT) - f_write_time_stamp[bank_const] >= tCCD); 
+                end
+
+                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
+                    f_read_time_stamp[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + READ_SLOT;
+                    //Check tCCD (read-to-read delay)
+                    assert((f_timer+READ_SLOT) - f_read_time_stamp[bank_const] >= tCCD); 
+                end
+            end
+        end
+
+        always @* begin
+            // make sure saved time stamp is valid
+            assert(f_precharge_time_stamp[bank_const] <= f_timer);
+            assert(f_activate_time_stamp[bank_const] <= f_timer);
+            assert(f_read_time_stamp[bank_const] <= f_timer);
+            assert(f_write_time_stamp[bank_const] <= f_timer);
+                
+            // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
+            if(f_precharge_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
+                assert((f_precharge_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= ns_to_nCK(10));
+            end
+
+            // Check tWTR (Delay from start of internal write transaction to internal read command)
+            if(f_read_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
+                assert((f_read_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWTR)));
+            end
+
+            // Check tRCD (ACT to internal read delay time)
+            if(f_read_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
+                assert((f_read_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
+            end 
+            
+            // Check tRCD (ACT to internal write delay time)
+            if(f_write_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
+                assert((f_write_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
+            end
+
+            // Check tRP (PRE command period)
+            if(f_activate_time_stamp[bank_const] > f_precharge_time_stamp[bank_const]) begin
+                assert((f_activate_time_stamp[bank_const] - f_precharge_time_stamp[bank_const]) >= ns_to_nCK(tRP));
+            end
+            
+            // Check tRAS (ACTIVE to PRECHARGE command period)
+            if(f_precharge_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
+                assert((f_precharge_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRAS));
+            end
+
+            // Check tWR (WRITE recovery time for write-to-precharge)
+            if(f_precharge_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
+                assert((f_precharge_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWR)));
+            end
+
+            // Check delay from read-to-write
+            if(f_write_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
+                assert((f_write_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= (CL_nCK + tCCD + 3'd2 - CWL_nCK));
+            end
+
+        end
+
+        // extra assertions to make sure engine starts properly
+        always @* begin
+            assert(instruction_address <= 22);
+            assert(state_calibrate <= DONE_CALIBRATE);
+
+            if(!o_wb_stall) begin
+                assert(state_calibrate == DONE_CALIBRATE);
+                assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0));
+            end
+
+            if(instruction_address == 19 && delay_counter != 0 && state_calibrate == DONE_CALIBRATE) begin
+                if(stage1_pending || stage2_pending) begin
+                    assert(pause_counter);
+                end
+            end
+
+            if(stage1_pending || stage2_pending) begin
+               assert(state_calibrate > ISSUE_WRITE_1); 
+               assert(instruction_address == 22 || instruction_address == 19);
+            end
+
+            if(instruction_address < 13) begin
+                assert(state_calibrate == IDLE);
+            end
+
+            if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
+                assert(instruction_address == 13);
+                assert(pause_counter);
+            end
+
+
+            if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
+                assert(instruction_address == 17);
+                assert(pause_counter);
+            end
+            
+            if(pause_counter) begin
+                assert(delay_counter != 0);
+            end
+            
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
+                assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
+                assert(reset_done);
+            end
+
+            if(state_calibrate == DONE_CALIBRATE) begin
+                assert(reset_done);
+                assert(instruction_address >= 19);
+            end
+
+            if(reset_done) begin
+                assert(instruction_address >= 19);
+            end
+
+            if(!reset_done) begin
+                assert(!stage1_pending && !stage2_pending);
+                assert(o_wb_stall);
+            end
+            if(reset_done) begin
+                assert(instruction_address >= 19 && instruction_address <= 22);
+            end
+            //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
+            if(instruction_address == 19 && delay_counter != 0) begin
+                assert(o_wb_stall);
+            end
+
+            if(instruction_address == 19 && pause_counter) begin //pre-stall delay to finish all remaining requests
+               assert(delay_counter == PRE_REFRESH_DELAY); 
+               assert(reset_done);
+               assert(DONE_CALIBRATE);
+            end
+        end
+
+        // verify the wishbone 2
+        localparam F_TEST_WB2_DATA_WIDTH = wb2_sel_bits + 5 + $clog2(LANES) + 4 + 1; //WB2_SEL + CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+        reg f_read_fifo_2, f_write_fifo_2;
+        wire f_empty_2, f_full_2;
+        reg[F_TEST_WB2_DATA_WIDTH - 1:0] f_write_data_2 = 0; 
+        reg[F_TEST_WB2_DATA_WIDTH - 1:0] f_read_data_2, f_read_data_2_q;  
+        reg f_o_wb2_ack_q = 0; //registered o_wb2_ack
+        (*keep*) reg[LANES-1:0] f_delay_ld = 0;
+
+        //accept request
+        always @* begin
+            if(state_calibrate != DONE_CALIBRATE) begin //not yet done calibrating
+                assert(!o_wb2_ack);
+                assert(!wb2_stb);
+                assert(o_wb2_stall);
+                assert(!wb2_update);
+            end
+            if(f_empty_2 && i_wb2_cyc) begin
+                assert(!wb2_stb && !o_wb2_ack);
+            end
+            if(!wb2_stb && !o_wb2_ack) begin
+                assert(f_empty_2);
+            end
+            f_write_data_2 = 0;
+            f_write_fifo_2 = 0;
+            if(i_wb2_stb && !o_wb2_stall && i_wb2_cyc) begin //if there is request
+                if(i_wb2_we) begin 
+                    f_write_data_2 = {i_wb2_sel, i_wb2_data[4:0], i_wb2_data[5 +: $clog2(LANES)], i_wb2_addr[3:0], i_wb2_we}; //CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+                end 
+                else begin //read request
+                    f_write_data_2 = {i_wb2_addr[4 +: $clog2(LANES)],  i_wb2_addr[3:0], i_wb2_we}; //LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+                end
+                f_write_fifo_2 = 1;
+            end
+        end
+        
+        //verify outcome of request
+        always @(posedge i_controller_clk, negedge i_rst_n) begin
+            if(!i_rst_n) begin
+                f_o_wb2_ack_q <= 0;
+                f_read_data_2_q <= 0;
+            end
+            else begin
+                f_o_wb2_ack_q <= o_wb2_ack && f_read_data_2[0] && i_wb2_cyc;
+                f_read_data_2_q <= f_read_data_2;
+            end
+        end
+        always @* begin
+            if(i_rst_n) begin
+                if(wb2_stb && o_wb2_ack) begin
+                    assert(f_full_2 || !i_wb2_cyc);
+                end
+                if(f_full_2) begin
+                    assert(wb2_stb && o_wb2_ack);
+                    assert(f_outstanding_2 == 2 || !i_wb2_cyc);
+                end
+                if(f_outstanding_2 == 2) begin
+                    assert(f_full_2 || !i_wb2_cyc);
+                end
+                if(f_empty_2) begin
+                    assert(f_outstanding_2 == 0 || !i_wb2_cyc);
+                end
+                if(f_outstanding_2 == 0) begin
+                    assert(f_empty_2 || !i_wb2_cyc);
+                end
+            end
+            assert(f_outstanding_2 <= 2);
+            f_read_fifo_2 = 0;
+           if(f_o_wb2_ack_q &&  i_rst_n && (&f_read_data_2_q[5 + $clog2(LANES) + 4 + 1 +: $rtoi($ceil( ($clog2(LANES) + 5)/8 ))])) begin //write request (the sel bits must be high)
+                case(f_read_data_2_q[4:1]) //memory-mapped address
+                    0: begin
+                         assert(o_phy_odelay_data_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
+                         assert(o_phy_odelay_data_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                       end 
+                    1: begin
+                         assert(o_phy_odelay_dqs_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
+                         assert(o_phy_odelay_dqs_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                       end 
+                    2: begin
+                         assert(o_phy_idelay_data_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
+                         assert(o_phy_idelay_data_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                       end 
+                    3: begin
+                         assert(o_phy_idelay_dqs_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
+                         assert(o_phy_idelay_dqs_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                       end 
+                endcase
+           end  
+           if(o_wb2_ack && !f_read_data_2[0] && i_rst_n) begin //read request
+                f_read_fifo_2 = 1;
+           end
+
+           if(o_wb2_ack && f_read_data_2[0] && i_rst_n) begin
+                f_read_fifo_2 = 1;
+           end
+        end
+        wire[2:0] f_read_data_2_lane;
+        assign f_read_data_2_lane = f_read_data_2[5 +: $clog2(LANES)];
+        always @(posedge i_controller_clk) begin
+            //read request
+           if(o_wb2_ack && !f_read_data_2[0] && i_rst_n && i_wb2_cyc && !(f_o_wb2_ack_q && f_read_data_2_q[1 +: (4 + $clog2(LANES))] == f_read_data_2[1 +: (4 + $clog2(LANES))] )) begin 
+                case(f_read_data_2[4:1]) //memory-mapped address
+                    0: begin
+                         assert(o_wb2_data == odelay_data_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                       end 
+                    1: begin
+                         assert(o_wb2_data == odelay_dqs_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                       end 
+                    2: begin
+                         assert(o_wb2_data == idelay_data_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                       end 
+                    3: begin
+                         assert(o_wb2_data == idelay_dqs_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                       end 
+                endcase
+           end
+           if(f_past_valid) begin
+               for(index = 0; index < LANES; index = index + 1) begin
+                    if(o_phy_bitslip[index]) begin
+                        /* Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
+                        deasserted for at least one CLKDIV cycle between two Bitslip assertions. 
+                        */
+                        assert(!$past(o_phy_bitslip[index]));
+                    end
+               end
+           end
+        end
+
+        mini_fifo #(
+            .FIFO_WIDTH(1), //the fifo will have 2**FIFO_WIDTH positions
+            .DATA_WIDTH(F_TEST_WB2_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
+       ) fifo_2 (
+            .i_clk(i_controller_clk), 
+            .i_rst_n(i_rst_n && i_wb2_cyc), //reset outstanding request at reset or when cyc goes low
+            .read_fifo(f_read_fifo_2), 
+            .write_fifo(f_write_fifo_2),
+            .empty(f_empty_2), 
+            .full(f_full_2),
+            .write_data(f_write_data_2),
+            .read_data(f_read_data_2)
+       ); 
+    
+    //assumption on when to do request (so as not to violate the
+    //F_MAX_STALL property of fwb_slave) 
+    always @* begin
+        if(!(state_calibrate == DONE_CALIBRATE && instruction_address == 22)) begin //if in initialization/refresh sequence, no request should come in to the controller wishbone 
+            assume(!i_wb_stb);
+        end
+        if(!(state_calibrate == DONE_CALIBRATE)) begin //if not yet done calibrating, no request should come in to the phy wishbone 
+            assume(!i_wb2_stb);
+        end
+    end
     fwb_slave #(
             // {{{
             .AW(wb_addr_bits), 
@@ -2729,7 +3204,6 @@ module ddr3_controller #(
             // {{{
             .i_clk(i_controller_clk), 
             .i_reset(!i_rst_n),
-            .i_slave_busy(!(state_calibrate == DONE_CALIBRATE && instruction_address == 22)),
             // The Wishbone bus
             .i_wb_cyc(i_wb_cyc), 
             .i_wb_stb(i_wb_stb), 
@@ -2741,13 +3215,70 @@ module ddr3_controller #(
             .i_wb_ack(o_wb_ack),
             .i_wb_stall(o_wb_stall),
             .i_wb_idata(o_wb_data),
-            .i_wb_err(0),
+            .i_wb_err(1'b0),
             // Some convenience output parameters
             .f_nreqs(f_nreqs), 
             .f_nacks(f_nacks),
             .f_outstanding(f_outstanding),
             .f_ackwait_count(f_ackwait_count),
             .f_stall_count(f_stall_count)
+            // }}}
+            // }}}
+        );
+
+    fwb_slave #(
+            // {{{
+            .AW(WB2_ADDR_BITS), 
+            .DW(WB2_DATA_BITS),
+            .F_MAX_STALL(2),
+            .F_MAX_ACK_DELAY(2),
+            .F_LGDEPTH(4),
+            .F_MAX_REQUESTS(10),
+            // OPT_BUS_ABORT: If true, the master can drop CYC at any time
+            // and must drop CYC following any bus error
+            .OPT_BUS_ABORT(1),
+            //
+            // If true, allow the bus to be kept open when there are no
+            // outstanding requests.  This is useful for any master that
+            // might execute a read modify write cycle, such as an atomic
+            // add.
+            .F_OPT_RMW_BUS_OPTION(1),
+            //
+            // 
+            // If true, allow the bus to issue multiple discontinuous
+            // requests.
+            // Unlike F_OPT_RMW_BUS_OPTION, these requests may be issued
+            // while other requests are outstanding
+            .F_OPT_DISCONTINUOUS(1),
+            //
+            //
+            // If true, insist that there be a minimum of a single clock
+            // delay between request and response.  This defaults to off
+            // since the wishbone specification specifically doesn't
+            // require this.  However, some interfaces do, so we allow it
+            // as an option here.
+            .F_OPT_MINCLOCK_DELAY(1),
+            // }}}
+        ) wb2_properties (
+            // {{{
+            .i_clk(i_controller_clk), 
+            .i_reset(!i_rst_n),
+            // The Wishbone bus
+            .i_wb_cyc(i_wb2_cyc), 
+            .i_wb_stb(i_wb2_stb), 
+            .i_wb_we(i_wb2_we),
+            .i_wb_addr(i_wb2_addr),
+            .i_wb_data(i_wb2_data),
+            .i_wb_sel(i_wb2_sel),
+            //
+            .i_wb_ack(o_wb2_ack),
+            .i_wb_stall(o_wb2_stall),
+            .i_wb_idata(o_wb2_data),
+            .i_wb_err(1'b0),
+            // Some convenience output parameters
+            .f_nreqs(f_nreqs_2), 
+            .f_nacks(f_nacks_2),
+            .f_outstanding(f_outstanding_2),
             // }}}
             // }}}
         );
