@@ -1,7 +1,7 @@
 
 `default_nettype none
 module ddr3_top #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //syntax error, unexpected TOK_ID, expecting ',' or '=' or ')' //ns, period of clock input to this DDR3 controller module
+    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
                    DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
     parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
@@ -9,6 +9,8 @@ module ddr3_top #(
                    DQ_BITS = 8,  //width of DQ
                    LANES = 8, //8 lanes of DQ
                    AUX_WIDTH = 16, 
+                   WB2_ADDR_BITS = 32,
+                   WB2_DATA_BITS = 32,
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
 
@@ -17,6 +19,7 @@ module ddr3_top #(
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
                 wb_sel_bits = wb_data_bits / 8,
+                wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
                 cmd_len = 4 + 3 + BA_BITS + ROW_BITS
     ) 
@@ -36,6 +39,19 @@ module ddr3_top #(
         output wire o_wb_ack, //1 = read/write request has completed
         output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         input wire[AUX_WIDTH - 1:0]  o_aux, //for AXI-interface compatibility (given upon strobe)
+        //
+        // Wishbone 2 (PHY) inputs
+        input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+        input wire i_wb2_stb, //request a transfer
+        input wire i_wb2_we, //write-enable (1 = write, 0 = read)
+        input wire[WB2_ADDR_BITS - 1:0] i_wb2_addr, // memory-mapped register to be accessed
+        input wire[WB2_DATA_BITS - 1:0] i_wb2_data, //write data
+        input wire[wb2_sel_bits - 1:0] i_wb2_sel, //byte strobe for write (1 = write the byte)
+        // Wishbone 2 (Controller) outputs
+        output wire o_wb2_stall, //1 = busy, cannot accept requests
+        output wire o_wb2_ack, //1 = read/write request has completed
+        output wire[WB2_DATA_BITS - 1:0] o_wb2_data, //read data
+        //
         // DDR3 I/O Interface
         output wire o_ddr3_clk_p, o_ddr3_clk_n,
         output wire o_ddr3_reset_n,
@@ -57,8 +73,6 @@ module ddr3_top #(
     wire dqs_tri_control, dq_tri_control;
     wire toggle_dqs;
     wire[wb_data_bits-1:0] data;
-    wire[LANES-1:0] odelay_ce, odelay_inc;
-    wire[LANES-1:0] idelay_ce, idelay_inc;
     wire[LANES-1:0] bitslip;
     wire[DQ_BITS*LANES*8-1:0] iserdes_data;
     wire[LANES*8-1:0] iserdes_dqs;
@@ -96,6 +110,18 @@ module ddr3_top #(
             .o_wb_ack(o_wb_ack), //1 = read/write request has completed
             .o_wb_data(o_wb_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
             .o_aux(o_aux), //for AXI-interface compatibility (returned upon ack)
+            // Wishbone 2 (PHY) inputs
+            .i_wb2_cyc(i_wb2_cyc), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+            .i_wb2_stb(i_wb2_stb), //request a transfer
+            .i_wb2_we(i_wb2_we), //write-enable (1 = write, 0 = read)
+            .i_wb2_addr(i_wb2_addr), // memory-mapped register to be accessed 
+            .i_wb2_data(i_wb2_data), //write data
+            .i_wb2_sel(i_wb2_sel), //byte strobe for write (1 = write the byte)
+            // Wishbone 2 (Controller) outputs
+            .o_wb2_stall(o_wb2_stall), //1 = busy, cannot accept requests
+            .o_wb2_ack(o_wb2_ack), //1 = read/write request has completed
+            .o_wb2_data(o_wb2_data), //read data
+            //
             // PHY interface
             .i_phy_iserdes_data(iserdes_data),
             .i_phy_iserdes_dqs(iserdes_dqs),
