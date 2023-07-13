@@ -2,10 +2,7 @@
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
 [*] Sun Jul  9 01:37:07 2023
 [*]
-[dumpfile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_controller/engine_0/trace_induct.vcd"
-[dumpfile_mtime] "Sun Jul  9 01:34:04 2023"
-[dumpfile_size] 114453
-[savefile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/formal_cover_3.gtkw"
+
 [timestart] 0
 [size] 1848 1126
 [pos] -1 -1
