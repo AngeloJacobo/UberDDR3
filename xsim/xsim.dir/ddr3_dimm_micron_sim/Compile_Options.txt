@@ -1,1 +1,0 @@
---incr --debug "typical" --relax --mt "auto" -L "xil_defaultlib" -L "uvm" -L "unisims_ver" -L "unimacro_ver" -L "secureip" --snapshot "ddr3_dimm_micron_sim" "xil_defaultlib.ddr3_dimm_micron_sim" "xil_defaultlib.glbl" -log "elaborate.log" 

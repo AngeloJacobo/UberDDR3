@@ -1,6 +1,0 @@
-INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3
-INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_dimm
-INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/angelo/Desktop/switch_fpga/DDR3_Controller/testbench/ddr3_dimm_micron_sim.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_dimm_micron_sim
