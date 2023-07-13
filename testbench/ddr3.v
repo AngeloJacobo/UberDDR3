@@ -138,6 +138,7 @@ module ddr3 (
     parameter feature_truebl4 = 0;
     parameter feature_odt_hi = 0;
     parameter PERTCKAVG=TDLLK;
+    parameter FLY_BY_DELAY = 0;
    
     // text macros
     `define DQ_PER_DQS DQ_BITS/DQS_BITS
