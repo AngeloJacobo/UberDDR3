@@ -92,6 +92,7 @@ module	fwb_slave #(
 		parameter	[0:0]	F_OPT_MINCLOCK_DELAY = 0,
 		//
 		//
+		//
 		localparam [(F_LGDEPTH-1):0] MAX_OUTSTANDING
 						= {(F_LGDEPTH){1'b1}},
 		localparam	MAX_DELAY = (F_MAX_STALL > F_MAX_ACK_DELAY)
@@ -103,7 +104,6 @@ module	fwb_slave #(
 	) (
 		// {{{
 		input	wire			i_clk, i_reset,
-        input wire              i_slave_busy,
 		// The Wishbone bus
 		input	wire			i_wb_cyc, i_wb_stb, i_wb_we,
 		input	wire	[(AW-1):0]	i_wb_addr,
@@ -116,15 +116,12 @@ module	fwb_slave #(
 		input	wire			i_wb_err,
 		// Some convenience output parameters
 		output	reg	[(F_LGDEPTH-1):0]	f_nreqs, f_nacks,
-		output	wire	[(F_LGDEPTH-1):0]	f_outstanding
+		output	wire	[(F_LGDEPTH-1):0]	f_outstanding,
+		output reg	[(DLYBITS-1):0]		f_ackwait_count,
+		output reg	[(DLYBITS-1):0]		f_stall_count
 		// }}}
 	);
 
-    always @* begin
-        if(i_slave_busy) begin //if slave busy (initialization/refresh sequence), no request should come in
-            assume(!i_wb_stb);
-        end
-    end
 `define	SLAVE_ASSUME	assume
 `define	SLAVE_ASSERT	assert
 	//
@@ -331,7 +328,6 @@ module	fwb_slave #(
 		// counts.  We'll count this forward any time STB and STALL
 		// are both true.
 		//
-		(*keep*) reg	[(DLYBITS-1):0]		f_stall_count;
 
 		initial	f_stall_count = 0;
 		always @(posedge i_clk)
@@ -360,7 +356,6 @@ module	fwb_slave #(
 		// counted either from the end of the last request, or from the
 		// last ACK received
 		//
-		(*keep*) reg	[(DLYBITS-1):0]		f_ackwait_count;
 
 		initial	f_ackwait_count = 0;
 		always @(posedge i_clk)
@@ -439,7 +434,6 @@ module	fwb_slave #(
 			`SLAVE_ASSERT(!i_wb_ack);
 			`SLAVE_ASSERT(!i_wb_err);
 		end else begin
-            //has ack but stb_low&&wb_stall_high
 			`SLAVE_ASSERT((!i_wb_ack)||((i_wb_stb)&&(!i_wb_stall)));
 			// The same is true of errors.  They may not be
 			// created before the request gets through
