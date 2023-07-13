@@ -74,6 +74,17 @@ module ddr3_dimm_micron_sim;
   wire[$bits(ddr3_top.io_ddr3_dqs_n)-1:0] dqs_n;
   wire o_ddr3_clk_p, o_ddr3_clk_n;
   integer index;
+  // Wishbone 2 (PHY) inputs
+  reg i_wb2_cyc; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+  reg i_wb2_stb; //request a transfer
+  reg i_wb2_we; //write-enable (1 = write, 0 = read)
+  reg[$bits(ddr3_top.i_wb2_addr)-1:0] i_wb2_addr; //memory-mapped register to be accessed 
+  reg[$bits(ddr3_top.i_wb2_data)-1:0] i_wb2_data; //write data
+  reg[$bits(ddr3_top.i_wb2_sel)-1:0] i_wb2_sel; //byte strobe for write (1 = write the byte)
+  // Wishbone 2 (Controller) outputs
+  wire o_wb2_stall; //1 = busy, cannot accept requests
+  wire o_wb2_ack; //1 = read/write request has completed
+  wire[$bits(ddr3_top.o_wb2_data)-1:0] o_wb2_data; //read data
   
 // DDR3 Controller 
 ddr3_top #(
@@ -107,6 +118,17 @@ ddr3_top #(
         .o_wb_ack(o_wb_ack), //1 = read/write request has completed
         .o_wb_data(o_wb_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         .o_aux(o_aux),
+        // Wishbone 2 (PHY) inputs
+        .i_wb2_cyc(i_wb2_cyc), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+        .i_wb2_stb(i_wb2_stb), //request a transfer
+        .i_wb2_we(i_wb2_we), //write-enable (1 = write, 0 = read)
+        .i_wb2_addr(i_wb2_addr), //burst-addressable {row,bank,col} 
+        .i_wb2_data(i_wb2_data), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+        .i_wb2_sel(i_wb2_sel), //byte strobe for write (1 = write the byte)
+        // Wishbone 2 (Controller) outputs
+        .o_wb2_stall(o_wb2_stall), //1 = busy, cannot accept requests
+        .o_wb2_ack(o_wb2_ack), //1 = read/write request has completed
+        .o_wb2_data(o_wb2_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         // PHY Interface (to be added later)
         .o_ddr3_clk_p(o_ddr3_clk_p),
         .o_ddr3_clk_n(o_ddr3_clk_n),
@@ -188,6 +210,7 @@ ddr3_top #(
         //toggle reset for 1 slow clk 
         @(posedge i_controller_clk) begin
             i_rst_n <= 0;
+            // Wishbone 1
             i_wb_cyc <= 0;
             i_wb_stb <= 0;
             i_wb_we <= 0;
@@ -195,6 +218,13 @@ ddr3_top #(
             i_aux <= 0;
             i_wb_addr <= 0;
             i_wb_data <= 0;
+            // Wishbone 2
+            i_wb2_cyc <= 0; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+            i_wb2_stb <= 0; //request a transfer
+            i_wb2_we <= 0; //write-enable (1 = write, 0 = read)
+            i_wb2_addr <= 0; //memory-mapped register to be accessed 
+            i_wb2_data <= 0; //write data
+            i_wb2_sel <= 0; 
         end
         @(posedge i_controller_clk) begin
             i_rst_n <= 1;
@@ -254,7 +284,7 @@ ddr3_top #(
             #1; //just to make sure the non-blocking are assignments are all over
         end
         while(i_wb_stb) begin
-           @(posedge clk) begin
+           @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
@@ -316,7 +346,7 @@ ddr3_top #(
             #1; //just to make sure the non-blocking are assignments are all over
         end
         while(i_wb_stb) begin
-           @(posedge clk) begin
+           @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
@@ -376,7 +406,7 @@ ddr3_top #(
             #1; //just to make sure the non-blocking are assignments are all over
         end
         while(i_wb_stb) begin
-           @(posedge clk) begin
+           @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
@@ -436,7 +466,7 @@ ddr3_top #(
             end
         end
         while(i_wb_stb) begin
-           @(posedge clk) begin
+           @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
