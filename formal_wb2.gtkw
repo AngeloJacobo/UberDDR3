@@ -1,0 +1,163 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue Jul 11 12:39:11 2023
+[*]
+[dumpfile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_controller/engine_0/trace_induct.vcd"
+[dumpfile_mtime] "Tue Jul 11 12:37:05 2023"
+[dumpfile_size] 144494
+[savefile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/wb2.gtkw"
+[timestart] 0
+[size] 1848 1126
+[pos] -1 -1
+*-4.757294 10 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] ddr3_controller.
+[sst_width] 297
+[signals_width] 395
+[sst_expanded] 1
+[sst_vpaned_height] 743
+@28
+ddr3_controller.i_controller_clk
+ddr3_controller.i_rst_n
+@24
+ddr3_controller.state_calibrate[4:0]
+@200
+-
+@28
+ddr3_controller.wb2_properties.i_wb_cyc
+@22
+ddr3_controller.wb2_properties.f_nacks[3:0]
+ddr3_controller.wb2_properties.f_nreqs[3:0]
+ddr3_controller.wb2_properties.f_outstanding[3:0]
+ddr3_controller.f_outstanding_2[3:0]
+@200
+-
+-
+@28
+ddr3_controller.i_wb2_addr[31:0]
+[color] 2
+ddr3_controller.i_wb2_cyc
+ddr3_controller.i_wb2_data[31:0]
+[color] 2
+ddr3_controller.i_wb2_stb
+[color] 2
+ddr3_controller.i_wb2_we
+[color] 2
+ddr3_controller.o_wb2_ack
+ddr3_controller.o_wb2_data[31:0]
+ddr3_controller.o_wb2_stall
+@200
+-
+@28
+[color] 4
+ddr3_controller.f_delay_ld[7:0]
+[color] 4
+ddr3_controller.o_phy_idelay_data_ld[7:0]
+[color] 4
+ddr3_controller.o_phy_idelay_dqs_ld[7:0]
+[color] 4
+ddr3_controller.o_phy_odelay_data_ld[7:0]
+[color] 4
+ddr3_controller.o_phy_odelay_dqs_ld[7:0]
+ddr3_controller.o_phy_idelay_data_cntvaluein[4:0]
+ddr3_controller.o_phy_idelay_dqs_cntvaluein[4:0]
+ddr3_controller.o_phy_odelay_data_cntvaluein[4:0]
+ddr3_controller.o_phy_odelay_dqs_cntvaluein[4:0]
+@200
+-
+@22
+ddr3_controller.odelay_data_cntvaluein<0>[4:0]
+ddr3_controller.odelay_data_cntvaluein<1>[4:0]
+ddr3_controller.odelay_data_cntvaluein<2>[4:0]
+ddr3_controller.odelay_data_cntvaluein<3>[4:0]
+ddr3_controller.odelay_data_cntvaluein<4>[4:0]
+ddr3_controller.odelay_data_cntvaluein<5>[4:0]
+@28
+ddr3_controller.odelay_data_cntvaluein<6>[4:0]
+@22
+ddr3_controller.odelay_data_cntvaluein<7>[4:0]
+@200
+-
+@28
+[color] 4
+ddr3_controller.wb2_addr[31:0]
+[color] 4
+ddr3_controller.wb2_data[31:0]
+@22
+[color] 4
+ddr3_controller.wb2_phy_idelay_data_cntvaluein[4:0]
+@28
+[color] 4
+ddr3_controller.wb2_phy_idelay_data_ld[7:0]
+@22
+[color] 4
+ddr3_controller.wb2_phy_idelay_dqs_cntvaluein[4:0]
+@c00028
+[color] 4
+ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+@28
+(0)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(1)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(2)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(3)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(4)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(5)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(6)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+(7)ddr3_controller.wb2_phy_idelay_dqs_ld[7:0]
+@1401200
+-group_end
+@22
+[color] 4
+ddr3_controller.wb2_phy_odelay_data_cntvaluein[4:0]
+@28
+[color] 4
+ddr3_controller.wb2_phy_odelay_data_ld[7:0]
+@c00028
+[color] 4
+ddr3_controller.f_delay_ld[7:0]
+@28
+(0)ddr3_controller.f_delay_ld[7:0]
+(1)ddr3_controller.f_delay_ld[7:0]
+(2)ddr3_controller.f_delay_ld[7:0]
+(3)ddr3_controller.f_delay_ld[7:0]
+(4)ddr3_controller.f_delay_ld[7:0]
+(5)ddr3_controller.f_delay_ld[7:0]
+(6)ddr3_controller.f_delay_ld[7:0]
+(7)ddr3_controller.f_delay_ld[7:0]
+@1401200
+-group_end
+@22
+[color] 4
+ddr3_controller.wb2_phy_odelay_dqs_cntvaluein[4:0]
+@28
+[color] 4
+ddr3_controller.wb2_phy_odelay_dqs_ld[7:0]
+[color] 2
+ddr3_controller.wb2_stb
+[color] 4
+ddr3_controller.wb2_update
+[color] 2
+ddr3_controller.wb2_we
+[color] 4
+ddr3_controller.wb2_write_lane[2:0]
+[color] 2
+ddr3_controller.f_o_wb2_ack_q
+ddr3_controller.f_read_data_2[12:0]
+ddr3_controller.f_read_data_2_q[12:0]
+@200
+-
+@28
+ddr3_controller.fifo_2.read_fifo
+ddr3_controller.f_read_fifo_2
+[color] 2
+ddr3_controller.fifo_2.write_fifo
+[color] 2
+ddr3_controller.fifo_2.empty
+[color] 2
+ddr3_controller.fifo_2.full
+@29
+ddr3_controller.f_full_2
+@28
+ddr3_controller.fifo_2.read_pointer
+ddr3_controller.fifo_2.write_pointer
+[pattern_trace] 1
+[pattern_trace] 0
