@@ -99,7 +99,7 @@ module ddr3_phy #(
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             sync_rst <= 1'b1;
-            delay_before_release_reset <= SYNC_RESET_DELAY;
+            delay_before_release_reset <= SYNC_RESET_DELAY[$clog2(SYNC_RESET_DELAY):0];
             toggle_dqs_q <= 0;
         end
         else begin
