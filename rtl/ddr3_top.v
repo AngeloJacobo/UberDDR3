@@ -38,7 +38,7 @@ module ddr3_top #(
         output wire o_wb_stall, //1 = busy, cannot accept requests
         output wire o_wb_ack, //1 = read/write request has completed
         output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-        input wire[AUX_WIDTH - 1:0]  o_aux, //for AXI-interface compatibility (given upon strobe)
+        output wire[AUX_WIDTH - 1:0]  o_aux, //for AXI-interface compatibility (given upon strobe)
         //
         // Wishbone 2 (PHY) inputs
         input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -73,6 +73,7 @@ module ddr3_top #(
     wire dqs_tri_control, dq_tri_control;
     wire toggle_dqs;
     wire[wb_data_bits-1:0] data;
+    wire[wb_sel_bits-1:0] dm;
     wire[LANES-1:0] bitslip;
     wire[DQ_BITS*LANES*8-1:0] iserdes_data;
     wire[LANES*8-1:0] iserdes_dqs;
@@ -132,6 +133,7 @@ module ddr3_top #(
             .o_phy_dq_tri_control(dq_tri_control),
             .o_phy_toggle_dqs(toggle_dqs),
             .o_phy_data(data),
+            .o_phy_dm(dm),
             .o_phy_odelay_data_cntvaluein(odelay_data_cntvaluein),
             .o_phy_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
             .o_phy_idelay_data_cntvaluein(idelay_data_cntvaluein), 
@@ -160,6 +162,7 @@ module ddr3_top #(
             .i_controller_dq_tri_control(dq_tri_control),
             .i_controller_toggle_dqs(toggle_dqs),
             .i_controller_data(data),
+            .i_controller_dm(dm),
             .i_controller_odelay_data_cntvaluein(odelay_data_cntvaluein),
             .i_controller_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
             .i_controller_idelay_data_cntvaluein(idelay_data_cntvaluein),
