@@ -12,6 +12,7 @@
 //`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
 //`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
 `default_nettype none
+`timescale 1ps / 1ps
 
 
 // THESE DEFINES WILL BE MODIFIED AS PARAMETERS LATER ON
@@ -201,11 +202,6 @@ module ddr3_controller #(
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam CALIBRATION_DELAY = 2;
-    localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
-    //localparam PRE_STALL_DELAY = ((PRECHARGE_TO_ACTIVATE_DELAY+1) + (ACTIVATE_TO_WRITE_DELAY+1) + (WRITE_TO_PRECHARGE_DELAY+1) + 1)*2; 
-                                    //worst case scenario: two consecutive writes at same bank but different row
-                                    //delay will be: PRECHARGE -> PRECHARGE_TO_ACTIVATE_DELAY -> ACTIVATE -> ACTIVATE_TO_WRITE_DELAY -> WRITE -> WRITE_TO_PRECHARGE_DELAY ->
-                                    //PRECHARGE -> PRECHARGE_TO_ACTIVATE_DELAY -> ACTIVATE -> ACTIVATE_TO_WRITE_DELAY -> WRITE -> WRITE_TO_PRECHARGE_DELAY 
                                     
     /*********************************************************************************************************************************************/
     
@@ -222,7 +218,9 @@ module ddr3_controller #(
     localparam[3:0] WRITE_TO_WRITE_DELAY = 0;
     localparam[3:0] WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
     localparam[3:0] WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
+    localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
     /* verilator lint_on REALCVT */
+
     //MARGIN_BEFORE_ANTICIPATE is the number of columns before the column
     //end when the anticipate can start
     //the worst case scenario is when the anticipated bank needs to be precharged
@@ -327,6 +325,9 @@ module ddr3_controller #(
     reg pause_counter = 0;
     wire issue_read_command;
     wire issue_write_command;
+    reg stage2_update = 1;
+    reg stage2_stall = 0;
+    reg stage1_stall = 0;
     reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
     //bank_active_row[bank_number] = stores the active row address in the specified bank
     reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; 
@@ -340,9 +341,9 @@ module ddr3_controller #(
     reg[COL_BITS-1:0] stage1_col = 0;
     reg[BA_BITS-1:0] stage1_bank = 0;
     reg[ROW_BITS-1:0] stage1_row = 0;
-    reg[COL_BITS-1:0] stage1_next_col = 0;
     reg[BA_BITS-1:0] stage1_next_bank = 0;
     reg[ROW_BITS-1:0] stage1_next_row = 0;
+    wire[wb_addr_bits-1:0] wb_addr_plus_anticipate;
     
     //pipeline stage 2 regs
     reg stage2_pending = 0;
@@ -365,7 +366,7 @@ module ddr3_controller #(
     reg[3:0] delay_before_read_counter_q[(1<<BA_BITS)-1:0] , delay_before_read_counter_d[(1<<BA_BITS)-1:0] ;
     
     //commands to be sent to PHY (4 slots per controller clk cycle)
-    reg[cmd_len-1:0] cmd_q[3:0], cmd_d[3:0];
+    reg[cmd_len-1:0] cmd_d[3:0];
     initial begin
         o_phy_bitslip = 0;
     end
@@ -476,7 +477,6 @@ module ddr3_controller #(
 
         //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
         for(index=0; index < 4; index=index+1) begin
-            cmd_q[index] = -1;
             cmd_d[index] = -1;
         end
 
@@ -665,16 +665,18 @@ module ddr3_controller #(
             o_wb_stall_q <= 1'b1;
             //set stage 1 to 0
             stage1_pending <= 0;
+            stage1_aux <= 0;
             stage1_we <= 0;
+            stage1_dm <= 0;
             stage1_col <= 0;
             stage1_bank <= 0;
             stage1_row <= 0;
             stage1_next_bank <= 0;
             stage1_next_row <= 0;
-            stage1_next_col <= 0;
             stage1_data <= 0;
             //set stage2 to 0
             stage2_pending <= 0;
+            stage2_aux <= 0;
             stage2_we <= 0;
             stage2_col <= 0;
             stage2_bank <= 0;
@@ -719,10 +721,7 @@ module ddr3_controller #(
                 delay_before_write_counter_q[index] <= delay_before_write_counter_d[index]; 
                 delay_before_read_counter_q[index] <= delay_before_read_counter_d[index]; 
             end
-            //update cmd
-            for( index=0; index < 4; index=index+1) begin
-                cmd_q[index] <= cmd_d[index];
-            end
+
             //update bank status and active row
             for(index=0; index < (1<<BA_BITS); index=index+1) begin
                 bank_status_q[index] <= bank_status_d[index];
@@ -776,7 +775,8 @@ module ddr3_controller #(
                 //current column with a margin dictated by
                 //MARGIN_BEFORE_ANTICIPATE  
                 /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank, stage1_next_col[COL_BITS-1:$clog2(serdes_ratio*2)] } <= i_wb_addr + MARGIN_BEFORE_ANTICIPATE; //anticipated next row and bank to be accessed 
+                {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate[(ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //anticipated next row and bank to be accessed 
+                
                 /* verilator lint_on WIDTH */
                 stage1_data <= i_wb_data;
             end
@@ -788,7 +788,7 @@ module ddr3_controller #(
                 stage1_col <= write_calib_col; //column address (n-burst word-aligned)
                 stage1_bank <=  0; //bank_address
                 stage1_row <= 0; //row_address
-                {stage1_next_row , stage1_next_bank, stage1_next_col[COL_BITS-1:$clog2(serdes_ratio*2)] } <= 0; //anticipated next row and bank to be accessed 
+                {stage1_next_row , stage1_next_bank} <= 0; //anticipated next row and bank to be accessed 
                 stage1_data <= write_calib_data;
             end
             
@@ -831,6 +831,7 @@ module ddr3_controller #(
     end
     assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];             
     assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
+    assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE;
     // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
     //
     //                          tRTP
@@ -848,14 +849,7 @@ module ddr3_controller #(
     //
     //Pipeline Stages:
     //  wishbone inputs --> stage1 --> stage2 --> cmd
-    reg stage2_update = 1;
-    reg stage2_stall = 0;
-    reg stage1_stall = 0;
-    (*keep*) reg stage1_issue_command = 0;
-    (*keep*) reg stage2_issue_command = 0;
     always @* begin
-        stage1_issue_command = 0;
-        stage2_issue_command = 0;
         cmd_odt = cmd_odt_q || write_calib_odt;
         cmd_ck_en = instruction[CLOCK_EN];
         cmd_reset_n = instruction[RESET_N];
@@ -950,7 +944,6 @@ module ddr3_controller #(
                     cmd_d[3][CMD_ODT] = cmd_odt;
                     write_dqs_d=1;
                     write_dq_d=1;
-                    stage2_issue_command = 1;
                    // write_data = 1;
                 end
                 
@@ -981,7 +974,6 @@ module ddr3_controller #(
                     cmd_d[1][CMD_ODT] = cmd_odt;
                     cmd_d[2][CMD_ODT] = cmd_odt;
                     cmd_d[3][CMD_ODT] = cmd_odt;
-                    stage2_issue_command = 1;
                 end
             end
             
@@ -999,7 +991,6 @@ module ddr3_controller #(
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b1;
                 bank_active_row_d[stage2_bank] = stage2_row;
-                stage2_issue_command = 1;
             end
             //bank is not idle but wrong row is activated so do precharge
             else if(bank_status_q[stage2_bank] &&  bank_active_row_q[stage2_bank] != stage2_row &&  delay_before_precharge_counter_q[stage2_bank] ==0) begin       
@@ -1010,7 +1001,6 @@ module ddr3_controller #(
                 cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b0; 
-                stage2_issue_command = 1;
             end
         end //end of stage 2 pending
 
@@ -1031,7 +1021,6 @@ module ddr3_controller #(
                  delay_before_activate_counter_d[stage1_next_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
                 cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
                 bank_status_d[stage1_next_bank] = 1'b0; 
-                stage1_issue_command = 1;
             end //end of anticipate precharge
             
             //anticipated bank is idle so do activate
@@ -1045,7 +1034,6 @@ module ddr3_controller #(
                 cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
                 bank_status_d[stage1_next_bank] = 1'b1;
                 bank_active_row_d[stage1_next_bank] = stage1_next_row;
-                stage1_issue_command = 1;
             end //end of anticipate activate
             
         end //end of stage1 anticipate
@@ -1221,6 +1209,12 @@ module ddr3_controller #(
             dqs_target_index <= 0;
             dqs_target_index_orig <= 0;
             o_phy_bitslip <= 0;
+            o_phy_odelay_data_ld <= 0;
+            o_phy_odelay_dqs_ld <= 0;
+            o_phy_idelay_data_ld <= 0;
+            o_phy_idelay_dqs_ld <= 0;
+            lane_times_8 <= 0;
+            idelay_data_cntvaluein_prev <= 0;
             initial_dqs <= 1;
             lane <= 0;
             dqs_bitslip_arrangement <= 0;
@@ -1239,6 +1233,7 @@ module ddr3_controller #(
             added_read_pipe_max <= 0;
             dqs_start_index_stored <= 0;
             dqs_start_index_repeat <= 0;
+            dq_target_index <= 0;
             delay_before_write_level_feedback <= 0;
             delay_before_read_data <= 0;
             for(index = 0; index < LANES; index = index + 1) begin
@@ -1522,6 +1517,10 @@ module ddr3_controller #(
    always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             wb2_stb <= 0;
+            wb2_we <= 0; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN} 
+            wb2_addr <= 0;
+            wb2_data <= 0;
+            wb2_sel <= 0;
         end
         else begin
             if(i_wb2_cyc && !o_wb2_stall) begin 
@@ -1555,6 +1554,7 @@ module ddr3_controller #(
            wb2_write_lane <= 0;
            o_wb2_ack <= 0;
            o_wb2_stall <= 1;
+           o_wb2_data <= 0;
        end
        else begin
            wb2_phy_odelay_data_ld <= 0; 
