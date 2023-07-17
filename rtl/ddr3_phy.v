@@ -1,5 +1,6 @@
-
 `default_nettype none
+`timescale 1ps / 1ps
+
 module ddr3_phy #(
     parameter ROW_BITS = 14,
               BA_BITS = 3,
@@ -132,8 +133,30 @@ module ddr3_phy #(
                 .D2(i_controller_cmd[cmd_len*1 + gen_index]),
                 .D3(i_controller_cmd[cmd_len*2 + gen_index]),
                 .D4(i_controller_cmd[cmd_len*3 + gen_index]),
-                .OCE(1), // 1-bit input: Output data clock enable
-                .RST(sync_rst) // 1-bit input: Reset
+                .OCE(1'b1), // 1-bit input: Output data clock enable
+                .RST(sync_rst), // 1-bit input: Reset
+                // unused signals but were added here to make vivado happy
+                .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT2(),
+                .TBYTEOUT(), // 1-bit output: Byte group tristate
+                .TFB(), // 1-bit output: 3-state control
+                .TQ(), // 1-bit output: 3-state control
+                .D5(),
+                .D6(),
+                .D7(),
+                .D8(),
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1(0),
+                .SHIFTIN2(0),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1(0),
+                .T2(0),
+                .T3(0),
+                .T4(0),
+                .TBYTEIN(0),
+                // 1-bit input: Byte group tristate
+                .TCE(0)
+                // 1-bit input: 3-state clock enable
             );
             // End of OSERDESE2_inst instantiation
         
@@ -153,16 +176,16 @@ module ddr3_phy #(
             .CNTVALUEOUT(), // 5-bit output: Counter value output
             .DATAOUT(cmd[gen_index]), // 1-bit output: Delayed data/clock output
             .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
-            .CE(0), // 1-bit input: Active high enable increment/decrement input
-            .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
-            .CLKIN(0), // 1-bit input: Clock delay input
-            .CNTVALUEIN(0), // 5-bit input: Counter value input
-            .INC(0), // 1-bit input: Increment / Decrement tap delay input
-            .LD(0), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+            .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
+            .CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
+            .CLKIN(1'b0), // 1-bit input: Clock delay input
+            .CNTVALUEIN(5'd0), // 5-bit input: Counter value input
+            .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
+            .LD(1'b0), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                         // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
-            .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+            .LDPIPEEN(1'b0), // 1-bit input: Enables the pipeline register to load data
             .ODATAIN(oserdes_cmd[gen_index]), // 1-bit input: Output delay data input
-            .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+            .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
         );
         end
     endgenerate 
@@ -201,8 +224,26 @@ module ddr3_phy #(
         .D6(1'b0),
         .D7(1'b1),
         .D8(1'b0),
-        .OCE(1), // 1-bit input: Output data clock enable
-        .RST(sync_rst) // 1-bit input: Reset
+        .OCE(1'b1), // 1-bit input: Output data clock enable
+        .RST(sync_rst), // 1-bit input: Reset
+         // unused signals but were added here to make vivado happy
+        .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+        .SHIFTOUT2(),
+        .TBYTEOUT(), // 1-bit output: Byte group tristate
+        .TFB(), // 1-bit output: 3-state control
+        .TQ(), // 1-bit output: 3-state control
+        // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+        .SHIFTIN1(0),
+        .SHIFTIN2(0),
+        // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+        .T1(0),
+        .T2(0),
+        .T3(0),
+        .T4(0),
+        .TBYTEIN(0),
+        // 1-bit input: Byte group tristate
+        .TCE(0)
+        // 1-bit input: 3-state clock enable
     );
     // End of OSERDESE2_inst instantiation
 
@@ -247,8 +288,22 @@ module ddr3_phy #(
                 .D8(i_controller_data[gen_index + (DQ_BITS*LANES)*7]),
                 .T1(i_controller_dq_tri_control),
                 .TCE(1'b1),
-                .OCE(1), // 1-bit input: Output data clock enable
-                .RST(sync_rst) // 1-bit input: Reset
+                .OCE(1'b1), // 1-bit input: Output data clock enable
+                .RST(sync_rst), // 1-bit input: Reset
+                // unused signals but were added here to make vivado happy
+                .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT2(),
+                .TBYTEOUT(), // 1-bit output: Byte group tristate
+                .TFB(), // 1-bit output: 3-state control
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1(0),
+                .SHIFTIN2(0),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T2(0),
+                .T3(0),
+                .T4(0),
+                .TBYTEIN(0)
+                // 1-bit input: Byte group tristate
             );
             // End of OSERDESE2_inst instantiation
             
@@ -272,15 +327,15 @@ module ddr3_phy #(
                 .DATAOUT(odelay_data[gen_index]), // 1-bit output: Delayed data/clock output
                 .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
                 .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
-                .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
-                .CLKIN(0), // 1-bit input: Clock delay input
+                .CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
+                .CLKIN(1'b0), // 1-bit input: Clock delay input
                 .CNTVALUEIN(i_controller_odelay_data_cntvaluein), // 5-bit input: Counter value input
                 .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
-                .LD(i_controller_odelay_data_ld[$rtoi($floor(gen_index/8))]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
+                .LD(i_controller_odelay_data_ld[gen_index/8]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                             // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
-                .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+                .LDPIPEEN(1'b0), // 1-bit input: Enables the pipeline register to load data
                 .ODATAIN(oserdes_data[gen_index]), // 1-bit input: Output delay data input
-                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+                .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
             );
 
             // IOBUF: Single-ended Bi-directional Buffer
@@ -316,14 +371,14 @@ module ddr3_phy #(
                 .DATAOUT(idelay_data[gen_index]), // 1-bit output: Delayed data output
                 .C(i_controller_clk), // 1-bit input: Clock input
                 .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
-                .CINVCTRL(0),// 1-bit input: Dynamic clock inversion input
+                .CINVCTRL(1'b0),// 1-bit input: Dynamic clock inversion input
                 .CNTVALUEIN(i_controller_idelay_data_cntvaluein), // 5-bit input: Counter value input
                 .DATAIN(), //1-bit input: Internal delay data input
                 .IDATAIN(read_dq[gen_index]), // 1-bit input: Data input from the I/O
                 .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
-                .LD(i_controller_idelay_data_ld[$rtoi($floor(gen_index/8))]), // 1-bit input: Load IDELAY_VALUE input
-                .LDPIPEEN(0), // 1-bit input: Enable PIPELINE register to load data input
-                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+                .LD(i_controller_idelay_data_ld[gen_index/8]), // 1-bit input: Load IDELAY_VALUE input
+                .LDPIPEEN(1'b0), // 1-bit input: Enable PIPELINE register to load data input
+                .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
             );
             // End of IDELAYE2_inst instantiation
 
@@ -364,15 +419,15 @@ module ddr3_phy #(
                 // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
                 .SHIFTOUT1(),
                 .SHIFTOUT2(),
-                .BITSLIP(i_controller_bitslip[$rtoi($floor(gen_index/8))]),
+                .BITSLIP(i_controller_bitslip[gen_index/8]),
                 // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
                 // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
                 // to Q8 output ports will shift, as in a barrel-shifter operation, one
                 // position every time Bitslip is invoked (DDR operation is different from
                 // SDR).
                 // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
-                .CE1(1),
-                .CE2(1),
+                .CE1(1'b1),
+                .CE2(1'b1),
                 .CLKDIVP(), // 1-bit input: TBD
                 // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
                 .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
@@ -411,7 +466,6 @@ module ddr3_phy #(
             OSERDESE2_dm(
                 .OFB(oserdes_dm[gen_index]), // 1-bit output: Feedback path for data
                 .OQ(), // 1-bit output: Data path output
-                .TQ(),
                 .CLK(i_ddr3_clk), // 1-bit input: High speed clock
                 .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
                 // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
@@ -423,9 +477,25 @@ module ddr3_phy #(
                 .D6(i_controller_dm[gen_index + LANES*5]),
                 .D7(i_controller_dm[gen_index + LANES*6]),
                 .D8(i_controller_dm[gen_index + LANES*7]),
-                .TCE(0),
-                .OCE(1), // 1-bit input: Output data clock enable
-                .RST(sync_rst) // 1-bit input: Reset
+                .TCE(1'b0),
+                .OCE(1'b1), // 1-bit input: Output data clock enable
+                .RST(sync_rst), // 1-bit input: Reset
+                 // unused signals but were added here to make vivado happy
+                .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT2(),
+                .TBYTEOUT(), // 1-bit output: Byte group tristate
+                .TFB(), // 1-bit output: 3-state control
+                .TQ(), // 1-bit output: 3-state control
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1(0),
+                .SHIFTIN2(0),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1(0),
+                .T2(0),
+                .T3(0),
+                .T4(0),
+                .TBYTEIN(0)
+                // 1-bit input: Byte group tristate
             );
             // End of OSERDESE2_inst instantiation
             
@@ -449,15 +519,15 @@ module ddr3_phy #(
                 .DATAOUT(odelay_dm[gen_index]), // 1-bit output: Delayed data/clock output
                 .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
                 .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
-                .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
-                .CLKIN(0), // 1-bit input: Clock delay input
+                .CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
+                .CLKIN(1'b0), // 1-bit input: Clock delay input
                 .CNTVALUEIN(i_controller_odelay_data_cntvaluein), // 5-bit input: Counter value input
                 .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
                 .LD(i_controller_odelay_data_ld[gen_index]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                             // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
-                .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+                .LDPIPEEN(1'b0), // 1-bit input: Enables the pipeline register to load data
                 .ODATAIN(oserdes_dm[gen_index]), // 1-bit input: Output delay data input
-                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+                .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
             );
             
             // OBUF: Single-ended Output Buffer
@@ -494,16 +564,16 @@ module ddr3_phy #(
                 .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(odelay_dqs[gen_index]), // 1-bit output: Delayed data/clock output
                 .C(i_controller_clk), // 1-bit input: Clock input, when using OSERDESE2, C is connected to CLKDIV
-                .CE(0), // 1-bit input: Active high enable increment/decrement input
-                .CINVCTRL(0), // 1-bit input: Dynamic clock inversion input
-                .CLKIN(0), // 1-bit input: Clock delay input
+                .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
+                .CLKIN(1'b0), // 1-bit input: Clock delay input
                 .CNTVALUEIN(i_controller_odelay_dqs_cntvaluein), // 5-bit input: Counter value input
-                .INC(0), // 1-bit input: Increment / Decrement tap delay input
+                .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
                 .LD(i_controller_odelay_dqs_ld[gen_index]), // 1-bit input: Loads ODELAY_VALUE tap delay in VARIABLE mode, in VAR_LOAD or
                             // VAR_LOAD_PIPE mode, loads the value of CNTVALUEIN
-                .LDPIPEEN(0), // 1-bit input: Enables the pipeline register to load data
+                .LDPIPEEN(1'b0), // 1-bit input: Enables the pipeline register to load data
                 .ODATAIN(oserdes_dqs[gen_index]), // 1-bit input: Output delay data input
-                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+                .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
             );
 
             // OSERDESE2: Output SERial/DESerializer with bitslip
@@ -533,8 +603,22 @@ module ddr3_phy #(
                 .D8(1'b0 && i_controller_toggle_dqs),
                 .T1(i_controller_dqs_tri_control),
                 .TCE(1'b1),
-                .OCE(1), // 1-bit input: Output data clock enable
-                .RST(sync_rst) // 1-bit input: Reset
+                .OCE(1'b1), // 1-bit input: Output data clock enable
+                .RST(sync_rst), // 1-bit input: Reset
+                 // unused signals but were added here to make vivado happy
+                .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT2(),
+                .TBYTEOUT(), // 1-bit output: Byte group tristate
+                .TFB(), // 1-bit output: 3-state control
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1(0),
+                .SHIFTIN2(0),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T2(0),
+                .T3(0),
+                .T4(0),
+                .TBYTEIN(0)
+                // 1-bit input: Byte group tristate
             );
             // End of OSERDESE2_inst instantiation
             
@@ -572,15 +656,15 @@ module ddr3_phy #(
                 .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(idelay_dqs[gen_index]), // 1-bit output: Delayed data output
                 .C(i_controller_clk), // 1-bit input: Clock input
-                .CE(0), // 1-bit input: Active high enable increment/decrement input
-                .CINVCTRL(0),// 1-bit input: Dynamic clock inversion input
+                .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
+                .CINVCTRL(1'b0),// 1-bit input: Dynamic clock inversion input
                 .CNTVALUEIN(i_controller_idelay_dqs_cntvaluein), // 5-bit input: Counter value input
                 .DATAIN(), //1-bit input: Internal delay data input
                 .IDATAIN(read_dqs[gen_index]), // 1-bit input: Data input from the I/O
-                .INC(0), // 1-bit input: Increment / Decrement tap delay input
+                .INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
                 .LD(i_controller_idelay_dqs_ld[gen_index]), // 1-bit input: Load IDELAY_VALUE input
-                .LDPIPEEN(0), // 1-bit input: Enable PIPELINE register to load data input
-                .REGRST(0) // 1-bit input: Active-high reset tap-delay input
+                .LDPIPEEN(1'b0), // 1-bit input: Enable PIPELINE register to load data input
+                .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
             );
             // End of IDELAYE2_inst instantiation
             
@@ -628,8 +712,8 @@ module ddr3_phy #(
                 // position every time Bitslip is invoked (DDR operation is different from
                 // SDR).
                 // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
-                .CE1(1),
-                .CE2(1),
+                .CE1(1'b1),
+                .CE2(1'b1),
                 .CLKDIVP(), // 1-bit input: TBD
                 // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
                 .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
@@ -697,8 +781,8 @@ module ddr3_phy #(
                 // position every time Bitslip is invoked (DDR operation is different from
                 // SDR).
                 // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
-                .CE1(1),
-                .CE2(1),
+                .CE1(1'b1),
+                .CE2(1'b1),
                 .CLKDIVP(), // 1-bit input: TBD
                 // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
                 .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
@@ -744,8 +828,26 @@ module ddr3_phy #(
                     .D6(1'b1),
                     .D7(1'b1),
                     .D8(1'b1),
-                    .OCE(1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst) // 1-bit input: Reset
+                    .OCE(1'b1), // 1-bit input: Output data clock enable
+                    .RST(sync_rst), // 1-bit input: Reset
+                     // unused signals but were added here to make vivado happy
+                    .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                    .SHIFTOUT2(),
+                    .TBYTEOUT(), // 1-bit output: Byte group tristate
+                    .TFB(), // 1-bit output: 3-state control
+                    .TQ(), // 1-bit output: 3-state control
+                    // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    .SHIFTIN1(0),
+                    .SHIFTIN2(0),
+                    // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                    .T1(0),
+                    .T2(0),
+                    .T3(0),
+                    .T4(0),
+                    .TBYTEIN(0),
+                    // 1-bit input: Byte group tristate
+                    .TCE(0)
+                    // 1-bit input: 3-state clock enable
                 );
                 // End of OSERDESE2_inst instantiation  
     
@@ -776,7 +878,7 @@ module ddr3_phy #(
         .D6(1'b1),
         .D7(1'b1),
         .D8(1'b1),
-        .OCE(1), // 1-bit input: Output data clock enable
+        .OCE(1'b1), // 1-bit input: Output data clock enable
         .RST(sync_rst) // 1-bit input: Reset
     );
     // End of OSERDESE2_inst instantiation  
@@ -804,7 +906,7 @@ module ddr3_phy #(
         .D6(1'b0 && i_controller_toggle_dqs),
         .D7(1'b1 && i_controller_toggle_dqs),
         .D8(1'b0 && i_controller_toggle_dqs),
-        .OCE(1), // 1-bit input: Output data clock enable
+        .OCE(1'b1), // 1-bit input: Output data clock enable
         .RST(sync_rst) // 1-bit input: Reset
     );
     // End of OSERDESE2_inst instantiation
