@@ -1,5 +1,6 @@
-
 `default_nettype none
+`timescale 1ps / 1ps
+
 module ddr3_top #(
     parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
                    DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
