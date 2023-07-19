@@ -198,7 +198,7 @@ ddr3_top #(
     );
     
     reg[511:0] write_data = 0, expected_read_data = 0;
-    integer address = 0, read_address = 0;
+    integer address = 0, read_address = 0, address_inner = 0;
     integer start_address = 0, start_read_address;
     integer number_of_writes=0, number_of_reads=0, number_of_successful=0, number_of_failed=0;
     integer random_start = $random; //starting seed for random accesss
@@ -472,9 +472,67 @@ ddr3_top #(
         end
         $display("\n--------------------------------\nDONE TEST 2: RANDOM\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
+            
         #100_000;
-       
-        
+        // Test 3: Read from wishbone 2 (PHY)
+        // Wishbone 2
+        i_wb2_cyc <= 0; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+        i_wb2_stb <= 0; //request a transfer
+        i_wb2_we <= 0; //write-enable (1 = write, 0 = read)
+        i_wb2_addr <= 0; //memory-mapped register to be accessed 
+        i_wb2_data <= 0; //write data
+        i_wb2_sel <= 0; 
+        address <= 0;
+        address_inner <= 0;
+        #1; //just to make sure the non-blocking are assignments are all over
+        while(address < 9 ) begin
+            if(address <= 3) begin
+                while(address_inner < 7) begin
+                    @(posedge i_controller_clk) begin
+                        if(!i_wb2_stb || !o_wb2_stall) begin 
+                            i_wb2_cyc <= 1;
+                            i_wb2_stb <= 1; //0,1,2,3,4,5,6,7,8
+                            i_wb2_we <= 0; 
+                            i_wb2_addr <= address | address_inner << 4;
+                            address_inner <= address_inner + 1; 
+                        end
+                    end
+                    #1;
+                end //end of while
+                
+                @(posedge i_controller_clk) begin
+                    if(!i_wb2_stb || !o_wb2_stall) begin 
+                        i_wb2_cyc <= 1;
+                        i_wb2_stb <= 1; //0,1,2,3,4,5,6,7,8
+                        i_wb2_we <= 0; 
+                        i_wb2_addr <= address | address_inner << 4;
+                        address <= address + 1;
+                        address_inner <= 0;
+                    end
+                 end //end of @posedge 
+             end //end of if(address <= 3)
+             
+             else begin
+                @(posedge i_controller_clk) begin
+                    if(!i_wb2_stb || !o_wb2_stall) begin 
+                        i_wb2_cyc <= 1;
+                        i_wb2_stb <= 1;
+                        i_wb2_we <= 0; 
+                        i_wb2_addr <= address;
+                        address <= address + 1; 
+                    end
+                 end
+             end
+
+            #1; //just to make sure the non-blocking are assignments are all over
+        end
+        while(i_wb_stb) begin
+           @(posedge i_controller_clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
+        end
+        #100_000;
+
         /*
         // write
         //wait until ready to access
@@ -594,11 +652,96 @@ ddr3_top #(
                 read_address = read_address + ($bits(ddr3_top.i_wb_data)/32); 
            end
         end
-        
-                
-                
     end
-    
+
+    //receive wb2 data
+    integer wb2_addr=0, wb2_addr_lane=0;
+    initial begin
+        while(wb2_addr <= 9) begin
+            @(posedge i_controller_clk);
+            if(o_wb2_ack) begin
+                case(wb2_addr) 
+                    0: begin
+                            if(wb2_addr_lane == 0) $display("\n\nWishbone 2 (PHY) Test:");
+                            $display("[0]: odelay_data_cntvaluein[%0d] = %0d", wb2_addr_lane, o_wb2_data);
+                            if(wb2_addr_lane < 7) begin
+                                wb2_addr_lane = wb2_addr_lane + 1;
+                            end
+                            else begin
+                                wb2_addr = wb2_addr + 1;
+                                wb2_addr_lane = 0;
+                            end
+                       end
+                     1: begin
+                            $display("[1]: odelay_dqs_cntvaluein[%0d] = %0d", wb2_addr_lane, o_wb2_data);
+                            if(wb2_addr_lane < 7) begin
+                                wb2_addr_lane = wb2_addr_lane + 1;
+                            end
+                            else begin
+                                wb2_addr = wb2_addr + 1;
+                                wb2_addr_lane = 0;
+                            end
+                       end
+                     2: begin
+                            $display("[2]: idelay_data_cntvaluein[%0d] = %0d", wb2_addr_lane, o_wb2_data);
+                            if(wb2_addr_lane < 7) begin
+                                wb2_addr_lane = wb2_addr_lane + 1;
+                            end
+                            else begin
+                                wb2_addr = wb2_addr + 1;
+                                wb2_addr_lane = 0;
+                            end
+                       end
+                    3: begin
+                            $display("[3]: idelay_dqs_cntvaluein[%0d] = %0d", wb2_addr_lane, o_wb2_data);
+                            if(wb2_addr_lane < 7) begin
+                                wb2_addr_lane = wb2_addr_lane + 1;
+                            end
+                            else begin
+                                wb2_addr = wb2_addr + 1;
+                                wb2_addr_lane = 0;
+                            end
+                       end
+                    4: begin
+                            $display("[4]: i_phy_idelayctrl_rdy = %0d", o_wb2_data[0]);
+                            $display("[4]: state_calibrate = %0d", o_wb2_data[5:1]);
+                            $display("[4]: instruction_address = %0d", o_wb2_data[10:6]);
+                            $display("[4]: added_read_pipe_max = %0d", o_wb2_data[14:11]);
+                             wb2_addr = wb2_addr + 1;
+                        end
+                    5: begin
+                            $display("[5]: added_read_pipe[0] = %0d", o_wb2_data[3:0]);
+                            $display("[5]: added_read_pipe[1] = %0d", o_wb2_data[7:4]);
+                            $display("[5]: added_read_pipe[2] = %0d", o_wb2_data[11:8]);
+                            $display("[5]: added_read_pipe[3] = %0d", o_wb2_data[15:12]);
+                            $display("[5]: added_read_pipe[4] = %0d", o_wb2_data[19:16]);
+                            $display("[5]: added_read_pipe[5] = %0d", o_wb2_data[23:20]);
+                            $display("[5]: added_read_pipe[6] = %0d", o_wb2_data[27:24]);
+                            $display("[5]: added_read_pipe[7] = %0d", o_wb2_data[31:28]);
+                             wb2_addr = wb2_addr + 1;
+                        end
+                    6: begin
+                            $display("[6]: dqs_store = %b_%b_%b_%b", o_wb2_data[31:24], o_wb2_data[23:16], o_wb2_data[15:8], o_wb2_data[7:0]);
+                             wb2_addr = wb2_addr + 1;
+                        end
+                    7: begin
+                            $display("[7]: i_phy_iserdes_bitslip_reference = %b_%b_%b_%b", o_wb2_data[31:24], o_wb2_data[23:16], o_wb2_data[15:8], o_wb2_data[7:0]);
+                             wb2_addr = wb2_addr + 1;
+                        end
+                    8: begin
+                            $display("[8]: read_data_store = %h", o_wb2_data);
+                             wb2_addr = wb2_addr + 1;
+                        end
+                    9: begin
+                            $display("[9]: write_pattern = %h", o_wb2_data);
+                             wb2_addr = wb2_addr + 1;
+                        end
+                endcase        
+               
+            end
+        end
+    end
+
     reg[8*3-1:0] command_used; //store command in ASCII
     reg[3*8*2-1:0] prev_cmd; //stores previous 2 commands
     reg[32*2-1:0] prev_time;
