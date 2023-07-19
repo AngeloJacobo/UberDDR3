@@ -395,7 +395,7 @@ module ddr3_phy #(
                 .INIT_Q3(1'b0),
                 .INIT_Q4(1'b0),
                 .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-                .IOBDELAY("BOTH"), // NONE, BOTH, IBUF, IFD
+                .IOBDELAY("IFD"), // NONE, BOTH, IBUF, IFD
                 .NUM_CE(1),// Number of clock enables (1,2)
                 .OFB_USED("FALSE"), // Select OFB path (FALSE, TRUE)
                 // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
@@ -681,7 +681,7 @@ module ddr3_phy #(
                 .INIT_Q3(1'b0),
                 .INIT_Q4(1'b0),
                 .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-                .IOBDELAY("BOTH"), // NONE, BOTH, IBUF, IFD
+                .IOBDELAY("IFD"), // NONE, BOTH, IBUF, IFD
                 .NUM_CE(1),// Number of clock enables (1,2)
                 .OFB_USED("FALSE"), // Select OFB path (FALSE, TRUE)
                 // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
