@@ -92,5 +92,4 @@
 ## Extra
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/b3a63bac-7ea2-485a-b3f1-d237d5b0906d)
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/c4fb1a4e-993f-4c62-8933-d333293b1a31)
-
-
+![Screenshot from 2023-07-20 18-46-12](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/54f44971-0e47-46cc-94c6-c59c78336511)
