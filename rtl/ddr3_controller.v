@@ -8,7 +8,6 @@
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
 
 `define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-//`define SUPPORT_REAL //uncomment if tool can support type real
 //`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
 //`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
 `default_nettype none
@@ -39,21 +38,22 @@
 module ddr3_controller #(
     parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
                    DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
-    parameter[31:0]ROW_BITS = 16,   //width of row address
+    parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
                    LANES = 8, //8 lanes of DQ
                    AUX_WIDTH = 16, 
-                   WB2_ADDR_BITS = 32,
+                   WB2_ADDR_BITS = 7,
                    WB2_DATA_BITS = 32,
+    /* verilator lint_off UNUSEDPARAM */
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-
+    /* verilator lint_on UNUSEDPARAM */
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
-                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
+                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
                 wb_sel_bits = wb_data_bits / 8,
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
@@ -115,7 +115,6 @@ module ddr3_controller #(
                       CMD_WR  = 4'b0100, // Write (A10-AP: 0 = no Auto-Precharge) (A12-BC#: 1 = Burst Length 8) 
                       CMD_RD  = 4'b0101, //Read  (A10-AP: 0 = no Auto-Precharge) (A12-BC#: 1 = Burst Length 8) 
                       CMD_NOP = 4'b0111, // No Operation
-                      CMD_DES = 4'b1000, // Deselect command performs the same function as No Operation command (JEDEC DDR3 doc pg. 34 NOTE 11)
                       CMD_ZQC = 4'b0110; // ZQ Calibration (A10-AP: 0 = ZQ Calibration Short, 1 = ZQ Calibration Long)
 
     localparam RST_DONE = 27, // Command bit that determines if reset seqeunce had aready finished. non-persistent (only needs to be toggled once), 
@@ -129,7 +128,8 @@ module ddr3_controller #(
                   MRS_BANK_START = 18; //start of bank value in MRS value
                      
     // ddr3 command partitioning
-    localparam CMD_CS_N = cmd_len - 1, 
+    /* verilator lint_off UNUSEDPARAM */
+    localparam CMD_CS_N = cmd_len - 1,
                CMD_RAS_N = cmd_len - 2,
                CMD_CAS_N= cmd_len - 3,
                CMD_WE_N = cmd_len - 4,
@@ -138,7 +138,7 @@ module ddr3_controller #(
                CMD_RESET_N = cmd_len - 7,
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ADDRESS_START = ROW_BITS - 1;
-               
+    /* verilator lint_on UNUSEDPARAM */          
     localparam READ_SLOT = get_slot(CMD_RD),
                 WRITE_SLOT = get_slot(CMD_WR),
                 ACTIVATE_SLOT = get_slot(CMD_ACT),
@@ -182,21 +182,16 @@ module ddr3_controller #(
         localparam tRFC             =       350.0;      // ns Refresh command  to ACT or REF 
     `endif
     localparam tREFI = 7800; //ns Average periodic refresh interval
-    /* verilator lint_off REALCVT */
     localparam tXPR = max(5*DDR3_CLK_PERIOD, tRFC+10); // ns Exit Reset from CKE HIGH to a valid command
-    localparam tMRD = 4; // nCK Mode Register Set command cycle time
     localparam tWR = 15.0; // ns Write Recovery Time
     localparam tWTR = max(nCK_to_ns(4), 7.5); //ns Delay from start of internal write transaction to internal read command
     localparam[DELAY_SLOT_WIDTH - 1:0] tWLMRD = nCK_to_cycles(40); // nCK First DQS/DQS# rising edge after write leveling mode is programmed
     localparam tWLO = 7.5; //ns Write leveling output delay
     localparam tWLOE = 2;
     localparam tRTP = max(nCK_to_ns(4), 7.5); //ns Internal Command to PRECHARGE Command delay
-    /* verilator lint_on REALCVT */
     localparam tCCD = 4; //nCK CAS to CAS command delay
-    /* verilator lint_off WIDTH */
-    localparam[DELAY_SLOT_WIDTH - 1:0] tMOD = max(nCK_to_cycles(12), ns_to_cycles(15)); //cycles (controller)  Mode Register Set command update delay
-    localparam[DELAY_SLOT_WIDTH - 1:0] tZQinit = max(nCK_to_cycles(512), ns_to_cycles(640));//cycles (controller)  Power-up and RESET calibration time
-    /* verilator lint_on WIDTH */
+    localparam tMOD = $rtoi(max(nCK_to_cycles(12), ns_to_cycles(15))); //cycles (controller)  Mode Register Set command update delay
+    localparam tZQinit = $rtoi(max(nCK_to_cycles(512), ns_to_cycles(640)));//cycles (controller)  Power-up and RESET calibration time
     localparam CL_nCK = 6; //create a function for this
     localparam CWL_nCK = 5; //create a function for this
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
@@ -207,7 +202,6 @@ module ddr3_controller #(
     
 
     /********************************************************** Computed Delay Parameters **********************************************************/
-    /* verilator lint_off REALCVT */
     localparam[3:0] PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ns_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
     localparam[3:0] ACTIVATE_TO_PRECHARGE_DELAY = find_delay(ns_to_nCK(tRAS), ACTIVATE_SLOT, PRECHARGE_SLOT);
     localparam[3:0] ACTIVATE_TO_WRITE_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
@@ -219,7 +213,6 @@ module ddr3_controller #(
     localparam[3:0] WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
     localparam[3:0] WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
     localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
-    /* verilator lint_on REALCVT */
 
     //MARGIN_BEFORE_ANTICIPATE is the number of columns before the column
     //end when the anticipate can start
@@ -239,9 +232,8 @@ module ddr3_controller #(
     localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 ));
     localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
-    /* verilator lint_off REALCVT */
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ns_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
-    /* verilator lint_on REALCVT */                                                                  //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
+                                                                                                      //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
     /*********************************************************************************************************************************************/
    
     
@@ -284,7 +276,6 @@ module ddr3_controller #(
     localparam[2:0] MR3_SEL = 3'b011; //MPR Selected
     localparam[18:0] MR3_MPR_EN = {MR3_SEL, 13'b0_0000_0000_0000, MPR_EN, MPR_LOC}; 
     localparam[18:0] MR3_MPR_DIS = {MR3_SEL, 13'b0_0000_0000_0000, MPR_DIS, MPR_LOC}; 
-    localparam[ROW_BITS+BA_BITS-1:0] MR3_RD_ADDR = 0;
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
@@ -306,9 +297,7 @@ module ddr3_controller #(
     localparam[3:0] CL = 4'b0100; //CAS Read Latency: 10, can support DDR-1600 speedbin 8-8-8, 9-9-9, and 10-10-10 (Check JEDEC DDR doc pg. 162) CREATE A FUNCTION FOR THIS
     localparam[0:0] RBT = 1'b0; //Read Burst Type: Nibble Sequential
     localparam[0:0] DLL_RST = 1'b1; //DLL Reset: Yes (this is self-clearing and must be applied after DLL enable)
-    /* verilator lint_off REALCVT */
-    localparam[2:0] WR = WRA_mode_register_value($ceil(tWR/DDR3_CLK_PERIOD)); //Write recovery for autoprecharge (
-    /* verilator lint_on REALCVT */
+    localparam[2:0] WR = WRA_mode_register_value($rtoi($ceil(tWR/DDR3_CLK_PERIOD))); //Write recovery for autoprecharge (
     localparam[0:0] PPD = 1'b0; //DLL Control for Precharge PD: Slow exit (DLL off)
     localparam[2:0] MR0_SEL = 3'b000;
     localparam[18:0] MR0 = {MR0_SEL, 3'b000, PPD, WR, DLL_RST, 1'b0, CL[3:1], RBT, CL[0], BL};
@@ -379,12 +368,7 @@ module ddr3_controller #(
     reg[STAGE2_DATA_DEPTH:0] write_dqs;
     reg[STAGE2_DATA_DEPTH:0] write_dqs_val;
     reg write_dq_q, write_dq_d;
-    reg[STAGE2_DATA_DEPTH+1:0] write_dq;
-                
-    genvar gen_index;
-    reg[cmd_len-1:0] aligned_cmd;
-    reg[1:0] serial_index,serial_index_q;
-    wire[LANES-1:0] test_OFB;
+    reg[STAGE2_DATA_DEPTH+1:0] write_dq;  
     
     reg[$clog2(DONE_CALIBRATE):0] state_calibrate;
     reg[STORED_DQS_SIZE*8-1:0] dqs_store = 0;
@@ -400,7 +384,9 @@ module ddr3_controller #(
     reg initial_dqs = 0;
     reg[$clog2(LANES)-1:0] lane = 0;
     reg[$clog2(8*LANES)-1:0] lane_times_8 = 0;
+    /* verilator lint_off UNUSEDSIGNAL */
     reg[15:0] dqs_bitslip_arrangement = 0;
+    /* verilator lint_off UNUSEDSIGNAL */
     reg[3:0] added_read_pipe_max = 0;
     reg[3:0] added_read_pipe[LANES - 1:0];
     
@@ -438,7 +424,6 @@ module ddr3_controller #(
     reg[WB2_ADDR_BITS-1:0] wb2_addr = 0;
     reg[WB2_DATA_BITS-1:0] wb2_data = 0;
     reg[wb2_sel_bits-1:0] wb2_sel = 0;
-    reg[$clog2(LANES)-1:0] wb2_read_lane;
     reg[4:0] wb2_phy_odelay_data_cntvaluein;
     reg[4:0] wb2_phy_odelay_dqs_cntvaluein;
     reg[4:0] wb2_phy_idelay_data_cntvaluein;
@@ -507,8 +492,8 @@ module ddr3_controller #(
         
         // NOTE: The timer delay is a delay in clock cycles AFTER EXECUTING COMMAND, not the ACTUAL CYCLES of the command 
         // (delay of 1 means 2 clock cycles of command execution) //initial reset instruction has low rst_n, low cke, and has delay of 5
-    function [27:0] read_rom_instruction(input[4:0] instruction_address);
-        case(instruction_address) 
+    function [27:0] read_rom_instruction(input[4:0] func_instruction_address); begin
+        case(func_instruction_address) 
     
             5'd0: 
             `ifdef MICRON_SIM
@@ -543,25 +528,23 @@ module ddr3_controller #(
             5'd6: read_rom_instruction = {{2'b00,MR0[10], 2'b11}, CMD_MRS, MR0}; 
             //6. Issue MRS command to load MR0 and reset DLL.
             
-            5'd7: read_rom_instruction = {5'b01011, CMD_NOP, tMOD};
+            5'd7: read_rom_instruction = {5'b01011, CMD_NOP, tMOD[DELAY_SLOT_WIDTH-1:0]};
             //7. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
            
-            5'd8: read_rom_instruction = {5'b01111, CMD_ZQC, tZQinit}; 
+            5'd8: read_rom_instruction = {5'b01111, CMD_ZQC, tZQinit[DELAY_SLOT_WIDTH-1:0]}; 
             //8. ZQ Calibration command is used to calibrate DRAM Ron & ODT values. ZQCL command triggers the calibration engine 
             //inside the DRAM and, once calibration is achieved, the calibrated values area transferred from the calibration engine to 
             //DRAM IO, which gets reflected as updated output driver
             
              // Precharge all banks before enabling MPR
-             /* verilator lint_off REALCVT */
             5'd9: read_rom_instruction = {5'b01111, CMD_PRE, ns_to_cycles(tRP)}; 
-            /* verilator lint_on REALCVT */
             //9. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
             5'd10: read_rom_instruction = {{2'b00,MR3_MPR_EN[10], 2'b11}, CMD_MRS, MR3_MPR_EN}; 
             //10. Issue MRS command to load MR3. Prior to enabling the MPR for read calibration, all banks must be in the idle state (all banks 
             // precharged and tRP met). Once the MPR is enabled, any subsequent RD or RDA commands will be redirected to the MultiPurpose Register. 
             
-            5'd11: read_rom_instruction = {5'b01011, CMD_NOP, tMOD};
+            5'd11: read_rom_instruction = {5'b01011, CMD_NOP, tMOD[DELAY_SLOT_WIDTH-1:0]};
             //11. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
             5'd12: read_rom_instruction = {5'b01011, CMD_NOP, CALIBRATION_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
@@ -573,7 +556,7 @@ module ddr3_controller #(
             5'd14: read_rom_instruction = {{2'b00,MR1_WL_EN[10], 2'b11}, CMD_MRS, MR1_WL_EN}; 
             //14. Issue MRS command to load MR1, and enable WL. 
             
-            5'd15: read_rom_instruction = {5'b01011, CMD_NOP, tWLMRD};
+            5'd15: read_rom_instruction = {5'b01011, CMD_NOP, tWLMRD[DELAY_SLOT_WIDTH-1:0]};
             //15. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
             5'd16: read_rom_instruction = {5'b01011, CMD_NOP, CALIBRATION_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
@@ -582,18 +565,14 @@ module ddr3_controller #(
             5'd17: read_rom_instruction = {{2'b00,MR1_WL_DIS[10], 2'b11}, CMD_MRS, MR1_WL_DIS}; 
             //17. Issue MRS command to load MR1, and disable WL. 
             
-            5'd18: read_rom_instruction = {5'b01011, CMD_NOP, tMOD};
+            5'd18: read_rom_instruction = {5'b01011, CMD_NOP, tMOD[DELAY_SLOT_WIDTH-1:0]};
             //18. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
             // Perform first refresh and any subsequent refresh (so instruction 12 to 15 will be re-used for the refresh sequence)
-            /* verilator lint_off REALCVT */
             5'd19: read_rom_instruction = {5'b01111, CMD_PRE, ns_to_cycles(tRP)}; 
-            /* verilator lint_on REALCVT */
             //19. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
-            /* verilator lint_off REALCVT */
             5'd20: read_rom_instruction = {5'b01011, CMD_REF, ns_to_cycles(tRFC)};
-            /* verilator lint_on REALCVT */
             //20. A delay between the Refresh Command and the next valid command, except NOP or DES, must be greater than or equal to the minimum 
             //Refresh cycle time tRFC(min) 
             
@@ -606,6 +585,7 @@ module ddr3_controller #(
             
             default: read_rom_instruction = {5'b00011, CMD_NOP, {(DELAY_SLOT_WIDTH){1'b0}}}; 
         endcase
+    end
     endfunction
     /*********************************************************************************************************************************************/
     
@@ -625,13 +605,7 @@ module ddr3_controller #(
         else begin 
             //update counter after reaching zero
             if(delay_counter_is_zero) begin 
-                `ifdef FORMAL_COVER____1
-                    //use fixed low value delay to cover the whole reset seqeunce using formal verification
-                    if(instruction[DELAY_COUNTER_WIDTH - 1:0] > `COVER_DELAY) delay_counter <= `COVER_DELAY;
-                    else delay_counter <= instruction[DELAY_COUNTER_WIDTH - 1:0] ; //use delay from rom if that is smaller than the COVER_DELAY macro
-                `else
-                    delay_counter <= instruction[DELAY_COUNTER_WIDTH - 1:0]; //retrieve delay value of current instruction, we count to zero thus minus 1
-                `endif
+                delay_counter <= instruction[DELAY_COUNTER_WIDTH - 1:0]; //retrieve delay value of current instruction, we count to zero thus minus 1
             end
             
             //else: decrement delay counter when current instruction needs delay
@@ -775,7 +749,7 @@ module ddr3_controller #(
                 //current column with a margin dictated by
                 //MARGIN_BEFORE_ANTICIPATE  
                 /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate[(ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))];
+                {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
                 //anticipated next row and bank to be accessed 
                 /* verilator lint_on WIDTH */
                 stage1_data <= i_wb_data;
@@ -872,9 +846,9 @@ module ddr3_controller #(
         cmd_d[PRECHARGE_SLOT] = {(!delay_counter_is_zero), instruction[DDR3_CMD_START-1:DDR3_CMD_END], cmd_odt, instruction[CLOCK_EN], instruction[RESET_N], 
                         instruction[MRS_BANK_START:(MRS_BANK_START-BA_BITS+1)], instruction[ROW_BITS-1:0]};
         cmd_d[PRECHARGE_SLOT][10] = instruction[A10_CONTROL];
-        cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS}{1'b0}}};  
-        cmd_d[WRITE_SLOT] = {(!issue_write_command),CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS}{1'b0}}}; 
-        cmd_d[ACTIVATE_SLOT] = {1'b1,CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {{ROW_BITS+BA_BITS}{1'b0}}}; 
+        cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  
+        cmd_d[WRITE_SLOT] = {(!issue_write_command),CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; 
+        cmd_d[ACTIVATE_SLOT] = {1'b1,CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; 
             
         // decrement delay counters for every bank
         for(index=0; index< (1<<BA_BITS); index=index+1) begin
@@ -935,9 +909,8 @@ module ddr3_controller #(
                         cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
                     else begin
-                        /* verilator lint_off SELRANGE */ //_verilator detects this line even if COL_BITS <= 10
-                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
-                        /* verilator lint_on SELRANGE */
+                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd12}{1'b0}} , 
+                            stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //turn on odt at same time as write cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -967,9 +940,8 @@ module ddr3_controller #(
                         cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
                     else begin
-                        /* verilator lint_off SELRANGE */ //_verilator detects this line even if COL_BITS <= 10
-                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd12}{1'b0}} , stage2_col[10] , 1'b0 , stage2_col[9:0]};  
-                        /* verilator lint_on SELRANGE */
+                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd12}{1'b0}} , 
+                            stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //turn off odt at same time as read cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -1191,11 +1163,13 @@ module ddr3_controller #(
     assign o_wb_data = o_wb_data_q[index_wb_data];
     assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH];
     assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH+1];
-    generate
-        if(STAGE2_DATA_DEPTH - 2 >= 0)
+    generate 
+        if(STAGE2_DATA_DEPTH >= 2) begin: TOGGLE_DQS
             assign o_phy_toggle_dqs = write_dqs_val[STAGE2_DATA_DEPTH-2]; 
-        else
+        end
+        else begin: TOGGLE_DQS_DEPTH_LESS_2
             assign o_phy_toggle_dqs = write_dqs_d || write_dqs_q[0]; 
+        end
     endgenerate
     /*********************************************************************************************************************************************/
     
@@ -1654,45 +1628,53 @@ module ddr3_controller #(
     /******************************************************* Functions *******************************************************/
     //convert nanoseconds time input to number of controller clock cycles (referenced to CONTROLLER_CLK_PERIOD)
     //output is set at same length as a MRS command (19 bits) to maximize the time slot
-    function [DELAY_SLOT_WIDTH - 1:0] ns_to_cycles (`ifdef SUPPORT_REAL input real ns `else input integer ns `endif); 
-        integer result;                              
-        begin
-            result = $rtoi($ceil(ns*1.0/CONTROLLER_CLK_PERIOD)); //Without $rtoi: YOSYS ERROR: Non-constant expression in constant function
-            ns_to_cycles = result[DELAY_SLOT_WIDTH - 1:0]; 
-        end
+    function [DELAY_SLOT_WIDTH - 1:0] ns_to_cycles (
+`ifdef YOSYS
+    input integer ns
+`else
+    input real ns //YOSYS ERROR: syntax error, unexpected TOK_REAL
+`endif
+    );                
+            /* verilator lint_off WIDTHTRUNC */              
+            ns_to_cycles = $rtoi($ceil(ns*1.0/CONTROLLER_CLK_PERIOD)); 
+            /* verilator lint_on WIDTHTRUNC */
     endfunction
 
     //convert nCK input (number of DDR3 clock cycles) to number of controller clock cycles (referenced to serdes_ratio)
-    function [DELAY_SLOT_WIDTH - 1:0] nCK_to_cycles (`ifdef SUPPORT_REAL input real nCK `else input integer nCK `endif); 
-        integer result; 
-        begin
-            result = $rtoi($ceil(nCK*1.0/serdes_ratio)); 
-            nCK_to_cycles =  result[DELAY_SLOT_WIDTH - 1:0]; 
-        end
+    function [DELAY_SLOT_WIDTH - 1:0] nCK_to_cycles (input integer nCK); 
+            /* verilator lint_off WIDTHTRUNC */
+            nCK_to_cycles =  $rtoi($ceil(nCK*1.0/serdes_ratio)); 
+            /* verilator lint_on WIDTHTRUNC */
     endfunction
     
     
     //convert nanoseconds time input  to number of DDR clock cycles (referenced to DDR3_CLK_PERIOD)
-    function integer ns_to_nCK (`ifdef SUPPORT_REAL input real ns `else input integer ns `endif);  
+    function integer ns_to_nCK (
+`ifdef YOSYS 
+    input integer ns
+`else
+    input real ns //YOSYS ERROR: syntax error, unexpected TOK_REAL
+`endif
+    );
         ns_to_nCK = $rtoi($ceil(ns*1.0/DDR3_CLK_PERIOD)); 
     endfunction
     
     //convert DDR clock cycles to nanoseconds (referenced to DDR3_CLK_PERIOD)
-    `ifdef SUPPORT_REAL
-    function real nCK_to_ns (input real nCK); 
-        nCK_to_ns = $ceil(nCK*1.0*DDR3_CLK_PERIOD); 
-    `else
+`ifdef YOSYS
     function integer nCK_to_ns (input integer nCK); 
         nCK_to_ns = $rtoi($ceil(nCK*1.0*DDR3_CLK_PERIOD)); 
-    `endif
+`else
+    function real nCK_to_ns (input integer nCK); //YOSYS ERROR: syntax error, unexpected TOK_REAL
+        nCK_to_ns = $ceil(nCK*1.0*DDR3_CLK_PERIOD); 
+`endif
     endfunction
     
     // functions used to infer some localparam values
-    `ifdef SUPPORT_REAL
-    function real max(input real a, input real b);
-    `else
+`ifdef YOSYS
     function integer max(input integer a, input integer b);
-    `endif
+`else
+    function real max(input real a, input real b); //YOSYS ERROR: syntax error, unexpected TOK_REAL
+`endif
         if(a >= b) max = a;
         else max = b;
     endfunction
@@ -1793,7 +1775,6 @@ module ddr3_controller #(
 `ifndef YOSYS
     ///YOSYS: System task `$display' called with invalid/unsupported format specifier
     initial begin
-        /* verilator lint_off REALCVT */
         $display("TEST FUNCTIONS\n-----------------------------\n");
         $display("Test ns_to_cycles() function:");
         $display("\tns_to_cycles(15) = %0d [exact]", ns_to_cycles(15) );
@@ -1811,22 +1792,39 @@ module ddr3_controller #(
         $display("\tns_to_cycles(13.875) = %0d [round-up] \n", ns_to_nCK(13.875) );
         
         $display("Test nCK_to_ns() function:");
-        $display("\tns_to_cycles(4) =  %0d [exact]", nCK_to_ns(4) );
-        $display("\tns_to_cycles(14.875) = %0d [round-off]", nCK_to_ns(3) );
-        $display("\tns_to_cycles(13.875) = %0d [round-up]\n", nCK_to_ns(5) );
+        $display("\tns_to_cycles(4) =  %f [exact]", nCK_to_ns(4) );
+        $display("\tns_to_cycles(14.875) = %f [round-off]", nCK_to_ns(3) );
+        $display("\tns_to_cycles(13.875) = %f [round-up]\n", nCK_to_ns(5) );
         
         $display("Test nCK_to_ns() function:");
-        $display("\tns_to_cycles(4) = %0d [exact]", nCK_to_ns(4) );
-        $display("\tns_to_cycles(14.875) = %0d [round-off]", nCK_to_ns(3) );
-        $display("\tns_to_cycles(13.875) = %0d [round-up]\n", nCK_to_ns(5) );
+        $display("\tns_to_cycles(4) = %f [exact]", nCK_to_ns(4) );
+        $display("\tns_to_cycles(14.875) = %f [round-off]", nCK_to_ns(3) );
+        $display("\tns_to_cycles(13.875) = %f [round-up]\n", nCK_to_ns(5) );
         
         $display("Test $floor() function:");
-        $display("\t$floor(5/2) = %0d", $floor(5/2) );
-        $display("\t$floor(9/4) = %0d", $floor(9/4) );
-        $display("\t$floor(9/4) = %0d", $floor(8/4) );
-        $display("\t$floor(9/5) = %0d\n", $floor(9/5) );
+        $display("\t$floor(5/2) = %f", $floor(5/2) );
+        $display("\t$floor(9/4) = %f", $floor(9/4) );
+        $display("\t$floor(9/4) = %f", $floor(8/4) );
+        $display("\t$floor(9/5) = %f\n", $floor(9/5) );
 
         $display("\nDISPLAY CONTROLLER PARAMETERS\n-----------------------------\n");
+        $display("CONTROLLER_CLK_PERIOD = %.2f", CONTROLLER_CLK_PERIOD);
+        $display("DDR3_CLK_PERIOD = %.2f", DDR3_CLK_PERIOD);
+        $display("ROW_BITS = %0d", ROW_BITS);
+        $display("COL_BITS = %0d", COL_BITS);
+        $display("BA_BITS = %0d", BA_BITS);
+        $display("DQ_BITS = %0d", DQ_BITS);
+        $display("LANES = %0d", LANES);
+        $display("AUX_WIDTH = %0d", AUX_WIDTH);
+        $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
+        $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
+
+        $display("serdes_ratio = %0d", serdes_ratio);
+        $display("wb_addr_bits = %0d", wb_addr_bits);
+        $display("wb_data_bits = %0d", wb_data_bits);
+        $display("wb_sel_bits  = %0d", wb_sel_bits);
+        $display("wb2_sel_bits = %0d", wb2_sel_bits);
+        $display("cmd_len = %0d", cmd_len );
         $display("DELAY_COUNTER_WIDTH = %0d", DELAY_COUNTER_WIDTH);
         $display("DELAY_SLOT_WIDTH = %0d", DELAY_SLOT_WIDTH);
 
@@ -1835,9 +1833,6 @@ module ddr3_controller #(
         $display("wb_addr_bits = %0d",wb_addr_bits);
         $display("wb_data_bits = %0d",wb_data_bits);
         $display("wb_sel_bits = %0d\n\n",wb_sel_bits);
-        //$display("request_row_width = %0d =  %0d", ROW_BITS,  $bits(i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]));
-        //$display("request_col_width = %0d = %0d", COL_BITS, $bits({ i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }));
-        //$display("request_bank_width = %0d = %0d", BA_BITS, $bits(i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]));
 
         $display("READ_SLOT = %0d", READ_SLOT);
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
@@ -1864,7 +1859,6 @@ module ddr3_controller #(
         $display("WRITE_TO_PRECHARGE_DELAY = %0d", WRITE_TO_PRECHARGE_DELAY);
         $display("STAGE2_DATA_DEPTH = %0d", STAGE2_DATA_DEPTH);
         $display("READ_ACK_PIPE_WIDTH = %0d", READ_ACK_PIPE_WIDTH);
-        /* verilator lint_on REALCVT */
     end
 `endif
     
@@ -3399,6 +3393,7 @@ module ddr3_controller #(
 `endif //endif for FORMAL
 endmodule
 
+`ifdef FORMAL
 //FiFO with only 2 elements for verifying the contents of the controller
 //2-stage pipeline
 module mini_fifo #(
@@ -3468,4 +3463,5 @@ module mini_fifo #(
 
 endmodule
 
+`endif
 
