@@ -60,9 +60,9 @@ module ddr3_dimm_micron_sim;
  reg[$bits(ddr3_top.i_aux)-1:0] i_aux;
  wire[$bits(ddr3_top.o_aux)-1:0] o_aux;
  // PHY Interface to DDR3 Device
-  wire ck_en; // CKE
-  wire cs_n; // chip select signal
-  wire odt; // on-die termination
+  wire[1:0] ck_en; // CKE
+  wire[1:0] cs_n; // chip select signal
+  wire[1:0] odt; // on-die termination
   wire ras_n; // RAS#
   wire cas_n; // CAS#
   wire we_n; // WE#
@@ -132,9 +132,9 @@ ddr3_top #(
         // PHY Interface (to be added later)
         .o_ddr3_clk_p(o_ddr3_clk_p),
         .o_ddr3_clk_n(o_ddr3_clk_n),
-        .o_ddr3_cke(ck_en), // CKE
-        .o_ddr3_cs_n(cs_n), // chip select signal
-        .o_ddr3_odt(odt), // on-die termination
+        .o_ddr3_cke(ck_en[0]), // CKE
+        .o_ddr3_cs_n(cs_n[0]), // chip select signal
+        .o_ddr3_odt(odt[0]), // on-die termination
         .o_ddr3_ras_n(ras_n), // RAS#
         .o_ddr3_cas_n(cas_n), // CAS#
         .o_ddr3_we_n(we_n), // WE#
@@ -146,6 +146,10 @@ ddr3_top #(
         .io_ddr3_dqs_n(dqs_n)
         ////////////////////////////////////
     );
+    assign ck_en[1]=0,
+           cs_n[1]=1,
+           odt[1]=0; 
+    
     
     always #5000 i_controller_clk = !i_controller_clk;
     always #1250 i_ddr3_clk = !i_ddr3_clk;
@@ -180,7 +184,7 @@ ddr3_top #(
     );
     */
     // DDR3 Device 
-    ddr3_dimm ddr3_dimm(
+    ddr3_module ddr3_module(
         .reset_n(reset_n),
         .ck(o_ddr3_clk_p),
         .ck_n(o_ddr3_clk_n),
@@ -749,8 +753,8 @@ ddr3_top #(
     reg[3:0] repeats = 0; 
     //display commands issued
     always @(posedge o_ddr3_clk_p) begin
-        if(!cs_n) begin //command is center-aligned to positive edge of clock, a valid command always has low cs_n
-            case({cs_n, ras_n, cas_n, we_n})
+        if(!cs_n[0]) begin //command is center-aligned to positive edge of clock, a valid command always has low cs_n
+            case({cs_n[0], ras_n, cas_n, we_n})
                  4'b0000: command_used = "MRS";
                  4'b0001: command_used = "REF";
                  4'b0010: command_used = "PRE";
