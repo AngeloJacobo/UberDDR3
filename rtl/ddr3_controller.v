@@ -7,7 +7,7 @@
 //  - Interface should be (nearly) bus agnostic   
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
 
-`define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+//`define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
 //`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
 //`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
 `default_nettype none
@@ -102,7 +102,10 @@ module ddr3_controller #(
         output wire[4:0] o_phy_idelay_data_cntvaluein, o_phy_idelay_dqs_cntvaluein,
         output reg[LANES-1:0] o_phy_odelay_data_ld, o_phy_odelay_dqs_ld,
         output reg[LANES-1:0] o_phy_idelay_data_ld, o_phy_idelay_dqs_ld,
-        output reg[LANES-1:0] o_phy_bitslip
+        output reg[LANES-1:0] o_phy_bitslip,
+        // Debug port
+        output	wire	[31:0]	o_debug1,
+        output	wire	[31:0]	o_debug2
     );
 
     
@@ -190,8 +193,10 @@ module ddr3_controller #(
     localparam tWLOE = 2;
     localparam tRTP = max(nCK_to_ns(4), 7.5); //ns Internal Command to PRECHARGE Command delay
     localparam tCCD = 4; //nCK CAS to CAS command delay
-    localparam tMOD = $rtoi(max(nCK_to_cycles(12), ns_to_cycles(15))); //cycles (controller)  Mode Register Set command update delay
-    localparam tZQinit = $rtoi(max(nCK_to_cycles(512), ns_to_cycles(640)));//cycles (controller)  Power-up and RESET calibration time
+    /* verilator lint_off WIDTHEXPAND */
+    localparam tMOD = max_int(nCK_to_cycles(12), ns_to_cycles(15)); //cycles (controller)  Mode Register Set command update delay
+    localparam tZQinit = max_int(nCK_to_cycles(512), ns_to_cycles(640));//cycles (controller)  Power-up and RESET calibration time
+    /* verilator lint_on WIDTHEXPAND */
     localparam CL_nCK = 6; //create a function for this
     localparam CWL_nCK = 5; //create a function for this
     localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
@@ -279,7 +284,7 @@ module ddr3_controller #(
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
-    localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control (IS THIS THE SAME WITH RTT_NOM???????????? Search later)
+    localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (IS THIS THE SAME WITH RTT_NOM???????????? Search later)
     localparam[2:0] RTT_NOM = 3'b011; //RTT Nominal: 40ohms (RQZ/6) is the impedance of the PCB trace
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
@@ -1621,7 +1626,28 @@ module ddr3_controller #(
             end //end of if(wb2_stb)
         end//end of else
     end//end of always
-
+    // Logic connected to debug port
+    wire debug_trigger;
+    assign o_debug1 = {debug_trigger, state_calibrate[4:0], instruction_address[4:0], i_phy_iserdes_dqs[7:0], o_phy_dqs_tri_control, 
+        o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[2:0]};
+    // assign o_debug1 = {debug_trigger, o_wb2_stall, lane[2:0], dqs_start_index_stored[3:0], dqs_target_index[3:0], delay_before_read_data[3:0], 
+     //           o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], (dqs_store[11:0] == 12'b10_10_10_10_00_00), i_phy_iserdes_dqs[7:0]};
+                
+    /*assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], dqs_start_index[2:0], 
+                i_phy_iserdes_dqs[15:8], 
+                o_phy_dqs_tri_control, o_phy_dq_tri_control,
+                i_phy_iserdes_data[((DQ_BITS*LANES)*7)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*6)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*5)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*4)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*3)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*2)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*1)],
+                i_phy_iserdes_data[((DQ_BITS*LANES)*0)]
+                }; //17*/
+     assign o_debug2 = {debug_trigger, 
+                o_wb_data[30:0]};
+    assign debug_trigger = (state_calibrate == ISSUE_WRITE_1);
     /*********************************************************************************************************************************************/
 
 
@@ -1678,7 +1704,12 @@ module ddr3_controller #(
         if(a >= b) max = a;
         else max = b;
     endfunction
-                        
+    
+    function integer max_int(input integer a, input integer b);
+        if(a >= b) max_int = a;
+        else max_int = b;
+    endfunction
+                      
     //Find the 3-bit value for the Mode Register 0  WR (Write recovery for auto-precharge)
     function[2:0] WRA_mode_register_value(input integer WRA); 
             //WR_min (write recovery for autoprecharge) in clock cycles is calculated by dividing tWR(in ns) by tCK(in ns) and rounding up to the next integer.
