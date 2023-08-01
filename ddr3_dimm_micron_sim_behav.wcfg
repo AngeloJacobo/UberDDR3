@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="251,121.767 ns"></ZoomStartTime>
-      <ZoomEndTime time="251,143.648 ns"></ZoomEndTime>
-      <Cursor1Time time="251,140.001 ns"></Cursor1Time>
+      <ZoomStartTime time="66,520.100 ns"></ZoomStartTime>
+      <ZoomEndTime time="66,575.001 ns"></ZoomEndTime>
+      <Cursor1Time time="66,557.800 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="258"></NameColumnWidth>
-      <ValueColumnWidth column_width="145"></ValueColumnWidth>
+      <ValueColumnWidth column_width="141"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="125" />
+   <WVObjectSize size="128" />
    <wave_markers>
       <marker label="" time="78646475" />
       <marker label="" time="66286475" />
@@ -100,13 +100,13 @@
       <obj_property name="Radix">HEXRADIX</obj_property>
       <obj_property name="isExpanded"></obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ck_en">
-      <obj_property name="ElementShortName">ck_en</obj_property>
-      <obj_property name="ObjectShortName">ck_en</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ck_en">
+      <obj_property name="ElementShortName">ck_en[1:0]</obj_property>
+      <obj_property name="ObjectShortName">ck_en[1:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/odt">
-      <obj_property name="ElementShortName">odt</obj_property>
-      <obj_property name="ObjectShortName">odt</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/odt">
+      <obj_property name="ElementShortName">odt[1:0]</obj_property>
+      <obj_property name="ObjectShortName">odt[1:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/command_used">
       <obj_property name="ElementShortName">command_used[23:0]</obj_property>
@@ -115,9 +115,9 @@
       <obj_property name="CustomSignalColor">#FFD700</obj_property>
       <obj_property name="UseCustomSignalColor">true</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/cs_n">
-      <obj_property name="ElementShortName">cs_n</obj_property>
-      <obj_property name="ObjectShortName">cs_n</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/cs_n">
+      <obj_property name="ElementShortName">cs_n[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cs_n[1:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ras_n">
       <obj_property name="ElementShortName">ras_n</obj_property>
@@ -483,6 +483,19 @@
    <wvobject fp_name="divider150" type="divider">
       <obj_property name="label">WB2 Registers</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs">
+      <obj_property name="ElementShortName">i_phy_iserdes_dqs[63:0]</obj_property>
+      <obj_property name="ObjectShortName">i_phy_iserdes_dqs[63:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_dq_tri_control">
+      <obj_property name="ElementShortName">o_phy_dq_tri_control</obj_property>
+      <obj_property name="ObjectShortName">o_phy_dq_tri_control</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_dqs_tri_control">
+      <obj_property name="ElementShortName">o_phy_dqs_tri_control</obj_property>
+      <obj_property name="ObjectShortName">o_phy_dqs_tri_control</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
       <obj_property name="ElementShortName">i_controller_clk</obj_property>
