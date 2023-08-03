@@ -7,7 +7,7 @@
 //  - Interface should be (nearly) bus agnostic   
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
 
-//`define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+`define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
 //`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
 //`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
 `default_nettype none
@@ -36,13 +36,13 @@
 // PRE_STALL_DELAY
                    
 module ddr3_controller #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
-                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+    parameter real CONTROLLER_CLK_PERIOD = 12, //ns, period of clock input to this DDR3 controller module
+                   DDR3_CLK_PERIOD = 3, //ns, period of clock input to DDR3 RAM device 
     parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
-                   LANES = 8, //8 lanes of DQ
+                   LANES = 2, //8 lanes of DQ
                    AUX_WIDTH = 16, 
                    WB2_ADDR_BITS = 7,
                    WB2_DATA_BITS = 32,
@@ -53,11 +53,12 @@ module ddr3_controller #(
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
-                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
+                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
                 wb_sel_bits = wb_data_bits / 8,
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
-                cmd_len = 4 + 3 + BA_BITS + ROW_BITS
+                cmd_len = 4 + 3 + BA_BITS + ROW_BITS,
+                lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES)
     ) 
     (
         input wire i_controller_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
@@ -89,9 +90,9 @@ module ddr3_controller #(
         output reg[WB2_DATA_BITS - 1:0] o_wb2_data, //read data
         //
         // PHY interface
-        input wire[DQ_BITS*LANES*8-1:0] i_phy_iserdes_data,
-        input wire[LANES*8-1:0] i_phy_iserdes_dqs,
-        input wire[LANES*8-1:0] i_phy_iserdes_bitslip_reference,
+        input wire[DQ_BITS*LANES*8 - 1:0] i_phy_iserdes_data,
+        input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
+        input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_bitslip_reference,
         input wire i_phy_idelayctrl_rdy,
         output wire[cmd_len*serdes_ratio-1:0] o_phy_cmd,
         output wire o_phy_dqs_tri_control, o_phy_dq_tri_control,
@@ -218,6 +219,21 @@ module ddr3_controller #(
     localparam[3:0] WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
     localparam[3:0] WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
     localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
+    `ifdef FORMAL 
+        (*keep*) wire[3:0] f_PRECHARGE_TO_ACTIVATE_DELAY, f_ACTIVATE_TO_PRECHARGE_DELAY, f_ACTIVATE_TO_WRITE_DELAY, f_ACTIVATE_TO_READ_DELAY,
+                    f_READ_TO_WRITE_DELAY, f_READ_TO_READ_DELAY, f_READ_TO_PRECHARGE_DELAY, f_WRITE_TO_WRITE_DELAY, 
+                    f_WRITE_TO_READ_DELAY, f_WRITE_TO_PRECHARGE_DELAY; 
+        assign f_PRECHARGE_TO_ACTIVATE_DELAY = PRECHARGE_TO_ACTIVATE_DELAY;
+        assign f_ACTIVATE_TO_PRECHARGE_DELAY = ACTIVATE_TO_PRECHARGE_DELAY;                
+        assign f_ACTIVATE_TO_WRITE_DELAY = ACTIVATE_TO_WRITE_DELAY;
+        assign f_ACTIVATE_TO_READ_DELAY = ACTIVATE_TO_READ_DELAY;
+        assign f_READ_TO_WRITE_DELAY = READ_TO_WRITE_DELAY;
+        assign f_READ_TO_READ_DELAY = READ_TO_READ_DELAY;
+        assign f_READ_TO_PRECHARGE_DELAY =  READ_TO_PRECHARGE_DELAY;
+        assign f_WRITE_TO_WRITE_DELAY = WRITE_TO_WRITE_DELAY;
+        assign f_WRITE_TO_READ_DELAY = WRITE_TO_READ_DELAY;
+        assign f_WRITE_TO_PRECHARGE_DELAY = WRITE_TO_PRECHARGE_DELAY;
+    `endif
 
     //MARGIN_BEFORE_ANTICIPATE is the number of columns before the column
     //end when the anticipate can start
@@ -289,7 +305,7 @@ module ddr3_controller #(
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
-    localparam[0:0] TDQS = 1'b1; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
+    localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
                                  //When the TDQS function is disabled, the DM function is provided (vice-versa).TDQS function is only 
                                  //available for X8 DRAM and must be disabled for X4 and X16. 
     localparam[0:0]  QOFF = 1'b0; //Output Buffer Control: Enabled
@@ -387,7 +403,7 @@ module ddr3_controller #(
     reg[3:0] delay_before_read_data = 0;
     reg[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0] delay_before_write_level_feedback = 0;
     reg initial_dqs = 0;
-    reg[$clog2(LANES)-1:0] lane = 0;
+    reg[lanes_clog2-1:0] lane = 0;
     reg[$clog2(8*LANES)-1:0] lane_times_8 = 0;
     /* verilator lint_off UNUSEDSIGNAL */
     reg[15:0] dqs_bitslip_arrangement = 0;
@@ -437,7 +453,7 @@ module ddr3_controller #(
     reg[LANES-1:0] wb2_phy_odelay_dqs_ld;
     reg[LANES-1:0] wb2_phy_idelay_data_ld;
     reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
-    reg[$clog2(LANES)-1:0] wb2_write_lane;
+    reg[lanes_clog2-1:0] wb2_write_lane;
     
     // initial block for all regs
     initial begin
@@ -1299,7 +1315,7 @@ module ddr3_controller #(
                         another Bitslip command. If the ISERDESE2 is reset, the Bitslip logic is also reset
                         and returns back to its initial state.
                         */
-                        if(i_phy_iserdes_bitslip_reference[lane*LANES +: 8] == 8'b0111_1000) begin //initial arrangement
+                        if(i_phy_iserdes_bitslip_reference[lane*serdes_ratio*2 +: 8] == 8'b0111_1000) begin //initial arrangement
                             state_calibrate <= MPR_READ;
                             initial_dqs <= 1;
                             dqs_start_index_repeat <= 0;
@@ -1321,7 +1337,7 @@ module ddr3_controller #(
                       end    
                       
         COLLECT_DQS: if(delay_before_read_data == 0) begin
-                        dqs_store <= {i_phy_iserdes_dqs[LANES*lane +: 8], dqs_store[(STORED_DQS_SIZE*8-1):8]}; 
+                        dqs_store <= {i_phy_iserdes_dqs[serdes_ratio*2*lane +: 8], dqs_store[(STORED_DQS_SIZE*8-1):8]}; 
                         dqs_count_repeat <= dqs_count_repeat + 1;
                         if(dqs_count_repeat == STORED_DQS_SIZE - 1) begin
                             state_calibrate <= ANALYZE_DQS;
@@ -1358,7 +1374,7 @@ module ddr3_controller #(
                        end
                        
   BITSLIP_DQS_TRAIN_2: if(train_delay == 0) begin //train again the ISERDES to capture the DQ correctly
-                            if(i_phy_iserdes_bitslip_reference[lane*LANES +: 8] == dqs_bitslip_arrangement[7:0]) begin
+                            if(i_phy_iserdes_bitslip_reference[lane*serdes_ratio*2 +: 8] == dqs_bitslip_arrangement[7:0]) begin
                                 /* verilator lint_off WIDTH */
                                 if(lane == LANES - 1) begin
                                 /* verilator lint_on WIDTH */
@@ -1551,41 +1567,41 @@ module ddr3_controller #(
                     //read/write odelay cntvalue for DQ line
                     0: if(wb2_we) begin 
                             wb2_phy_odelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQ
-                            wb2_phy_odelay_data_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //raise the lane to be loaded with new cntvaluein
-                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                            wb2_phy_odelay_data_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //raise the lane to be loaded with new cntvaluein
+                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
                        end
                        else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_data_cntvaluein[wb2_addr[4 +: $clog2(LANES)]] };//use next bits of address as lane number to be read
+                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_data_cntvaluein[wb2_addr[4 +: lanes_clog2]] };//use next bits of address as lane number to be read
                        end
 
                     //read/write odelay cntvalue for DQS line
                     1: if(wb2_we) begin 
                             wb2_phy_odelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQS
-                            wb2_phy_odelay_dqs_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //raise the lane to be loaded with new cntvaluein
-                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                            wb2_phy_odelay_dqs_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //raise the lane to be loaded with new cntvaluein
+                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
                        end
                        else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_dqs_cntvaluein[wb2_addr[4 +: $clog2(LANES)]] };//use next bits of address as lane number to be read
+                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_dqs_cntvaluein[wb2_addr[4 +: lanes_clog2]] };//use next bits of address as lane number to be read
                        end
                        
                     //read/write idelay cntvalue for DQ line
                     2: if(wb2_we) begin 
                             wb2_phy_idelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQ
-                            wb2_phy_idelay_data_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //save next 5 bits for lane number to be loaded with new delay
-                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                            wb2_phy_idelay_data_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //save next 5 bits for lane number to be loaded with new delay
+                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
                        end
                        else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_data_cntvaluein[wb2_addr[4 +: $clog2(LANES)]] }; //use next bits of address as lane number to be read
+                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_data_cntvaluein[wb2_addr[4 +: lanes_clog2]] }; //use next bits of address as lane number to be read
                        end
 
                     //read/write idelay cntvalue for DQS line
                     3: if(wb2_we) begin 
                             wb2_phy_idelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQS
-                            wb2_phy_idelay_dqs_ld <= 1 << (wb2_data[5 +: $clog2(LANES)]); //save next 5 bits for lane number to be loaded with new delay
-                            wb2_update <= wb2_sel[$rtoi($ceil( ($clog2(LANES) + 5)/8 )) - 1:0]; //only update when sel bit is high (data is valid)
+                            wb2_phy_idelay_dqs_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //save next 5 bits for lane number to be loaded with new delay
+                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
                        end
                        else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_dqs_cntvaluein[wb2_addr[4 +: $clog2(LANES)]] }; //use next bits of address as lane number to be read
+                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_dqs_cntvaluein[wb2_addr[4 +: lanes_clog2]] }; //use next bits of address as lane number to be read
                        end
 
                     4: if(!wb2_we) begin
@@ -1596,9 +1612,10 @@ module ddr3_controller #(
                        end
 
                     5: if(!wb2_we) begin
-                            o_wb2_data <= {added_read_pipe[7], added_read_pipe[6], added_read_pipe[5], added_read_pipe[4],
-                                added_read_pipe[3], added_read_pipe[2], added_read_pipe[1], added_read_pipe[0]}; 
-                                //added read pipe delay for lanes 0-to-3 (4 bits each lane the max is just 1 for each)
+                            for(index = 0; index < LANES; index = index + 1) begin
+                             o_wb2_data[4*index +: 4] <= added_read_pipe[index];
+                            end
+                            //added read pipe delay for lanes 0-to-3 (4 bits each lane the max is just 1 for each)
                         end
 
                     6: if(!wb2_we) begin
@@ -1606,7 +1623,9 @@ module ddr3_controller #(
                         end
 
                     7: if(!wb2_we) begin
-                            o_wb2_data <= i_phy_iserdes_bitslip_reference[31:0]; //show the 8-bit bitslip reference for lanes 0[7:0], 1[15:8], 2[23:16], 3[31:24]
+                            for(index = 0; 8*index < 32 && index < LANES; index = index + 1) begin
+                                 o_wb2_data[8*index +: 8] <= i_phy_iserdes_bitslip_reference[8*index +: 8]; //show the 8-bit bitslip reference for lanes 0[7:0], 1[15:8], 2[23:16], 3[31:24]
+                            end
                         end
 
                     8: if(!wb2_we) begin
@@ -1622,14 +1641,14 @@ module ddr3_controller #(
                        end
                 endcase
 
-                wb2_write_lane <= wb2_data[5 +: $clog2(LANES)]; //save next 5 bits for lane number to be loaded with new delay
+                wb2_write_lane <= wb2_data[5 +: lanes_clog2]; //save next 5 bits for lane number to be loaded with new delay
             end //end of if(wb2_stb)
         end//end of else
     end//end of always
     // Logic connected to debug port
     wire debug_trigger;
     assign o_debug1 = {debug_trigger, state_calibrate[4:0], instruction_address[4:0], i_phy_iserdes_dqs[7:0], o_phy_dqs_tri_control, 
-        o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[2:0]};
+        o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[lanes_clog2-1:0]};
     // assign o_debug1 = {debug_trigger, o_wb2_stall, lane[2:0], dqs_start_index_stored[3:0], dqs_target_index[3:0], delay_before_read_data[3:0], 
      //           o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], (dqs_store[11:0] == 12'b10_10_10_10_00_00), i_phy_iserdes_dqs[7:0]};
                 
@@ -1882,6 +1901,7 @@ module ddr3_controller #(
         $display("\n\nPRECHARGE_TO_ACTIVATE_DELAY = %0d", PRECHARGE_TO_ACTIVATE_DELAY);
         $display("ACTIVATE_TO_WRITE_DELAY = %0d", ACTIVATE_TO_WRITE_DELAY);
         $display("ACTIVATE_TO_READ_DELAY =  %0d", ACTIVATE_TO_READ_DELAY);
+        $display("ACTIVATE_TO_PRECHARGE_DELAY =  %0d", ACTIVATE_TO_PRECHARGE_DELAY);
         $display("READ_TO_WRITE_DELAY = %0d", READ_TO_WRITE_DELAY);
         $display("READ_TO_READ_DELAY = %0d", READ_TO_READ_DELAY);
         $display("READ_TO_PRECHARGE_DELAY = %0d", READ_TO_PRECHARGE_DELAY);
@@ -2894,18 +2914,18 @@ module ddr3_controller #(
         //test the delay_before*
         always @* begin 
             for(index=0; index< (1<<BA_BITS); index=index+1) begin
-                assert(delay_before_precharge_counter_q[index] <= max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY));
+                assert(delay_before_precharge_counter_q[index] <= max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)));
                 assert(delay_before_activate_counter_q[index] <= PRECHARGE_TO_ACTIVATE_DELAY); 
                 assert(delay_before_write_counter_q[index] <= max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY));
                 assert(delay_before_read_counter_q[index] <= max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY));
             end
             if(stage2_pending) begin
-                if(delay_before_precharge_counter_q[stage2_bank] == max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)) begin
+                if(delay_before_precharge_counter_q[stage2_bank] == max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY))) begin
                   assert(f_stall_count == 0);
                   //assert(f_ackwait_count == 0);
                 end
-                if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY) begin
-                  assert(f_stall_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1));
+                if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY && !bank_status_q[stage2_bank]) begin
+                  assert(f_stall_count <= (max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)) + 1));
                   //assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 2));
                 end
 
@@ -2916,11 +2936,11 @@ module ddr3_controller #(
                     if(stage2_update) begin
                         assert(f_ackwait_count <= F_MAX_STALL);
                     end
-                    if(delay_before_precharge_counter_q[stage2_bank] == max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)) begin
+                    if(delay_before_precharge_counter_q[stage2_bank] == max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY))) begin
                       assert(f_ackwait_count == 0);
                     end
-                    if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY) begin
-                      assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1));
+                    if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY && !bank_status_q[stage2_bank]) begin
+                      assert(f_ackwait_count <= (max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)) + 1));
                     end
 
                     /*
@@ -3107,7 +3127,7 @@ module ddr3_controller #(
         end
 
         // verify the wishbone 2
-        localparam F_TEST_WB2_DATA_WIDTH = wb2_sel_bits + 5 + $clog2(LANES) + 4 + 1; //WB2_SEL + CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+        localparam F_TEST_WB2_DATA_WIDTH = wb2_sel_bits + 5 + lanes_clog2 + 4 + 1; //WB2_SEL + CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
         reg f_read_fifo_2, f_write_fifo_2;
         wire f_empty_2, f_full_2;
         reg[F_TEST_WB2_DATA_WIDTH - 1:0] f_write_data_2 = 0; 
@@ -3127,10 +3147,12 @@ module ddr3_controller #(
             f_write_fifo_2 = 0;
             if(i_wb2_stb && !o_wb2_stall && i_wb2_cyc) begin //if there is request
                 if(i_wb2_we) begin //write request
-                    f_write_data_2 = {i_wb2_sel, i_wb2_data[4:0], i_wb2_data[5 +: $clog2(LANES)], i_wb2_addr[3:0], i_wb2_we}; //CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+                    f_write_data_2 = {i_wb2_sel, i_wb2_data[4:0], i_wb2_data[5 +: lanes_clog2], i_wb2_addr[3:0], i_wb2_we}; //CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+                    assume(i_wb2_data[5 +: lanes_clog2] < LANES);
                 end 
                 else begin //read request
-                    f_write_data_2 = {i_wb2_addr[4 +: $clog2(LANES)],  i_wb2_addr[3:0], i_wb2_we}; //LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+                    f_write_data_2 = {i_wb2_addr[4 +: lanes_clog2],  i_wb2_addr[3:0], i_wb2_we}; //LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
+                    assume(i_wb2_addr[4 +: lanes_clog2] < LANES);
                 end
                 f_write_fifo_2 = 1;
             end
@@ -3187,26 +3209,26 @@ module ddr3_controller #(
             if(f_past_valid) begin
                 assert(!o_wb2_stall || !i_rst_n || !$past(i_rst_n)); //never stall
                 //write request
-                if(f_o_wb2_ack_q &&  i_rst_n && (&f_read_data_2_q[5 + $clog2(LANES) + 4 + 1 +: $rtoi($ceil( ($clog2(LANES) + 5)/8 ))])) begin //the sel bits must be high
+                if(f_o_wb2_ack_q &&  i_rst_n && (&f_read_data_2_q[5 + lanes_clog2 + 4 + 1 +: $rtoi($ceil( (lanes_clog2 + 5)/8.0 ))])) begin //the sel bits must be high
                     case(f_read_data_2_q[4:1]) //memory-mapped address
                         0: begin
-                             assert(o_phy_odelay_data_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
-                             assert(o_phy_odelay_data_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                             assert(o_phy_odelay_data_ld == (1 << f_read_data_2_q[5 +: lanes_clog2])); //the phy lane to be loaded must be high 
+                             assert(o_phy_odelay_data_cntvaluein == f_read_data_2_q[(5 + lanes_clog2) +: 5]); //the phy interface for cntvalue must already be updated 
                              assert($past(wb2_update));
                            end 
                         1: begin
-                             assert(o_phy_odelay_dqs_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
-                             assert(o_phy_odelay_dqs_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                             assert(o_phy_odelay_dqs_ld == (1 << f_read_data_2_q[5 +: lanes_clog2])); //the phy lane to be loaded must be high 
+                             assert(o_phy_odelay_dqs_cntvaluein == f_read_data_2_q[(5 + lanes_clog2) +: 5]); //the phy interface for cntvalue must already be updated 
                              assert($past(wb2_update));
                            end 
                         2: begin
-                             assert(o_phy_idelay_data_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
-                             assert(o_phy_idelay_data_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                             assert(o_phy_idelay_data_ld == (1 << f_read_data_2_q[5 +: lanes_clog2])); //the phy lane to be loaded must be high 
+                             assert(o_phy_idelay_data_cntvaluein == f_read_data_2_q[(5 + lanes_clog2) +: 5]); //the phy interface for cntvalue must already be updated 
                              assert($past(wb2_update));
                            end 
                         3: begin
-                             assert(o_phy_idelay_dqs_ld == (1 << f_read_data_2_q[5 +: $clog2(LANES)])); //the phy lane to be loaded must be high 
-                             assert(o_phy_idelay_dqs_cntvaluein == f_read_data_2_q[(5 + $clog2(LANES)) +: 5]); //the phy interface for cntvalue must already be updated 
+                             assert(o_phy_idelay_dqs_ld == (1 << f_read_data_2_q[5 +: lanes_clog2])); //the phy lane to be loaded must be high 
+                             assert(o_phy_idelay_dqs_cntvaluein == f_read_data_2_q[(5 + lanes_clog2) +: 5]); //the phy interface for cntvalue must already be updated 
                              assert($past(wb2_update));
                            end 
                     endcase
@@ -3216,19 +3238,19 @@ module ddr3_controller #(
                 end
 
                 //read request
-               if(o_wb2_ack && !f_read_data_2[0] && i_rst_n && i_wb2_cyc && !(f_o_wb2_ack_q && f_read_data_2_q[1 +: (4 + $clog2(LANES))] == f_read_data_2[1 +: (4 + $clog2(LANES))] )) begin 
+               if(o_wb2_ack && !f_read_data_2[0] && i_rst_n && i_wb2_cyc && !(f_o_wb2_ack_q && f_read_data_2_q[1 +: (4 + lanes_clog2)] == f_read_data_2[1 +: (4 + lanes_clog2)] )) begin 
                     case(f_read_data_2[4:1]) //memory-mapped address
                         0: begin
-                             assert(o_wb2_data == odelay_data_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                             assert(o_wb2_data == odelay_data_cntvaluein[f_read_data_2[5 +: lanes_clog2]]); //the stored delay must match the wb2 output 
                            end 
                         1: begin
-                             assert(o_wb2_data == odelay_dqs_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                             assert(o_wb2_data == odelay_dqs_cntvaluein[f_read_data_2[5 +: lanes_clog2]]); //the stored delay must match the wb2 output 
                            end 
                         2: begin
-                             assert(o_wb2_data == idelay_data_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                             assert(o_wb2_data == idelay_data_cntvaluein[f_read_data_2[5 +: lanes_clog2]]); //the stored delay must match the wb2 output 
                            end 
                         3: begin
-                             assert(o_wb2_data == idelay_dqs_cntvaluein[f_read_data_2[5 +: $clog2(LANES)]]); //the stored delay must match the wb2 output 
+                             assert(o_wb2_data == idelay_dqs_cntvaluein[f_read_data_2[5 +: lanes_clog2]]); //the stored delay must match the wb2 output 
                            end 
 
                         4: begin
@@ -3239,14 +3261,9 @@ module ddr3_controller #(
                            end
 
                         5: begin
-                             assert(o_wb2_data[3:0] == $past(added_read_pipe[0]));
-                             assert(o_wb2_data[7:4] == $past(added_read_pipe[1]));
-                             assert(o_wb2_data[11:8] == $past(added_read_pipe[2]));
-                             assert(o_wb2_data[15:12] == $past(added_read_pipe[3]));
-                             assert(o_wb2_data[19:16] == $past(added_read_pipe[4]));
-                             assert(o_wb2_data[23:20] == $past(added_read_pipe[5]));
-                             assert(o_wb2_data[27:24] == $past(added_read_pipe[6]));
-                             assert(o_wb2_data[31:28] == $past(added_read_pipe[7]));
+                            for(index = 0; index < LANES; index = index + 1) begin
+                             assert(o_wb2_data[4*index +: 4] == $past(added_read_pipe[index]));
+                            end
                            end
 
                         6: begin
@@ -3254,9 +3271,10 @@ module ddr3_controller #(
                            end
 
                         7: begin
-                             assert(o_wb2_data == $past(i_phy_iserdes_bitslip_reference[31:0])); 
-                           end
-
+                                for(index = 0; 8*index < 32 && index < LANES; index = index + 1) begin
+                                     assert(o_wb2_data[8*index +: 8] == $past(i_phy_iserdes_bitslip_reference[8*index +: 8])); 
+                                end
+                            end
                         8: begin
                              assert(o_wb2_data == $past(read_data_store[31:0])); 
                            end
@@ -3270,7 +3288,7 @@ module ddr3_controller #(
         end
 
         wire[2:0] f_read_data_2_lane;
-        assign f_read_data_2_lane = f_read_data_2[5 +: $clog2(LANES)];
+        assign f_read_data_2_lane = f_read_data_2[5 +: lanes_clog2];
         always @(posedge i_controller_clk) begin
            if(f_past_valid) begin
                for(index = 0; index < LANES; index = index + 1) begin
