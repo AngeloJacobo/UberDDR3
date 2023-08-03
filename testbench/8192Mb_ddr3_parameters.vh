@@ -424,8 +424,8 @@
     parameter RZQ              =     240; // termination resistance
     parameter PRE_DEF_PAT      =   8'hAA; // value returned during mpr pre-defined pattern readout
     parameter STOP_ON_ERROR    =       1; // If set to 1, the model will halt on command sequence/major errors
-    parameter DEBUG            =       0; // Turn on Debug messages
-    parameter BUS_DELAY        =     0; // delay in picoseconds
+    parameter DEBUG            =       1; // Turn on Debug messages
+    parameter BUS_DELAY        =     100; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_0        =     0; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_1        =     0; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_2        =     0; // delay in picoseconds
