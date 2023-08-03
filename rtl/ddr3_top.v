@@ -17,7 +17,7 @@ module ddr3_top #(
 
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
-                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(DQ_BITS*(serdes_ratio)*2 / 8),
+                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
                 wb_sel_bits = wb_data_bits / 8,
                 wb2_sel_bits = WB2_DATA_BITS / 8,
