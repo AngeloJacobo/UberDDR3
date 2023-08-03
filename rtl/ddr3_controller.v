@@ -7,7 +7,7 @@
 //  - Interface should be (nearly) bus agnostic   
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
 
-`define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+//`define MICRON_SIM //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
 //`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
 //`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
 `default_nettype none
@@ -16,7 +16,7 @@
 
 // THESE DEFINES WILL BE MODIFIED AS PARAMETERS LATER ON
 `define DDR3_1600_11_11_11 // DDR3-1600 (11-11-11) speed bin
-`define RAM_8Gb //DDR3 Capacity
+`define RAM_4Gb //DDR3 Capacity
 //`define RAM_2Gb 
 //`define RAM_4Gb 
 //`define RAM_8Gb
@@ -36,13 +36,13 @@
 // PRE_STALL_DELAY
                    
 module ddr3_controller #(
-    parameter real CONTROLLER_CLK_PERIOD = 12, //ns, period of clock input to this DDR3 controller module
-                   DDR3_CLK_PERIOD = 3, //ns, period of clock input to DDR3 RAM device 
+    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
+                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
     parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
-                   LANES = 2, //8 lanes of DQ
+                   LANES = 8, //8 lanes of DQ
                    AUX_WIDTH = 16, 
                    WB2_ADDR_BITS = 7,
                    WB2_DATA_BITS = 32,
@@ -305,7 +305,7 @@ module ddr3_controller #(
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
-    localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
+    localparam[0:0] TDQS = 1'b1; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
                                  //When the TDQS function is disabled, the DM function is provided (vice-versa).TDQS function is only 
                                  //available for X8 DRAM and must be disabled for X4 and X16. 
     localparam[0:0]  QOFF = 1'b0; //Output Buffer Control: Enabled
@@ -1646,27 +1646,18 @@ module ddr3_controller #(
         end//end of else
     end//end of always
     // Logic connected to debug port
+    // Logic connected to debug port
     wire debug_trigger;
-    assign o_debug1 = {debug_trigger, state_calibrate[4:0], instruction_address[4:0], i_phy_iserdes_dqs[7:0], o_phy_dqs_tri_control, 
-        o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[lanes_clog2-1:0]};
-    // assign o_debug1 = {debug_trigger, o_wb2_stall, lane[2:0], dqs_start_index_stored[3:0], dqs_target_index[3:0], delay_before_read_data[3:0], 
-     //           o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], (dqs_store[11:0] == 12'b10_10_10_10_00_00), i_phy_iserdes_dqs[7:0]};
+    //assign o_debug1 = {debug_trigger, state_calibrate[4:0], instruction_address[4:0], i_phy_iserdes_dqs[7:0], o_phy_dqs_tri_control, 
+    //    o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[2:0]};
+    assign o_debug1 = {debug_trigger, o_wb2_stall, lane[2:0], dqs_start_index_stored[2:0], dqs_target_index[2:0], delay_before_read_data[2:0], 
+                o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], dqs_store[11:0]};
                 
-    /*assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], dqs_start_index[2:0], 
-                i_phy_iserdes_dqs[15:8], 
+    assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], i_phy_iserdes_dqs[15:0], 
                 o_phy_dqs_tri_control, o_phy_dq_tri_control,
-                i_phy_iserdes_data[((DQ_BITS*LANES)*7)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*6)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*5)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*4)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*3)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*2)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*1)],
-                i_phy_iserdes_data[((DQ_BITS*LANES)*0)]
-                }; //17*/
-     assign o_debug2 = {debug_trigger, 
-                o_wb_data[30:0]};
-    assign debug_trigger = (state_calibrate == ISSUE_WRITE_1);
+                (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
+                }; 
+    assign debug_trigger = (state_calibrate == MPR_READ);
     /*********************************************************************************************************************************************/
 
 
