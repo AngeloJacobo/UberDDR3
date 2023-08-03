@@ -476,7 +476,7 @@ module ddr3_phy #(
                 .D5(i_controller_dm[gen_index + LANES*4]),
                 .D6(i_controller_dm[gen_index + LANES*5]),
                 .D7(i_controller_dm[gen_index + LANES*6]),
-                .D8(i_controller_dm[gen_index + LANES*7]),
+                .D8(i_controller_dm[gen_index + LANES*7]), 
                 .TCE(1'b0),
                 .OCE(1'b1), // 1-bit input: Output data clock enable
                 .RST(sync_rst), // 1-bit input: Reset
@@ -674,7 +674,7 @@ module ddr3_phy #(
             // Xilinx HDL Libraries Guide, version 13.4
             ISERDESE2 #(
                 .DATA_RATE("DDR"), // DDR, SDR
-                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                .DATA_WIDTH(serdes_ratio*2), // Parallel data width (2-8,10,14)
                 // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
                 .INIT_Q1(1'b0),
                 .INIT_Q2(1'b0),
@@ -694,14 +694,14 @@ module ddr3_phy #(
                 .O(),
                 // 1-bit output: Combinatorial output
                 // Q1 - Q8: 1-bit (each) output: Registered data outputs
-                .Q1(o_controller_iserdes_dqs[LANES*gen_index + 7]),
-                .Q2(o_controller_iserdes_dqs[LANES*gen_index + 6]),
-                .Q3(o_controller_iserdes_dqs[LANES*gen_index + 5]),
-                .Q4(o_controller_iserdes_dqs[LANES*gen_index + 4]),   
-                .Q5(o_controller_iserdes_dqs[LANES*gen_index + 3]),
-                .Q6(o_controller_iserdes_dqs[LANES*gen_index + 2]),
-                .Q7(o_controller_iserdes_dqs[LANES*gen_index + 1]),
-                .Q8(o_controller_iserdes_dqs[LANES*gen_index + 0]),
+                .Q1(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 7]),
+                .Q2(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 6]),
+                .Q3(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 5]),
+                .Q4(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 4]),   
+                .Q5(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 3]),
+                .Q6(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 2]), //
+                .Q7(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 1]), //3
+                .Q8(o_controller_iserdes_dqs[serdes_ratio*2*gen_index + 0]), //2
                 // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
                 .SHIFTOUT1(),
                 .SHIFTOUT2(),
@@ -743,7 +743,7 @@ module ddr3_phy #(
             // Xilinx HDL Libraries Guide, version 13.4
             ISERDESE2 #(
                 .DATA_RATE("DDR"), // DDR, SDR
-                .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
+                .DATA_WIDTH(serdes_ratio*2), // Parallel data width (2-8,10,14)
                 // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
                 .INIT_Q1(1'b0),
                 .INIT_Q2(1'b0),
@@ -763,14 +763,14 @@ module ddr3_phy #(
                 .O(),
                 // 1-bit output: Combinatorial output
                 // Q1 - Q8: 1-bit (each) output: Registered data outputs
-                .Q1(o_controller_iserdes_bitslip_reference[gen_index*LANES + 7]),
-                .Q2(o_controller_iserdes_bitslip_reference[gen_index*LANES + 6]),
-                .Q3(o_controller_iserdes_bitslip_reference[gen_index*LANES + 5]),
-                .Q4(o_controller_iserdes_bitslip_reference[gen_index*LANES + 4]),   
-                .Q5(o_controller_iserdes_bitslip_reference[gen_index*LANES + 3]),
-                .Q6(o_controller_iserdes_bitslip_reference[gen_index*LANES + 2]),
-                .Q7(o_controller_iserdes_bitslip_reference[gen_index*LANES + 1]),
-                .Q8(o_controller_iserdes_bitslip_reference[gen_index*LANES + 0]),
+                .Q1(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 7]),
+                .Q2(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 6]),
+                .Q3(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 5]),
+                .Q4(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 4]),   
+                .Q5(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 3]),
+                .Q6(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 2]),
+                .Q7(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 1]),
+                .Q8(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 0]),
                 // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
                 .SHIFTOUT1(),
                 .SHIFTOUT2(),
