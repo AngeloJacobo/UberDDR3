@@ -1,0 +1,56 @@
+################################################################################
+##
+## Filename: 	sdscope.txt
+## {{{
+## Project:	10Gb Ethernet switch
+##
+## Purpose:	Describes how to connect the SMI controller's debugging port to
+##		a wishbone scope, then to be connected to the bus by autofpga.
+##
+## Creator:	Dan Gisselquist, Ph.D.
+##		Gisselquist Technology, LLC
+##
+################################################################################
+## }}}
+## Copyright (C) 2023, Gisselquist Technology, LLC
+## {{{
+## This file is part of the ETH10G project.
+##
+## The ETH10G project contains free software and gateware, licensed under the
+## Apache License, Version 2.0 (the "License").  You may not use this project,
+## or this file, except in compliance with the License.  You may obtain a copy
+## of the License at
+## }}}
+##	http://www.apache.org/licenses/LICENSE-2.0
+## {{{
+## Unless required by applicable law or agreed to in writing, files
+## distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+## WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+## License for the specific language governing permissions and limitations
+## under the License.
+##
+################################################################################
+##
+## }}}
+@PREFIX=scope1_ddr3
+@DEVID=DDR3SCOPE1
+@TARGET=ddr3_controller
+@TRIGGER=ddr3_controller_debug1[31]
+@DEBUG=@$(TARGET)_debug1[30:0]
+@$LOG_CAPTURE_SIZE=10
+@INCLUDEFILE=wbscopc.txt
+@INT.DDR3SCOPE1.PIC=altpic
+@INT.DDR3SCOPE1.WIRE=@$(PREFIX)_int
+@MAIN.DEFNS=
+#
+#
+@PREFIX=scope2_ddr3
+@DEVID=DDR3SCOPE2
+@TARGET=ddr3_controller
+@TRIGGER=ddr3_controller_debug2[31]
+@DEBUG=@$(TARGET)_debug2[30:0]
+@$LOG_CAPTURE_SIZE=10
+@INCLUDEFILE=wbscopc.txt
+@INT.DDR3SCOPE2.PIC=altpic
+@INT.DDR3SCOPE2.WIRE=@$(PREFIX)_int
+@MAIN.DEFNS=
