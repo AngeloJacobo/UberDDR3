@@ -1,3 +1,8 @@
+![mpr_4](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/519c6cd1-3f11-4790-a6bc-7fd7b63f66d1)
+![mpr_3](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/2f3bd9bf-4e7b-4cac-8528-34156c89fc2e)
+![mpr_2](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/8a631e87-fb64-4de6-8b97-6d4e11eabcce)
+![first_mpr](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/f0367289-5575-4fce-b70d-0e00e520be73)
+![cntvalue_increments_until_end](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/0a90ac6b-07f2-4d9e-a95e-d9eb60523d81)
 # DDR3_Controller
 # :construction: :construction_worker_man: :construction_worker_man:  UNDER CONSTRUCTION :construction_worker_man: :construction_worker_man: :construction: 
 
@@ -93,3 +98,42 @@
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/b3a63bac-7ea2-485a-b3f1-d237d5b0906d)
 ![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/c4fb1a4e-993f-4c62-8933-d333293b1a31)
 ![Screenshot from 2023-07-20 18-46-12](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/54f44971-0e47-46cc-94c6-c59c78336511)
+
+# Hardware Debug Doc
+## NORMAL RUN
+![from_reset](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/174fdacb-a00b-423b-aac4-a79357dd0473)
+
+![start_of_state_calibrate](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/f3e5dd2b-29fc-4171-81e2-46405c19060b)
+
+![cntvalue_increments_until_end](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/9ea62c22-cc7d-497c-9136-8d9a14a3e966)
+
+![first_mpr](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/00273821-0cb6-421f-adc2-4be436404b60)
+
+![mpr_2](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/f7235f96-62b3-416a-9906-729c0d421e76)
+
+![mpr_3](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/a9f08c05-5e0c-437a-9888-47cb43298037)
+
+![mpr_4](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/67237f35-be2f-484b-9bbc-7d69fcf95aea)
+
+## Increment CNTVALUE Indefinitely
+![cntvalue_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/0fce42ff-b73e-482a-ab5a-49126013f6c8)
+
+![mpr_1_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/f1f611b0-cfc0-4455-b2ae-5b1d41fedfcf)
+
+![mpr_2_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/6c85d8c0-afdb-4c46-abfc-7e15c9393bb0)
+
+![mpr_3_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/cdd57fb9-968f-43cf-9dfa-0a95be43280c)
+
+![mpr_4_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/fe3a7617-243b-4210-b247-89c3814c0f25)
+
+![mpr_5_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/d918daf7-cd8e-49bf-b378-ee6c86b2dc56)
+
+![mpr_6_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/d7da0993-6021-4b19-ab73-a7b2e85fec42)
+
+![mpr_7_increments_continuously](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/875c5e91-30ca-4e7e-9312-28876f5eb9e5)
+
+
+
+
+
+
