@@ -14,7 +14,9 @@ module ddr3_top #(
                    WB2_DATA_BITS = 32,
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-
+                   MICRON_SIM = 0, //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+                   ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
+                    
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
@@ -26,6 +28,7 @@ module ddr3_top #(
     ) 
     (
         input wire i_controller_clk, i_ddr3_clk, i_ref_clk, //i_controller_clk = CONTROLLER_CLK_PERIOD, i_ddr3_clk = DDR3_CLK_PERIOD, i_ref_clk = 200MHz
+        input wire i_ddr3_clk_90, //required only when ODELAY_SUPPORTED is zero
         input wire i_rst_n,
         // Wishbone inputs
         input wire i_wb_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -66,7 +69,8 @@ module ddr3_top #(
         inout wire[(DQ_BITS*LANES)-1:0] io_ddr3_dq,
         inout wire[(DQ_BITS*LANES)/8-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
         output wire[LANES-1:0] o_ddr3_dm,
-        output wire o_ddr3_odt // on-die termination
+        output wire o_ddr3_odt, // on-die termination
+        output wire[63:0] o_debug1
     );
 
     // Wire connections between controller and phy
@@ -88,6 +92,7 @@ module ddr3_top #(
     ddr3_controller #(
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
             .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+            .ODELAY_SUPPORTED(ODELAY_SUPPORTED),
             .ROW_BITS(ROW_BITS), //width of row address
             .COL_BITS(COL_BITS), //width of column address
             .BA_BITS(BA_BITS), //width of bank address
@@ -95,7 +100,8 @@ module ddr3_top #(
             .LANES(LANES), //8 lanes of DQ
             .AUX_WIDTH(AUX_WIDTH), //
             .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
-            .OPT_BUS_ABORT(OPT_BUS_ABORT)  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+            .OPT_BUS_ABORT(OPT_BUS_ABORT),  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+            .MICRON_SIM(MICRON_SIM) //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
         ) ddr3_controller_inst (
             .i_controller_clk(i_controller_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
             .i_rst_n(i_rst_n), //200MHz input clock
@@ -143,7 +149,8 @@ module ddr3_top #(
             .o_phy_odelay_dqs_ld(odelay_dqs_ld),
             .o_phy_idelay_data_ld(idelay_data_ld), 
             .o_phy_idelay_dqs_ld(idelay_dqs_ld),
-            .o_phy_bitslip(bitslip)
+            .o_phy_bitslip(bitslip),
+            .o_debug1(o_debug1)
         );
     ddr3_phy #(
             .ROW_BITS(ROW_BITS), //width of row address
@@ -151,11 +158,13 @@ module ddr3_top #(
             .DQ_BITS(DQ_BITS),  //width of DQ
             .LANES(LANES), //8 lanes of DQ
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
-            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD) //ns, period of clock input to DDR3 RAM device 
+            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+            .ODELAY_SUPPORTED(ODELAY_SUPPORTED)
         ) ddr3_phy_inst (
             .i_controller_clk(i_controller_clk), 
             .i_ddr3_clk(i_ddr3_clk),
             .i_ref_clk(i_ref_clk),
+            .i_ddr3_clk_90(i_ddr3_clk_90), 
             .i_rst_n(i_rst_n),
             // Controller Interface
             .i_controller_cmd(cmd),
