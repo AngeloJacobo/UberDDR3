@@ -96,7 +96,7 @@
 `timescale 1ps / 1ps
 `define den8192Mb
 `define sg125
-`define x8
+`define x16
 `default_nettype wire
 
 module ddr3 (
@@ -157,7 +157,7 @@ module ddr3 (
     input   ras_n;
     input   cas_n;
     input   we_n;
-    inout   [DM_BITS-1:0]   dm_tdqs;
+    input   [DM_BITS-1:0]   dm_tdqs;
     input   [BA_BITS-1:0]   ba;
     input   [ROW_BITS-1:0] addr;
     inout   [DQ_BITS-1:0]   dq;
