@@ -16,7 +16,7 @@
 
 // THESE DEFINES WILL BE MODIFIED AS PARAMETERS LATER ON
 `define DDR3_1600_11_11_11 // DDR3-1600 (11-11-11) speed bin
-`define RAM_4Gb //DDR3 Capacity
+`define RAM_8Gb //DDR3 Capacity
 //`define RAM_2Gb 
 //`define RAM_4Gb 
 //`define RAM_8Gb
@@ -1516,6 +1516,9 @@ module ddr3_controller #(
                       end 
                       else begin
                         data_start_index[lane] <= data_start_index[lane] + 8;
+                        if(data_start_index[lane] == 56) begin
+                            state_calibrate <= ISSUE_WRITE_1;
+                        end
                       end             
       DONE_CALIBRATE: begin
                         state_calibrate <= DONE_CALIBRATE;
