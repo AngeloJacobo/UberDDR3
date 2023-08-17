@@ -387,7 +387,7 @@
 `elsif x8
     parameter DM_BITS          =       1; // Set this parameter to control how many Data Mask bits are used
     parameter ADDR_BITS        =      16; // MAX Address Bits
-    parameter ROW_BITS         =      14; // Set this parameter to control how many Address bits are used
+    parameter ROW_BITS         =      16; // Set this parameter to control how many Address bits are used
     parameter COL_BITS         =      10; // Set this parameter to control how many Column bits are used
     parameter DQ_BITS          =       8; // Set this parameter to control how many Data bits are used       **Same as part bit width**
     parameter DQS_BITS         =       1; // Set this parameter to control how many Dqs bits are used
@@ -424,8 +424,8 @@
     parameter RZQ              =     240; // termination resistance
     parameter PRE_DEF_PAT      =   8'hAA; // value returned during mpr pre-defined pattern readout
     parameter STOP_ON_ERROR    =       1; // If set to 1, the model will halt on command sequence/major errors
-    parameter DEBUG            =       1; // Turn on Debug messages
-    parameter BUS_DELAY        =     100; // delay in picoseconds
+    parameter DEBUG            =       0; // Turn on Debug messages
+    parameter BUS_DELAY        =     0; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_0        =     0; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_1        =     0; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_2        =     0; // delay in picoseconds
