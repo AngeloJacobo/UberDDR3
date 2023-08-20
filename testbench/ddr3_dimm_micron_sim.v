@@ -22,6 +22,10 @@
 `define den8192Mb
 `define sg125
 `define x8
+//`define USE_CLOCK_WIZARD
+//`define TWO_LANES_x8
+`define EIGHT_LANES_x8
+`define RAM_8Gb
 
 module ddr3_dimm_micron_sim;
 `ifdef den1024Mb
@@ -38,14 +42,24 @@ module ddr3_dimm_micron_sim;
     ERROR: You must specify component density with +define+den____Mb.
 `endif
 
+`ifdef TWO_LANES_x8
+    localparam LANES = 2,
+                ODELAY_SUPPORTED = 0;
+`endif 
+
+`ifdef EIGHT_LANES_x8
+    localparam LANES = 8,
+                ODELAY_SUPPORTED = 1;;
+`endif
+
+
  localparam CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
             DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
-            LANES = 8, //8 lanes of DQ
             AUX_WIDTH = 16, // AUX lines
             OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
             OPT_BUS_ABORT = 1;
 
- reg i_controller_clk, i_ddr3_clk, i_ref_clk;
+ reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
  // Wishbone Interface
  reg i_wb_cyc; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -69,6 +83,7 @@ module ddr3_dimm_micron_sim;
   wire reset_n;
   wire[$bits(ddr3_top.o_ddr3_addr)-1:0] addr;
   wire[$bits(ddr3_top.o_ddr3_ba_addr)-1:0] ba_addr;
+  wire[$bits(ddr3_top.o_ddr3_dm)-1:0] ddr3_dm;
   wire[$bits(ddr3_top.io_ddr3_dq)-1:0] dq;
   wire[$bits(ddr3_top.io_ddr3_dqs)-1:0] dqs;
   wire[$bits(ddr3_top.io_ddr3_dqs_n)-1:0] dqs_n;
@@ -86,25 +101,70 @@ module ddr3_dimm_micron_sim;
   wire o_wb2_ack; //1 = read/write request has completed
   wire[$bits(ddr3_top.o_wb2_data)-1:0] o_wb2_data; //read data
   
+  wire clk_locked;
+  
+  `ifdef USE_CLOCK_WIZARD
+      // Use clock wizard
+      reg i_clk;
+      always #5_000 i_clk = !i_clk;
+      initial begin
+        i_clk = 0;
+      end
+        clk_wiz_0 mod1
+         (
+          // Clock out ports
+          .clk_out1(i_controller_clk), 
+          .clk_out2(i_ddr3_clk), 
+          .clk_out3(i_ref_clk), 
+          .clk_out4(i_ddr3_clk_90), 
+          // Status and control signals
+          .reset(!i_rst_n),
+          .locked(clk_locked),
+         // Clock in ports
+          .clk_in1(i_clk)
+         );
+       
+   `else
+        assign clk_locked = 1;
+        always #(CONTROLLER_CLK_PERIOD*1000/2) i_controller_clk = !i_controller_clk;
+        always #(DDR3_CLK_PERIOD*1000/2) i_ddr3_clk = !i_ddr3_clk;
+        always #2500 i_ref_clk = !i_ref_clk;
+        initial begin //90 degree phase shifted ddr3_clk
+            #(DDR3_CLK_PERIOD*1000/4);
+            while(1) begin
+                #(DDR3_CLK_PERIOD*1000/2) i_ddr3_clk_90 = !i_ddr3_clk_90;
+            end
+        end
+        initial begin
+            i_controller_clk = 1;
+            i_ddr3_clk = 1;
+            i_ref_clk = 1;
+            i_ddr3_clk_90 = 1;
+        end
+   `endif
+   
 // DDR3 Controller 
 ddr3_top #(
     .ROW_BITS(ROW_BITS),   //width of row address
     .COL_BITS(COL_BITS), //width of column address
     .BA_BITS(BA_BITS), //width of bank address
-    .DQ_BITS(DQ_BITS),  //width of DQ
+    .DQ_BITS(8),  //width of DQ
     .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
     .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+    .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 when ODELAYE2 is supported
     .LANES(LANES), //8 lanes of DQ
     .AUX_WIDTH(AUX_WIDTH),
     .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
-    .OPT_BUS_ABORT(OPT_BUS_ABORT)  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+    .OPT_BUS_ABORT(OPT_BUS_ABORT),  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+    .MICRON_SIM(1)
     ) ddr3_top
     (
         //clock and reset
         .i_controller_clk(i_controller_clk),
         .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
         .i_ref_clk(i_ref_clk),
-        .i_rst_n(i_rst_n), 
+        .i_ddr3_clk_90(i_ddr3_clk_90),
+        .i_rst_n(i_rst_n && clk_locked), 
         // Wishbone inputs
         .i_wb_cyc(i_wb_cyc), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
         .i_wb_stb(i_wb_stb), //request a transfer
@@ -143,46 +203,39 @@ ddr3_top #(
         .o_ddr3_ba_addr(ba_addr),
         .io_ddr3_dq(dq),
         .io_ddr3_dqs(dqs),
-        .io_ddr3_dqs_n(dqs_n)
+        .io_ddr3_dqs_n(dqs_n),
+        .o_ddr3_dm(ddr3_dm)
+        
         ////////////////////////////////////
     );
-    assign ck_en[1]=0,
-           cs_n[1]=1,
-           odt[1]=0; 
     
-    
-    always #5000 i_controller_clk = !i_controller_clk;
-    always #1250 i_ddr3_clk = !i_ddr3_clk;
-    always #2500 i_ref_clk = !i_ref_clk;
-
-    initial begin
-        i_controller_clk = 1;
-        i_ddr3_clk = 1;
-        i_ref_clk = 1;
-    end
-    
-    
-/*
+   
+`ifdef TWO_LANES_x8
     // 1 lane DDR3
     ddr3 ddr3_0(
         .rst_n(reset_n),
         .ck(o_ddr3_clk_p),
         .ck_n(o_ddr3_clk_n),
-        .cke(ck_en),
-        .cs_n(cs_n),
+        .cke(ck_en[0]),
+        .cs_n(cs_n[0]),
         .ras_n(ras_n),
         .cas_n(cas_n),
         .we_n(we_n),
-        .dm_tdqs(),
+        .dm_tdqs(ddr3_dm),
         .ba(ba_addr),
         .addr(addr),
         .dq(dq),
         .dqs(dqs),
         .dqs_n(dqs_n),
         .tdqs_n(),
-        .odt(odt)
+        .odt(odt[0])
     );
-    */
+    assign ck_en[1]=0,
+           cs_n[1]=1,
+           odt[1]=0; 
+`endif
+
+`ifdef EIGHT_LANES_x8
     // DDR3 Device 
     ddr3_module ddr3_module(
         .reset_n(reset_n),
@@ -196,10 +249,11 @@ ddr3_top #(
         .ba(ba_addr),
         .addr(addr),
         .odt(odt),
-        .dqs(dqs),
+        .dqs({ddr3_dm[0], ddr3_dm,ddr3_dm[0],dqs}), //ddr3_module uses last 8 MSB [16:9] as datamask
         .dqs_n(dqs_n),
         .dq(dq)
     );
+ `endif
     
     reg[511:0] write_data = 0, expected_read_data = 0;
     integer address = 0, read_address = 0, address_inner = 0;
@@ -218,7 +272,7 @@ ddr3_top #(
             i_wb_cyc <= 0;
             i_wb_stb <= 0;
             i_wb_we <= 0;
-            i_wb_sel <= {LANES{1'b1}}; //write to all lanes
+            i_wb_sel <= -1; //write to all lanes
             i_aux <= 0;
             i_wb_addr <= 0;
             i_wb_data <= 0;
@@ -230,6 +284,7 @@ ddr3_top #(
             i_wb2_data <= 0; //write data
             i_wb2_sel <= 0; 
         end
+
         @(posedge i_controller_clk) begin
             i_rst_n <= 1;
         end
