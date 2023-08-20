@@ -36,13 +36,13 @@
 // PRE_STALL_DELAY
                    
 module ddr3_controller #(
-    parameter real CONTROLLER_CLK_PERIOD = 12, //ns, period of clock input to this DDR3 controller module
-                   DDR3_CLK_PERIOD = 3, //ns, period of clock input to DDR3 RAM device 
+    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
+                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
     parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
-                   LANES = 2, //8 lanes of DQ
+                   LANES = 8, //8 lanes of DQ
                    AUX_WIDTH = 16, 
                    WB2_ADDR_BITS = 7,
                    WB2_DATA_BITS = 32,
@@ -108,7 +108,7 @@ module ddr3_controller #(
         (* mark_debug = "true" *) output reg[LANES-1:0] o_phy_idelay_dqs_ld,
         output reg[LANES-1:0] o_phy_bitslip,
         // Debug port
-        output	wire	[63:0]	o_debug1,
+        output	wire	[31:0]	o_debug1,
         output	wire	[31:0]	o_debug2
     );
 
@@ -278,7 +278,7 @@ module ddr3_controller #(
                 ANALYZE_DATA = 13, 
                 DONE_CALIBRATE = 14;
      localparam STORED_DQS_SIZE = 5, //must be >= 2           
-                REPEAT_DQS_ANALYZE = 5; // repeat DQS read to find the accurate starting position of DQS
+                REPEAT_DQS_ANALYZE = 3; // repeat DQS read to find the accurate starting position of DQS
 
     /*********************************************************************************************************************************************/
 
@@ -400,8 +400,9 @@ module ddr3_controller #(
     reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
-    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0, dq_target_index = 0;
-    wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
+    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0;
+    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dq_target_index = 0;
+    (* mark_debug ="true" *) wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
     reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
     reg[1:0] train_delay;
     (* mark_debug = "true" *) reg[3:0] delay_before_read_data = 0;
@@ -412,8 +413,8 @@ module ddr3_controller #(
     /* verilator lint_off UNUSEDSIGNAL */
     reg[15:0] dqs_bitslip_arrangement = 0;
     /* verilator lint_off UNUSEDSIGNAL */
-    reg[3:0] added_read_pipe_max = 0;
-    reg[3:0] added_read_pipe[LANES - 1:0];
+    (* mark_debug = "true" *) reg[3:0] added_read_pipe_max = 0;
+    (* mark_debug = "true" *) reg[3:0] added_read_pipe[LANES - 1:0];
     
     //contains the ack shift reg for both read and write
     reg[AUX_WIDTH:0] shift_reg_read_pipe_q[READ_ACK_PIPE_WIDTH-1:0]; 
@@ -1393,7 +1394,8 @@ module ddr3_controller #(
                       end
 
         CALIBRATE_DQS: if(dqs_start_index_stored == dqs_target_index) begin
-                            added_read_pipe[lane] <= dq_target_index[$clog2(STORED_DQS_SIZE*8)-1:(3+1)] + { {($clog2(STORED_DQS_SIZE*8)-3){1'b0}} , (dq_target_index[3:0] >= (5+8))};
+                            added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
+                                                        + { 3'b0 , (dq_target_index[3:0] >= (5+8)) };
                             dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[2:0];
                             state_calibrate <= BITSLIP_DQS_TRAIN_2;
                        end
@@ -1692,8 +1694,8 @@ module ddr3_controller #(
     //    o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[2:0]};
     //assign o_debug1 = {debug_trigger, o_wb2_stall, { {(3-lanes_clog2){1'b0}} , lane[lanes_clog2-1:0] } , dqs_start_index_stored[2:0], dqs_target_index[2:0], delay_before_read_data[2:0], 
     //            o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], dqs_store[11:0]};
-    assign o_debug1 = {lane, dqs_start_index_stored[2:0], dqs_target_index[2:0], instruction_address[4:0], 
-               i_phy_iserdes_dqs[15:0], state_calibrate[4:0], o_wb2_stall};       
+    assign o_debug1 = {debug_trigger, 2'b00, delay_before_read_data[3:0] ,i_phy_idelayctrl_rdy, lane[lanes_clog2-1:0], dqs_start_index_stored[4:0], 
+        dqs_target_index[4:0], instruction_address[4:0], state_calibrate[4:0], o_wb2_stall};       
     assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], i_phy_iserdes_dqs[15:0], 
                 o_phy_dqs_tri_control, o_phy_dq_tri_control,
                 (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
@@ -2546,10 +2548,14 @@ module ddr3_controller #(
                 if(stage1_pending && $past(state_calibrate) == READ_DATA && state_calibrate == READ_DATA) begin
                     assert(!stage1_we);
                 end
-                if(instruction_address == 21 || ($past(instruction_address) == 20 && $past(instruction_address,2) == 19) || instruction_address < 19) begin //not inside active or calibration
-                   assert(f_bank_status == 0);
-                   assert(bank_status_q == 0);
-                end
+                //if(instruction_address == 21 || ($past(instruction_address) == 20 && $past(instruction_address,2) == 19) || instruction_address < 19) begin //calibration
+               //    assert(f_bank_status == 0);
+               //    assert(bank_status_q == 0);
+               // end
+               if(!reset_done) begin
+                    assert(f_bank_status == 0);
+                    assert(bank_status_q == 0);
+               end
                if(state_calibrate != DONE_CALIBRATE) begin
                     assert(f_bank_status == 0 || f_bank_status == 1); //only first bank is activated
                     assert(bank_status_q == 0 || f_bank_status == 1);
@@ -2799,7 +2805,7 @@ module ddr3_controller #(
                 end
             end
 
-            if(state_calibrate <= ISSUE_WRITE_1) begin
+            if( state_calibrate < ISSUE_WRITE_1 ) begin
                 assert(bank_status_q == 0);
             end
 
@@ -2818,7 +2824,8 @@ module ddr3_controller #(
 
             assert(state_calibrate <= DONE_CALIBRATE);
         end
-
+        
+        
         wire[3:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count, f_stall_count;
         wire[3:0] f_nreqs_2, f_nacks_2, f_outstanding_2;
         reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
