@@ -70,7 +70,8 @@ module ddr3_top #(
         inout wire[(DQ_BITS*LANES)/8-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
         output wire[LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt, // on-die termination
-        output wire[63:0] o_debug1
+        output wire[31:0] o_debug1,
+        output wire[31:0] o_debug2
     );
 
     // Wire connections between controller and phy
@@ -99,6 +100,8 @@ module ddr3_top #(
             .DQ_BITS(DQ_BITS),  //width of DQ
             .LANES(LANES), //8 lanes of DQ
             .AUX_WIDTH(AUX_WIDTH), //
+            .WB2_ADDR_BITS(WB2_ADDR_BITS),
+            .WB2_DATA_BITS(WB2_DATA_BITS),
             .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
             .OPT_BUS_ABORT(OPT_BUS_ABORT),  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
             .MICRON_SIM(MICRON_SIM) //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
@@ -150,7 +153,8 @@ module ddr3_top #(
             .o_phy_idelay_data_ld(idelay_data_ld), 
             .o_phy_idelay_dqs_ld(idelay_dqs_ld),
             .o_phy_bitslip(bitslip),
-            .o_debug1(o_debug1)
+            .o_debug1(o_debug1),
+            .o_debug2(o_debug2)
         );
     ddr3_phy #(
             .ROW_BITS(ROW_BITS), //width of row address
