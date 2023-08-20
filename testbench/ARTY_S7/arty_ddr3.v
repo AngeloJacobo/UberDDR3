@@ -51,13 +51,13 @@
                 if(rd_data >= 97 && rd_data <= 122) begin //write
                     i_wb_stb <= 1;                 
                     i_wb_we <= 1;                  
-                    i_wb_addr <= 0;                
+                    i_wb_addr <= rd_data;                
                     i_wb_data <= rd_data; 
                 end
                 else if(rd_data >= 65 && rd_data <= 90) begin //read
                     i_wb_stb <= 1; //make request
                     i_wb_we <= 0; //read
-                    i_wb_addr <= 0;
+                    i_wb_addr <= rd_data + 8'd32;
                 end
                 /*
                 case(rd_data)
