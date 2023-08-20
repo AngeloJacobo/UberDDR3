@@ -103,7 +103,7 @@ module ddr3_phy #(
     //synchronous reset
     always @(posedge i_controller_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
-            sync_rst <= 1'b1;
+            sync_rst <= 1'b0;
             delay_before_release_reset <= SYNC_RESET_DELAY[$clog2(SYNC_RESET_DELAY):0];
             toggle_dqs_q <= 0;
         end
@@ -138,7 +138,7 @@ module ddr3_phy #(
                 .D3(i_controller_cmd[cmd_len*2 + gen_index]),
                 .D4(i_controller_cmd[cmd_len*3 + gen_index]),
                 .OCE(1'b1), // 1-bit input: Output data clock enable
-                .RST(sync_rst), // 1-bit input: Reset
+                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                 // unused signals but were added here to make vivado happy
                 .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                 .SHIFTOUT2(),
@@ -203,7 +203,7 @@ module ddr3_phy #(
             .D7(1'b1),
             .D8(1'b0),
             .OCE(1'b1), // 1-bit input: Output data clock enable
-            .RST(sync_rst), // 1-bit input: Reset
+            .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
              // unused signals but were added here to make vivado happy
             .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
             .SHIFTOUT2(),
@@ -225,7 +225,7 @@ module ddr3_phy #(
         );
         // End of OSERDESE2_inst instantiation
 
-        //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+        (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             //Delay the DQ
             // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
             ODELAYE2 #(
@@ -308,7 +308,7 @@ module ddr3_phy #(
                     .T1(i_controller_dq_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                     // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -330,7 +330,7 @@ module ddr3_phy #(
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
-                //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+                (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
                 ODELAYE2 #(
@@ -401,7 +401,7 @@ module ddr3_phy #(
                     .T1(i_controller_dq_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                     // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -438,7 +438,7 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -524,7 +524,7 @@ module ddr3_phy #(
                 .DDLY(idelay_data[gen_index]), // 1-bit input: Serial data from IDELAYE2
                 .OFB(), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
+                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -564,7 +564,7 @@ module ddr3_phy #(
                     .D8(i_controller_dm[gen_index + LANES*7]), 
                     .TCE(1'b0),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -588,7 +588,7 @@ module ddr3_phy #(
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
-                //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+                (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
                 ODELAYE2 #(
@@ -654,7 +654,7 @@ module ddr3_phy #(
                     .D8(i_controller_dm[gen_index + LANES*7]), 
                     .TCE(1'b0),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -722,7 +722,7 @@ module ddr3_phy #(
                     .T1(i_controller_dqs_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -744,7 +744,7 @@ module ddr3_phy #(
                 // ODELAYE2: Output Fixed or Variable Delay Element
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+                (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
                 //Delay the DQ
                 ODELAYE2 #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
@@ -816,7 +816,7 @@ module ddr3_phy #(
                     .T1(i_controller_dqs_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -855,7 +855,7 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -941,7 +941,7 @@ module ddr3_phy #(
                 .DDLY(idelay_dqs[gen_index]), // 1-bit input: Serial data from IDELAYE2
                 .OFB(), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
+                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -1010,7 +1010,7 @@ module ddr3_phy #(
                 .DDLY(), // 1-bit input: Serial data from IDELAYE2
                 .OFB(oserdes_bitslip_reference[gen_index]), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
+                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -1042,7 +1042,7 @@ module ddr3_phy #(
                     .D7(1'b1),
                     .D8(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(sync_rst), // 1-bit input: Reset
+                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -1127,7 +1127,7 @@ module ddr3_phy #(
     // IDELAYCTRL: IDELAYE2/ODELAYE2 Tap Delay Value Control
     // 7 Series
     // Xilinx HDL Libraries Guide, version 13.4
-    //(* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
+    (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
     IDELAYCTRL IDELAYCTRL_inst (
         .RDY(o_controller_idelayctrl_rdy), // 1-bit output: Ready output
         .REFCLK(i_ref_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
