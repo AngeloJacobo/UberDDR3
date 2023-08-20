@@ -161,8 +161,8 @@ uart #(.DATA_WIDTH(8)) uart_m
         .ODELAY_SUPPORTED(0), //set to 1 when ODELAYE2 is supported
         .LANES(2), //8 lanes of DQ
         .AUX_WIDTH(16),
-        .WB2_ADDR_BITS(8),
-        .WB2_DATA_BITS(8),
+        .WB2_ADDR_BITS(32),
+        .WB2_DATA_BITS(32),
         .OPT_LOWPOWER(1), //1 = low power, 0 = low logic
         .OPT_BUS_ABORT(1),  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
         .MICRON_SIM(0) //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
