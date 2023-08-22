@@ -436,7 +436,7 @@ module ddr3_controller #(
     reg prev_write_level_feedback = 1;
     reg[wb_data_bits-1:0] read_data_store = 0;
     reg[127:0] write_pattern = 0;
-    reg[$clog2(64):0] data_start_index[LANES-1:0];       
+    (* mark_debug = "true" *) reg[$clog2(64):0] data_start_index[LANES-1:0];       
     reg[4:0] odelay_data_cntvaluein[LANES-1:0]; 
     reg[4:0] odelay_dqs_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein[LANES-1:0];
@@ -1519,6 +1519,7 @@ module ddr3_controller #(
                       else begin
                         data_start_index[lane] <= data_start_index[lane] + 8;
                         if(data_start_index[lane] == 56) begin
+                            data_start_index[lane] <= 0;
                             state_calibrate <= ISSUE_WRITE_1;
                         end
                       end             
