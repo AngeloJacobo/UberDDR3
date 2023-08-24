@@ -1,0 +1,66 @@
+[tasks]
+prf2lanes_83MHz   prf opt_2lanes   opt_83MHz    opt_with_ODELAY
+prf4lanes_83MHz   prf opt_4lanes   opt_83MHz    opt_with_ODELAY
+prf8lanes_83MHz   prf opt_8lanes   opt_83MHz    opt_with_ODELAY
+prf2lanes_100MHz  prf opt_2lanes   opt_100MHz   opt_with_ODELAY
+prf4lanes_100MHz  prf opt_4lanes   opt_100MHz   opt_with_ODELAY
+prf8lanes_100MHz  prf opt_8lanes   opt_100MHz   opt_with_ODELAY
+prf2lanes_200MHz  prf opt_2lanes   opt_200MHz   opt_with_ODELAY
+prf4lanes_200MHz  prf opt_4lanes   opt_200MHz   opt_with_ODELAY
+prf8lanes_200MHz  prf opt_8lanes   opt_200MHz   opt_with_ODELAY
+prf_no_ODELAY     prf opt_8lanes   opt_200MHz   opt_no_ODELAY 
+
+[options]
+prf: mode prove
+prf: depth  10
+
+[engines]
+prf: smtbmc
+
+[script]
+read -formal ddr3_controller.v
+read -formal fwb_slave.v
+
+--bash-begin--
+if
+sed -i "s/parameter real CONTROLLER_CLK_PERIOD = .*/parameter real CONTROLLER_CLK_PERIOD = 10 \/\/ ns, period of clock input to this DDR3 controller module/" "./rtl/ddr3_controller.v"
+cmd = "hierarchy -top ddr3_controller"
+
+# Number of Lanes
+if "opt_2lanes" in  :
+    cmd += " -chparam LANES 2"
+elif "opt_4lanes" in tags:
+    cmd += " -chparam LANES 4"
+elif "opt_8lanes" in tags:
+    cmd += " -chparam LANES 8"
+else:
+    cmd += " -chparam LANES 8"
+
+# Clock period
+if "opt_83MHz" in tags:
+    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 12.5"
+    cmd += " -chparam -set DDR3_CLK_PERIOD 3.5"
+elif "opt_100MHz" in tags:
+    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 10"
+    cmd += " -chparam -set DDR3_CLK_PERIOD 2.5"
+elif "opt_200MHz" in tags:
+    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 5"
+    cmd += " -chparam -set DDR3_CLK_PERIOD 1.25"
+else:
+    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 10"
+    cmd += " -chparam -set DDR3_CLK_PERIOD 2.5"
+
+# ODELAY support
+if "opt_with_ODELAY" in tags:
+    cmd += " -chparam ODELAY_SUPPORTED 1"
+elif "opt_no_ODELAY" in tags:
+    cmd += " -chparam ODELAY_SUPPORTED 0"
+output(cmd)
+--pycode-end--
+
+prep -top ddr3_controller
+
+[files]
+./rtl/ddr3_controller.v
+./rtl/fwb_slave.v
+
