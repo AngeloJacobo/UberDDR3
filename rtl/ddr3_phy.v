@@ -9,6 +9,7 @@ module ddr3_phy #(
                   DQ_BITS = 8,
                   LANES = 8,
     parameter[0:0] ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
+                   USE_IO_TERMINATION = 1, //use IOBUF_DCIEN and IOBUFDS_DCIEN when 1
               // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
     parameter serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
               wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -30,6 +31,7 @@ module ddr3_phy #(
         input wire[LANES-1:0] i_controller_odelay_data_ld, i_controller_odelay_dqs_ld,
         input wire[LANES-1:0] i_controller_idelay_data_ld, i_controller_idelay_dqs_ld,
         input wire[LANES-1:0] i_controller_bitslip,
+        input wire i_controller_write_leveling_calib,
         output wire[DQ_BITS*LANES*8-1:0] o_controller_iserdes_data,
         output wire[LANES*8-1:0] o_controller_iserdes_dqs,
         output wire[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
@@ -99,6 +101,10 @@ module ddr3_phy #(
     wire ddr3_clk;
     reg toggle_dqs_q; //past value of i_controller_toggle_dqs
     wire ddr3_clk_delayed;
+    wire idelayctrl_rdy;
+    wire dci_locked;
+    
+    assign o_controller_idelayctrl_rdy = idelayctrl_rdy && dci_locked;
     
     //synchronous reset
     always @(posedge i_controller_clk, negedge i_rst_n) begin
@@ -138,7 +144,7 @@ module ddr3_phy #(
                 .D3(i_controller_cmd[cmd_len*2 + gen_index]),
                 .D4(i_controller_cmd[cmd_len*3 + gen_index]),
                 .OCE(1'b1), // 1-bit input: Output data clock enable
-                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                .RST(!idelayctrl_rdy), // 1-bit input: Reset
                 // unused signals but were added here to make vivado happy
                 .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                 .SHIFTOUT2(),
@@ -203,7 +209,7 @@ module ddr3_phy #(
             .D7(1'b1),
             .D8(1'b0),
             .OCE(1'b1), // 1-bit input: Output data clock enable
-            .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+            .RST(!idelayctrl_rdy), // 1-bit input: Reset
              // unused signals but were added here to make vivado happy
             .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
             .SHIFTOUT2(),
@@ -308,7 +314,7 @@ module ddr3_phy #(
                     .T1(i_controller_dq_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                     // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -357,20 +363,43 @@ module ddr3_phy #(
                     .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
                 );
 
-                // IOBUF: Single-ended Bi-directional Buffer
-                //All devices
-                // Xilinx HDL Libraries Guide, version 13.4
-                IOBUF #(
-                    //.DRIVE(12), // Specify the output drive strength
+                if(USE_IO_TERMINATION) begin 
+                    // IOBUF_DCIEN: Single-ended Bi-directional Buffer with Digital Controlled Impedance (DCI)
+                    // and Input path enable/disable
+                    // May only be placed in High Performance (HP) Banks
+                    // 7 Series
+                    // Xilinx HDL Libraries Guide, version 13.4
+                    IOBUF_DCIEN #(
                     .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
-                    //.IOSTANDARD("SSTL15"), // Specify the I/O standard
-                    .SLEW("FAST") // Specify the output slew rate
-                ) IOBUF_data (
-                    .O(read_dq[gen_index]),// Buffer output
-                    .IO(io_ddr3_dq[gen_index]), // Buffer inout port (connect directly to top-level port)
-                    .I(odelay_data[gen_index]), // Buffer input
-                    .T(oserdes_dq_tri_control[gen_index]) // 3-state enable input, high=read, low=write
-                );
+                    .SLEW("FAST"), // Specify the output slew rate
+                    .USE_IBUFDISABLE("FALSE") // Use IBUFDISABLE function, "TRUE" or "FALSE"
+                    ) IOBUF_DCIEN_data (
+                        .O(read_dq[gen_index]), // Buffer output
+                        .IO(io_ddr3_dq[gen_index]), // Buffer inout port (connect directly to top-level port)
+                        .DCITERMDISABLE(1'b0), // DCI Termination enable input
+                        .I(odelay_data[gen_index]), // Buffer input
+                        .IBUFDISABLE(1'b0), // Input disable input, low=disable
+                        .T(oserdes_dq_tri_control[gen_index]) // 3-state enable input, high=input, low=output
+                    );
+                    // End of IOBUF_DCIEN_inst instantiation
+
+                 end
+                 else begin                         
+                    // IOBUF: Single-ended Bi-directional Buffer
+                    //All devices
+                    // Xilinx HDL Libraries Guide, version 13.4
+                    IOBUF #(
+                        //.DRIVE(12), // Specify the output drive strength
+                        .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
+                        //.IOSTANDARD("SSTL15"), // Specify the I/O standard
+                        .SLEW("FAST") // Specify the output slew rate
+                    ) IOBUF_data (
+                        .O(read_dq[gen_index]),// Buffer output
+                        .IO(io_ddr3_dq[gen_index]), // Buffer inout port (connect directly to top-level port)
+                        .I(odelay_data[gen_index]), // Buffer input
+                        .T(oserdes_dq_tri_control[gen_index]) // 3-state enable input, high=read, low=write
+                    );
+                 end
             end
             else begin //ODELAY is not supported
                 // OSERDESE2: Output SERial/DESerializer with bitslip
@@ -401,7 +430,7 @@ module ddr3_phy #(
                     .T1(i_controller_dq_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                     // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -524,7 +553,7 @@ module ddr3_phy #(
                 .DDLY(idelay_data[gen_index]), // 1-bit input: Serial data from IDELAYE2
                 .OFB(), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
+                .RST(!idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -564,7 +593,7 @@ module ddr3_phy #(
                     .D8(i_controller_dm[gen_index + LANES*7]), 
                     .TCE(1'b0),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -654,7 +683,7 @@ module ddr3_phy #(
                     .D8(i_controller_dm[gen_index + LANES*7]), 
                     .TCE(1'b0),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -713,16 +742,16 @@ module ddr3_phy #(
                     // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
                     .D1(1'b1 && (i_controller_toggle_dqs || toggle_dqs_q)), //the last part will still have half dqs series
                     .D2(1'b0 && (i_controller_toggle_dqs || toggle_dqs_q)),
-                    .D3(1'b1 && (i_controller_toggle_dqs || toggle_dqs_q)),
+                    .D3(1'b1 && (i_controller_toggle_dqs || toggle_dqs_q) && !i_controller_write_leveling_calib),
                     .D4(1'b0 && (i_controller_toggle_dqs || toggle_dqs_q)),
-                    .D5(1'b1 && i_controller_toggle_dqs),
+                    .D5(1'b1 && i_controller_toggle_dqs && !i_controller_write_leveling_calib),
                     .D6(1'b0 && i_controller_toggle_dqs),
-                    .D7(1'b1 && i_controller_toggle_dqs),
+                    .D7(1'b1 && i_controller_toggle_dqs && !i_controller_write_leveling_calib),
                     .D8(1'b0 && i_controller_toggle_dqs),
                     .T1(i_controller_dqs_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -770,21 +799,46 @@ module ddr3_phy #(
                     .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
                 );
                 
-                // IOBUFDS: Differential Bi-directional Buffer
-                //7 Series
-                // Xilinx HDL Libraries Guide, version 13.4
-                IOBUFDS #(
-                    //.DIFF_TERM("FALSE"), // Differential Termination ("TRUE"/"FALSE")
-                    .IBUF_LOW_PWR("FALSE") // Low Power - "TRUE", High Performance = "FALSE"
-                    //.IOSTANDARD("DIFF_SSTL15") // Specify the I/O standard. CONSULT WITH DATASHEET
-                    //.SLEW("FAST") // Specify the output slew rate
-                ) IOBUFDS_inst (
-                    .O(read_dqs[gen_index]), // Buffer output
-                    .IO(io_ddr3_dqs[gen_index]), // Diff_p inout (connect directly to top-level port)
-                    .IOB(io_ddr3_dqs_n[gen_index]), // Diff_n inout (connect directly to top-level port)
-                    .I(odelay_dqs[gen_index]), // Buffer input
-                    .T(/*!dqs_tri_control[gen_index]*/oserdes_dqs_tri_control[gen_index]) // 3-state enable input, high=input, low=output
-                ); // End of IOBUFDS_inst instantiation
+                if(USE_IO_TERMINATION) begin 
+                    // IOBUFDS_DCIEN: Differential Bi-directional Buffer with Digital Controlled Impedance (DCI)
+                    // and Input path enable/disable
+                    // May only be placed in High Performance (HP) Banks
+                    // 7 Series
+                    // Xilinx HDL Libraries Guide, version 13.4
+                    IOBUFDS_DCIEN #(
+                        .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
+                        .SLEW("FAST"), // Specify the output slew rate
+                        .USE_IBUFDISABLE("FALSE") // Use IBUFDISABLE function, "TRUE" or "FALSE"
+                    ) IOBUFDS_DCIEN_inst (
+                        .O(read_dqs[gen_index]),  // Buffer output
+                        .IO(io_ddr3_dqs[gen_index]), // Diff_p inout (connect directly to top-level port)
+                        .IOB(io_ddr3_dqs_n[gen_index]), // Diff_n inout (connect directly to top-level port)
+                        .DCITERMDISABLE(1'b0), // DCI Termination enable input
+                        .I(odelay_dqs[gen_index]), // Buffer input
+                        .IBUFDISABLE(1'b0), // Input disable input, low=disable
+                        .T(oserdes_dqs_tri_control[gen_index]) // 3-state enable input, high=input, low=output
+                    );
+                    // End of IOBUFDS_DCIEN_inst instantiation
+
+                end
+                else begin
+                    // IOBUFDS: Differential Bi-directional Buffer
+                    //7 Series
+                    // Xilinx HDL Libraries Guide, version 13.4
+                    IOBUFDS #(
+                        //.DIFF_TERM("FALSE"), // Differential Termination ("TRUE"/"FALSE")
+                        .IBUF_LOW_PWR("FALSE") // Low Power - "TRUE", High Performance = "FALSE"
+                        //.IOSTANDARD("DIFF_SSTL15") // Specify the I/O standard. CONSULT WITH DATASHEET
+                        //.SLEW("FAST") // Specify the output slew rate
+                    ) IOBUFDS_dqs (
+                        .O(read_dqs[gen_index]), // Buffer output
+                        .IO(io_ddr3_dqs[gen_index]), // Diff_p inout (connect directly to top-level port)
+                        .IOB(io_ddr3_dqs_n[gen_index]), // Diff_n inout (connect directly to top-level port)
+                        .I(odelay_dqs[gen_index]), // Buffer input
+                        .T(/*!dqs_tri_control[gen_index]*/oserdes_dqs_tri_control[gen_index]) // 3-state enable input, high=input, low=output
+                    ); // End of IOBUFDS_inst instantiation
+                end
+                
             end
             
             else begin //ODELAY not supported
@@ -816,7 +870,7 @@ module ddr3_phy #(
                     .T1(i_controller_dqs_tri_control),
                     .TCE(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -842,7 +896,7 @@ module ddr3_phy #(
                     .IBUF_LOW_PWR("FALSE") // Low Power - "TRUE", High Performance = "FALSE"
                     //.IOSTANDARD("DIFF_SSTL15") // Specify the I/O standard. CONSULT WITH DATASHEET
                     //.SLEW("FAST") // Specify the output slew rate
-                ) IOBUFDS_inst (
+                ) IOBUFDS_dqs (
                     .O(read_dqs[gen_index]), // Buffer output
                     .IO(io_ddr3_dqs[gen_index]), // Diff_p inout (connect directly to top-level port)
                     .IOB(io_ddr3_dqs_n[gen_index]), // Diff_n inout (connect directly to top-level port)
@@ -941,7 +995,7 @@ module ddr3_phy #(
                 .DDLY(idelay_dqs[gen_index]), // 1-bit input: Serial data from IDELAYE2
                 .OFB(), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
+                .RST(!idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -1010,7 +1064,7 @@ module ddr3_phy #(
                 .DDLY(), // 1-bit input: Serial data from IDELAYE2
                 .OFB(oserdes_bitslip_reference[gen_index]), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
+                .RST(!idelayctrl_rdy), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1(),
                 .SHIFTIN2()
@@ -1042,7 +1096,7 @@ module ddr3_phy #(
                     .D7(1'b1),
                     .D8(1'b1),
                     .OCE(1'b1), // 1-bit input: Output data clock enable
-                    .RST(!o_controller_idelayctrl_rdy), // 1-bit input: Reset
+                    .RST(!idelayctrl_rdy), // 1-bit input: Reset
                      // unused signals but were added here to make vivado happy
                     .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
                     .SHIFTOUT2(),
@@ -1129,11 +1183,20 @@ module ddr3_phy #(
     // Xilinx HDL Libraries Guide, version 13.4
     (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
     IDELAYCTRL IDELAYCTRL_inst (
-        .RDY(o_controller_idelayctrl_rdy), // 1-bit output: Ready output
+        .RDY(idelayctrl_rdy), // 1-bit output: Ready output
         .REFCLK(i_ref_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
         .RST(sync_rst) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
     );
     // End of IDELAYCTRL_inst instantiation
 
+
+    // DCIRESET: Digitially Controlled Impedence Reset Component
+    //7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    DCIRESET DCIRESET_inst (
+        .LOCKED(dci_locked), // 1-bit output: LOCK status output (When low, DCI I/O impedance is being calibrated and DCI I/Os are unavailable)
+        .RST(sync_rst) // 1-bit input: Active-high asynchronous reset input
+    );
+    // End of DCIRESET_inst instantiation
          
     endmodule
