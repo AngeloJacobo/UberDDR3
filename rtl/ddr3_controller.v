@@ -107,6 +107,7 @@ module ddr3_controller #(
         output reg[LANES-1:0] o_phy_idelay_data_ld, 
         (* mark_debug = "true" *) output reg[LANES-1:0] o_phy_idelay_dqs_ld,
         output reg[LANES-1:0] o_phy_bitslip,
+        output reg o_phy_write_leveling_calib,
         // Debug port
         output	wire	[31:0]	o_debug1,
         output	wire	[31:0]	o_debug2
@@ -276,9 +277,13 @@ module ddr3_controller #(
                 ISSUE_READ = 11,
                 READ_DATA = 12,
                 ANALYZE_DATA = 13, 
-                DONE_CALIBRATE = 14;
+                CHECK_STARTING_DATA = 14,
+                BITSLIP_DQS_TRAIN_3 = 15,
+                DONE_CALIBRATE = 16;
+                
      localparam STORED_DQS_SIZE = 5, //must be >= 2           
-                REPEAT_DQS_ANALYZE = 3; // repeat DQS read to find the accurate starting position of DQS
+                REPEAT_DQS_ANALYZE = 1,
+                REPEAT_CLK_SAMPLING = 20; // repeat DQS read to find the accurate starting position of DQS
 
     /*********************************************************************************************************************************************/
 
@@ -308,7 +313,7 @@ module ddr3_controller #(
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
-    localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
+    localparam[0:0] TDQS = 1'b1; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
                                  //When the TDQS function is disabled, the DM function is provided (vice-versa).TDQS function is only 
                                  //available for X8 DRAM and must be disabled for X4 and X16. 
     localparam[0:0]  QOFF = 1'b0; //Output Buffer Control: Enabled
@@ -401,7 +406,7 @@ module ddr3_controller #(
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dq_target_index = 0;
+    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dq_target_index[LANES-1:0];
     (* mark_debug ="true" *) wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
     reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
     reg[1:0] train_delay;
@@ -442,7 +447,11 @@ module ddr3_controller #(
     reg[4:0] idelay_data_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein_prev;
     reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
-
+    reg[$clog2(REPEAT_CLK_SAMPLING):0] sample_clk_repeat = 0;
+    reg stored_write_level_feedback = 0;
+    reg[6:0] start_index_check = 0;
+    reg[64:0] read_lane_data = 0;
+    reg odelay_cntvalue_repeated = 0;
     // Wishbone 2
     reg wb2_stb = 0;
     reg wb2_update = 0;
@@ -459,6 +468,7 @@ module ddr3_controller #(
     reg[LANES-1:0] wb2_phy_idelay_data_ld;
     reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
     reg[lanes_clog2-1:0] wb2_write_lane;
+    reg sync_rst = 0;
     
     // initial block for all regs
     initial begin
@@ -496,6 +506,7 @@ module ddr3_controller #(
             odelay_dqs_cntvaluein[index] = DQS_INITIAL_ODELAY_TAP[4:0];
             idelay_data_cntvaluein[index] = DATA_INITIAL_IDELAY_TAP[4:0];
             idelay_dqs_cntvaluein[index] = DQS_INITIAL_IDELAY_TAP[4:0];
+            dq_target_index[index] = 0;
         end
     end
     /*********************************************************************************************************************************************/
@@ -617,8 +628,11 @@ module ddr3_controller #(
     
 
     /******************************************* Reset Sequence ROM Controller *******************************************/
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n) begin
+    always @(posedge i_controller_clk) begin
+        sync_rst <= !i_rst_n;
+    end
+    always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
             instruction_address <= 0;
             `ifdef FORMAL_COVER
                 instruction_address <= 21;
@@ -659,8 +673,8 @@ module ddr3_controller #(
 
     /******************************************************* Track Bank Status and Issue Command *******************************************************/
     //process request transaction 
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n ) begin
+    always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
             o_wb_stall <= 1'b1; 
             o_wb_stall_q <= 1'b1;
             //set stage 1 to 0
@@ -1102,8 +1116,8 @@ module ddr3_controller #(
 
 
     /******************************************************* Align Read Data from ISERDES *******************************************************/
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n ) begin
+    always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
             index_read_pipe <= 0;
             index_wb_data <= 0;
             write_dqs_val <= 0;
@@ -1219,8 +1233,8 @@ module ddr3_controller #(
     
 
     /******************************************************* Read/Write Calibration Sequence *******************************************************/
-    always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n) begin
+    always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
             state_calibrate <= IDLE;
             train_delay <= 0;
             dqs_store <= 0;
@@ -1252,10 +1266,12 @@ module ddr3_controller #(
             write_pattern <= 0;
             added_read_pipe_max <= 0;
             dqs_start_index_stored <= 0;
-            dqs_start_index_repeat <= 0;
-            dq_target_index <= 0;
+            dqs_start_index_repeat <= 0;        
             delay_before_write_level_feedback <= 0;
             delay_before_read_data <= 0;
+            read_lane_data <= 0;
+            o_phy_write_leveling_calib <= 0;
+            odelay_cntvalue_repeated <= 0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -1263,6 +1279,7 @@ module ddr3_controller #(
                 odelay_dqs_cntvaluein[index] <= DQS_INITIAL_ODELAY_TAP[4:0];
                 idelay_data_cntvaluein[index] <= DATA_INITIAL_IDELAY_TAP[4:0];
                 idelay_dqs_cntvaluein[index] <= DQS_INITIAL_IDELAY_TAP[4:0];
+                dq_target_index[index] <= 0;
             end
         end
         else begin
@@ -1271,7 +1288,6 @@ module ddr3_controller #(
             write_calib_we <= 0; //write-enable
             write_calib_col <= 0;
             write_calib_data <= 0;
-            write_calib_dqs <= 0;
             write_calib_dq <= 0;
             train_delay <= (train_delay==0)? 0:(train_delay - 1);
             delay_before_read_data <= (delay_before_read_data == 0)? 0: delay_before_read_data - 1;
@@ -1306,14 +1322,14 @@ module ddr3_controller #(
             end
             if(initial_dqs) begin
                 dqs_target_index <= dqs_target_index_value;
-                dq_target_index <= dqs_target_index_value;
+                dq_target_index[lane] <= dqs_target_index_value;
                 dqs_target_index_orig <= dqs_target_index_value;
             end
             if(idelay_dqs_cntvaluein[lane] == 0) begin //go back to previous odd
                 dqs_target_index <= dqs_target_index_orig - 2;
             end
             if(idelay_data_cntvaluein[lane] == 0 && idelay_data_cntvaluein_prev == 31) begin
-                dq_target_index <= dqs_target_index_orig - 2;
+                dq_target_index[lane] <= dqs_target_index_orig - 2;
             end
             
             // FSM
@@ -1326,6 +1342,9 @@ module ddr3_controller #(
                         o_phy_idelay_data_ld <= {LANES{1'b1}};
                         o_phy_idelay_dqs_ld <= {LANES{1'b1}};
                         pause_counter <= 1; //pause instruction address @13 until read calibration finishes
+                        write_calib_dqs <= 0;
+                        write_calib_odt <= 0;
+                        o_phy_write_leveling_calib <= 0;
                       end
                       else if(instruction_address == 13) begin
                         pause_counter <= 1; //pause instruction address @13 until read calibration finishes
@@ -1394,9 +1413,9 @@ module ddr3_controller #(
                       end
 
         CALIBRATE_DQS: if(dqs_start_index_stored == dqs_target_index) begin
-                            added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
-                                                        + { 3'b0 , (dq_target_index[3:0] >= (5+8)) };
-                            dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[2:0];
+                            added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
+                                                        + { 3'b0 , (dq_target_index[lane][3:0] >= (5+8)) };
+                            dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[lane][2:0];
                             state_calibrate <= BITSLIP_DQS_TRAIN_2;
                        end
                        else begin
@@ -1413,7 +1432,11 @@ module ddr3_controller #(
                                 /* verilator lint_on WIDTH */
                                     pause_counter <= 0; //read calibration now complete so continue the reset instruction sequence
                                     lane <= 0;
+                                    odelay_cntvalue_repeated <= 0;
                                     prev_write_level_feedback <= 1'b1;
+                                    sample_clk_repeat <= 0;
+                                    stored_write_level_feedback <= 0;
+                                    o_phy_write_leveling_calib <= 1;
                                     state_calibrate <= START_WRITE_LEVEL;
                                  end
                                  else begin
@@ -1429,7 +1452,6 @@ module ddr3_controller #(
                        end
                       
     START_WRITE_LEVEL: if(!ODELAY_SUPPORTED) begin //skip write levelling if ODELAY is not supported
-                            write_calib_odt <= 0;
                             pause_counter <= 0;
                             lane <= 0;
                             state_calibrate <= ISSUE_WRITE_1;
@@ -1440,33 +1462,43 @@ module ddr3_controller #(
                             delay_before_write_level_feedback <= DELAY_BEFORE_WRITE_LEVEL_FEEDBACK[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0];
                             state_calibrate <= WAIT_FOR_FEEDBACK;
                             pause_counter <= 1; // pause instruction address @17 until write calibration finishes
-                       end
-                       
+                       end  
+
     WAIT_FOR_FEEDBACK: if(delay_before_write_level_feedback == 0) begin
                             /* verilator lint_off WIDTH */ //_verilator warning: Bit extraction of var[511:0] requires 9 bit index, not 3 bits (but [lane<<3] is much simpler and cleaner)
-                            prev_write_level_feedback <= i_phy_iserdes_data[lane_times_8];
-                            if({prev_write_level_feedback, i_phy_iserdes_data[lane_times_8]} == 2'b01) begin
-                            /* verilator lint_on WIDTH */
-                            /* verilator lint_off WIDTH */
-                                if(lane == LANES - 1) begin
-                            /* verilator lint_on WIDTH */
-                                    write_calib_odt <= 0;
-                                    pause_counter <= 0; //write calibration now complete so continue the reset instruction sequence
-                                    lane <= 0;
-                                    state_calibrate <= ISSUE_WRITE_1;
+                            sample_clk_repeat <= (i_phy_iserdes_data[lane_times_8] == stored_write_level_feedback)? sample_clk_repeat + 1 : 0; //sample_clk_repeat should get the same response 
+                            stored_write_level_feedback <= i_phy_iserdes_data[lane_times_8];
+                            write_calib_dqs <= 0;
+                            if(sample_clk_repeat == REPEAT_CLK_SAMPLING) begin
+                                sample_clk_repeat <= 0;
+                                prev_write_level_feedback <= stored_write_level_feedback;
+                                if({prev_write_level_feedback, stored_write_level_feedback} == 2'b01 || (odelay_cntvalue_repeated && odelay_data_cntvaluein[lane] == 5)) begin
+                                    /* verilator lint_on WIDTH */
+                                    /* verilator lint_off WIDTH */
+                                    if(lane == LANES - 1) begin
+                                    /* verilator lint_on WIDTH */
+                                            write_calib_odt <= 0;
+                                            pause_counter <= 0; //write calibration now complete so continue the reset instruction sequence
+                                            lane <= 0;
+                                            o_phy_write_leveling_calib <= 0;
+                                            state_calibrate <= ISSUE_WRITE_1;
+                                    end
+                                    else begin
+                                        lane <= lane + 1;
+                                        odelay_cntvalue_repeated <= 0;
+                                        prev_write_level_feedback <= 1'b1;
+                                        sample_clk_repeat <= 0;
+                                        state_calibrate <= START_WRITE_LEVEL; 
+                                    end
                                 end
                                 else begin
-                                    lane <= lane + 1;
-                                    prev_write_level_feedback <= 1'b1;
+                                    o_phy_odelay_data_ld[lane] <= 1;
+                                    o_phy_odelay_dqs_ld[lane] <= 1;
                                     state_calibrate <= START_WRITE_LEVEL; 
                                 end
-                            end
-                            else begin
-                                o_phy_odelay_data_ld[lane] <= 1;
-                                o_phy_odelay_dqs_ld[lane] <= 1;
-                                state_calibrate <= START_WRITE_LEVEL; 
-                            end
-                        end     
+                             end     
+                         end
+                            
         ISSUE_WRITE_1: if(instruction_address == 22 && !o_wb_stall_q) begin
                         write_calib_stb <= 1;//actual request flag
                         write_calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
@@ -1500,29 +1532,57 @@ module ddr3_controller #(
                          //0x01b79fa4ebe2587b
                          //0x22ee5319a15aa382
                          write_pattern <= 128'h80dbcfd275f12c3d_9177298cd0ad51c1;
-                      end              
-                        
-        //ANALYZE_DATA: if(write_pattern[data_start_index[lane] +: 64] == read_data_store[lane*DQ_BITS*8 +: DQ_BITS*8]) begin   
+                      end   
+                 
         ANALYZE_DATA: if(write_pattern[data_start_index[lane] +: 64] == {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
                         read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
                         read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] }) begin   
-                        /* verilator lint_off WIDTH */
-                        if(lane == LANES - 1) begin
-                        /* verilator lint_on WIDTH */
-                            state_calibrate <= DONE_CALIBRATE;
-                        end        
-                        else begin
-                            lane <= lane + 1;
-                            data_start_index[lane+1] <= 0;
-                        end
+                            /* verilator lint_off WIDTH */
+                            if(lane == LANES - 1) begin
+                            /* verilator lint_on WIDTH */
+                                state_calibrate <= DONE_CALIBRATE;
+                            end        
+                            else begin
+                                lane <= lane + 1;
+                                data_start_index[lane+1] <= 0;
+                            end
                       end 
                       else begin
-                        data_start_index[lane] <= data_start_index[lane] + 8;
-                        if(data_start_index[lane] == 56) begin
-                            data_start_index[lane] <= 0;
-                            state_calibrate <= ISSUE_WRITE_1;
+                            data_start_index[lane] <= data_start_index[lane] + 8;
+                            if(data_start_index[lane] == 56) begin //reached the end but no byte in write-pattern matches the data read, issue might be reading at wrong DQS toggle 
+                                data_start_index[lane] <= 0;        //so we need to recalibrate the bitslip
+                                start_index_check <= 0;
+                                state_calibrate <= CHECK_STARTING_DATA;
+                            end
+                      end     
+
+                      //check if the data starts not at bit 0 (happens if the DQS toggles early than DQ, this means we are calibrated to read at same 
+                      //time as DQS toggles but since DQ is late then we need to look which DQS toggle does DQ actually start)
+ CHECK_STARTING_DATA: begin
+                        if(read_lane_data[start_index_check +: 16] == write_pattern[0 +: 16]) begin //check if first 
+                            state_calibrate <= BITSLIP_DQS_TRAIN_3;
+                            added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
+                                                        + { 3'b0 , (dq_target_index[lane][3:0] >= (5+8)) };
+                            dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[lane][2:0];
+                            state_calibrate <= BITSLIP_DQS_TRAIN_3;
                         end
-                      end             
+                        else begin
+                            start_index_check <= start_index_check + 16;
+                            dq_target_index[lane] <= dq_target_index[lane] + 2;
+                        end
+                      end
+      
+BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to capture the DQ correctly
+                        if(i_phy_iserdes_bitslip_reference[lane*serdes_ratio*2 +: 8] == dqs_bitslip_arrangement[7:0]) begin
+                             state_calibrate <= ISSUE_WRITE_1; //finished bitslip calibration so we can now issue again new write and then read 
+                             added_read_pipe_max <= added_read_pipe_max > added_read_pipe[lane]? added_read_pipe_max:added_read_pipe[lane];
+                        end
+                        else begin
+                            o_phy_bitslip[lane] <= 1;
+                            train_delay <= 3;
+                        end
+                    end
+                            
       DONE_CALIBRATE: begin
                         state_calibrate <= DONE_CALIBRATE;
                         if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
@@ -1539,6 +1599,14 @@ module ddr3_controller #(
         `ifdef FORMAL_COVER
             state_calibrate <= DONE_CALIBRATE;
         `endif
+        
+             read_lane_data <= {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                    read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                    read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] };
+             //maximum value has been reached and will go back to zero at next load
+             if(odelay_data_cntvaluein[lane] == 31) begin
+                odelay_cntvalue_repeated <= 1; 
+             end
         end
     end      
     assign issue_read_command = (state_calibrate == MPR_READ && delay_before_read_data == 0);
@@ -1548,14 +1616,13 @@ module ddr3_controller #(
     assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
     assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1;
-
     /*********************************************************************************************************************************************/
 
 
     /******************************************************* Wishbone 2 (PHY) Interface *******************************************************/
 
-   always @(posedge i_controller_clk, negedge i_rst_n) begin
-        if(!i_rst_n) begin
+   always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
             wb2_stb <= 0;
             wb2_we <= 0; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN}
             wb2_addr <= 0;
@@ -1580,8 +1647,8 @@ module ddr3_controller #(
         end
    end 
 
-   always @(posedge i_controller_clk, negedge i_rst_n) begin
-       if(!i_rst_n) begin
+   always @(posedge i_controller_clk) begin
+       if(sync_rst) begin
            wb2_phy_odelay_data_cntvaluein <= 0;
            wb2_phy_odelay_data_ld <= 0;
            wb2_phy_odelay_dqs_cntvaluein <= 0;
@@ -1697,10 +1764,10 @@ module ddr3_controller #(
     //            o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], dqs_store[11:0]};
     assign o_debug1 = {debug_trigger, 2'b00, delay_before_read_data[3:0] ,i_phy_idelayctrl_rdy, lane[lanes_clog2-1:0], dqs_start_index_stored[4:0], 
         dqs_target_index[4:0], instruction_address[4:0], state_calibrate[4:0], o_wb2_stall};       
-    assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], i_phy_iserdes_dqs[15:0], 
-                o_phy_dqs_tri_control, o_phy_dq_tri_control,
-                (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
-                }; 
+    //assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], i_phy_iserdes_dqs[15:0], 
+     //           o_phy_dqs_tri_control, o_phy_dq_tri_control,
+    //            (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
+     //           }; 
     assign debug_trigger = (state_calibrate == MPR_READ);
     (* mark_debug = "true" *) wire dq_all_zeroes;
     assign dq_all_zeroes = (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b0}});
