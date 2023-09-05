@@ -49,9 +49,9 @@ module ddr3_controller #(
     /* verilator lint_off UNUSEDPARAM */
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
+   /* verilator lint_on UNUSEDPARAM */
                    MICRON_SIM = 0, //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
-    /* verilator lint_on UNUSEDPARAM */
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -110,7 +110,8 @@ module ddr3_controller #(
         output reg o_phy_write_leveling_calib,
         // Debug port
         output	wire	[31:0]	o_debug1,
-        output	wire	[31:0]	o_debug2
+        output	wire	[31:0]	o_debug2,
+        output	wire	[31:0]	o_debug3
     );
 
     
@@ -308,7 +309,7 @@ module ddr3_controller #(
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
-    localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (IS THIS THE SAME WITH RTT_NOM???????????? Search later)
+    localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control (IS THIS THE SAME WITH RTT_NOM???????????? Search later)
     localparam[2:0] RTT_NOM = 3'b011; //RTT Nominal: 40ohms (RQZ/6) is the impedance of the PCB trace
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
@@ -449,8 +450,8 @@ module ddr3_controller #(
     reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
     reg[$clog2(REPEAT_CLK_SAMPLING):0] sample_clk_repeat = 0;
     reg stored_write_level_feedback = 0;
-    reg[6:0] start_index_check = 0;
-    reg[64:0] read_lane_data = 0;
+    reg[5:0] start_index_check = 0;
+    reg[63:0] read_lane_data = 0;
     reg odelay_cntvalue_repeated = 0;
     // Wishbone 2
     reg wb2_stb = 0;
@@ -467,6 +468,7 @@ module ddr3_controller #(
     reg[LANES-1:0] wb2_phy_odelay_dqs_ld;
     reg[LANES-1:0] wb2_phy_idelay_data_ld;
     reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
+    reg[LANES-1:0] write_level_fail = 0;
     reg[lanes_clog2-1:0] wb2_write_lane;
     reg sync_rst = 0;
     
@@ -1272,6 +1274,7 @@ module ddr3_controller #(
             read_lane_data <= 0;
             o_phy_write_leveling_calib <= 0;
             odelay_cntvalue_repeated <= 0;
+            write_level_fail <= 0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -1472,7 +1475,7 @@ module ddr3_controller #(
                             if(sample_clk_repeat == REPEAT_CLK_SAMPLING) begin
                                 sample_clk_repeat <= 0;
                                 prev_write_level_feedback <= stored_write_level_feedback;
-                                if({prev_write_level_feedback, stored_write_level_feedback} == 2'b01 || (odelay_cntvalue_repeated && odelay_data_cntvaluein[lane] == 5)) begin
+                                if(({prev_write_level_feedback, stored_write_level_feedback} == 2'b01) || write_level_fail[lane]) begin
                                     /* verilator lint_on WIDTH */
                                     /* verilator lint_off WIDTH */
                                     if(lane == LANES - 1) begin
@@ -1494,6 +1497,7 @@ module ddr3_controller #(
                                 else begin
                                     o_phy_odelay_data_ld[lane] <= 1;
                                     o_phy_odelay_dqs_ld[lane] <= 1;
+                                    write_level_fail[lane] <= (odelay_cntvalue_repeated && odelay_data_cntvaluein[lane] == 2);
                                     state_calibrate <= START_WRITE_LEVEL; 
                                 end
                              end     
@@ -1616,6 +1620,10 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
     assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
     assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1;
+    reg[31:0] wb_data_to_wb2 = 0;
+    always @(posedge i_controller_clk) begin
+        if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
+    end
     /*********************************************************************************************************************************************/
 
 
@@ -1745,7 +1753,23 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                     9: if(!wb2_we) begin
                             o_wb2_data <= write_pattern[31:0]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
                         end
-
+                        
+                    10: if(!wb2_we) begin //0x28 (data read back)
+                            o_wb2_data <= wb_data_to_wb2[31:0]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                        end
+                    11: if(!wb2_we) begin //0x2c (data write)
+                            o_wb2_data <= stage2_data_unaligned[31:0]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                        end   
+                    12: if(!wb2_we) begin //0x30
+                            o_wb2_data <= {stage1_we,stage1_col[6:0],stage1_data[7:0],{8'b0,stage1_dm[7:0]}}; //check if proper request is received
+                        end   
+                    13: if(!wb2_we) begin //0x30
+                            o_wb2_data <= 32'hf7; //lane 1
+                        end
+                    14: if(!wb2_we) begin //0x30
+                            o_wb2_data <= {{(32-LANES){1'b0}} , write_level_fail}; //lane 1
+                        end
+                        
               default: if(!wb2_we) begin //read 
                            o_wb2_data <= {(WB2_DATA_BITS/2){2'b10}}; //return alternating 1s and 0s when address to be read is invalid 
                        end
@@ -1762,13 +1786,27 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
     //    o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[2:0]};
     //assign o_debug1 = {debug_trigger, o_wb2_stall, { {(3-lanes_clog2){1'b0}} , lane[lanes_clog2-1:0] } , dqs_start_index_stored[2:0], dqs_target_index[2:0], delay_before_read_data[2:0], 
     //            o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], dqs_store[11:0]};
-    assign o_debug1 = {debug_trigger, 2'b00, delay_before_read_data[3:0] ,i_phy_idelayctrl_rdy, lane[lanes_clog2-1:0], dqs_start_index_stored[4:0], 
-        dqs_target_index[4:0], instruction_address[4:0], state_calibrate[4:0], o_wb2_stall};       
-    //assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], i_phy_iserdes_dqs[15:0], 
-     //           o_phy_dqs_tri_control, o_phy_dq_tri_control,
-    //            (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
-     //           }; 
-    assign debug_trigger = (state_calibrate == MPR_READ);
+    //assign o_debug1 = {debug_trigger, 2'b00, delay_before_read_data[3:0] ,i_phy_idelayctrl_rdy, 2'b00, lane, dqs_start_index_stored[4:0], 
+    //    dqs_target_index[4:0], instruction_address[4:0], state_calibrate[4:0], o_wb2_stall};       
+    //assign o_debug1 = {debug_trigger,stage1_we,stage1_col[5:0],stage1_data[7:0],{8'b0,stage1_dm[7:0]}};
+    /*assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0],{i_phy_iserdes_dqs[15:0]}, 
+                o_phy_dqs_tri_control, o_phy_dq_tri_control,
+                (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
+                }; */
+    /*assign o_debug3 = {debug_trigger, delay_before_write_level_feedback[4:0], odelay_data_cntvaluein[lane][4:0], odelay_dqs_cntvaluein[lane][4:0], 
+            state_calibrate[4:0], prev_write_level_feedback, i_phy_iserdes_data[48], i_phy_iserdes_data[40], i_phy_iserdes_data[32], i_phy_iserdes_data[24]
+            , i_phy_iserdes_data[16], i_phy_iserdes_data[8], i_phy_iserdes_data[0], {2'b0,lane} };
+    */
+    
+    /*assign o_debug3 = {debug_trigger, lane[2:0], delay_before_read_data[3:0], i_phy_iserdes_data[448 +: 3], i_phy_iserdes_data[384 +: 3], i_phy_iserdes_data[320 +: 3], 
+                        i_phy_iserdes_data[256 +: 3], i_phy_iserdes_data[192 +: 3], i_phy_iserdes_data[128 +: 3], i_phy_iserdes_data[64 +: 3], i_phy_iserdes_data[0 +: 3]};*/
+    //assign o_debug3 = {debug_trigger, i_phy_iserdes_data[192 +: 7], i_phy_iserdes_data[128 +: 8], i_phy_iserdes_data[64 +: 8], i_phy_iserdes_data[0 +: 8]};
+    //assign o_debug3 = {debug_trigger,  i_phy_iserdes_data[48 +: 7], i_phy_iserdes_data[32 +: 8], i_phy_iserdes_data[16 +: 8], i_phy_iserdes_data[0 +: 8]};
+    assign o_debug1 = {debug_trigger,i_phy_iserdes_dqs[7:0],state_calibrate[4:0], instruction_address[4:0],o_phy_idelay_dqs_ld[lane],o_phy_idelay_data_ld[lane],
+                        o_phy_odelay_data_ld[lane],o_phy_odelay_dqs_ld[lane], delay_before_read_data[2:0], delay_before_write_level_feedback[4:0],lane};
+    assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
+    assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
+    assign debug_trigger = o_wb_ack_read_q[0][0];
     (* mark_debug = "true" *) wire dq_all_zeroes;
     assign dq_all_zeroes = (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b0}});
     /*********************************************************************************************************************************************/
