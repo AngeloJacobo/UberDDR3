@@ -89,6 +89,8 @@ module ddr3_top #(
     wire[4:0] idelay_data_cntvaluein, idelay_dqs_cntvaluein;
     wire[LANES-1:0] odelay_data_ld, odelay_dqs_ld;
     wire[LANES-1:0] idelay_data_ld, idelay_dqs_ld;
+    wire write_leveling_calib;
+    
     //module instantiations
     ddr3_controller #(
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
@@ -153,6 +155,7 @@ module ddr3_top #(
             .o_phy_idelay_data_ld(idelay_data_ld), 
             .o_phy_idelay_dqs_ld(idelay_dqs_ld),
             .o_phy_bitslip(bitslip),
+            .o_phy_write_leveling_calib(write_leveling_calib),
             .o_debug1(o_debug1),
             .o_debug2(o_debug2)
         );
@@ -186,6 +189,7 @@ module ddr3_top #(
             .i_controller_idelay_data_ld(idelay_data_ld), 
             .i_controller_idelay_dqs_ld(idelay_dqs_ld),
             .i_controller_bitslip(bitslip),
+            .i_controller_write_leveling_calib(write_leveling_calib),
             .o_controller_iserdes_data(iserdes_data),
             .o_controller_iserdes_dqs(iserdes_dqs),
             .o_controller_iserdes_bitslip_reference(iserdes_bitslip_reference),
