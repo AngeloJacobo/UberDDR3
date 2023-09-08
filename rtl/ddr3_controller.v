@@ -314,7 +314,7 @@ module ddr3_controller #(
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
-    localparam[0:0] TDQS = 1'b1; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
+    localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
                                  //When the TDQS function is disabled, the DM function is provided (vice-versa).TDQS function is only 
                                  //available for X8 DRAM and must be disabled for X4 and X16. 
     localparam[0:0]  QOFF = 1'b0; //Output Buffer Control: Enabled
@@ -397,7 +397,8 @@ module ddr3_controller #(
     reg write_dqs_d;
     reg[STAGE2_DATA_DEPTH:0] write_dqs;
     reg[STAGE2_DATA_DEPTH:0] write_dqs_val;
-    reg write_dq_q, write_dq_d;
+    reg[1:0] write_dq_q;
+    reg write_dq_d;
     reg[STAGE2_DATA_DEPTH+1:0] write_dq;  
     
     (* mark_debug = "true" *) reg[$clog2(DONE_CALIBRATE):0] state_calibrate;
@@ -471,7 +472,15 @@ module ddr3_controller #(
     reg[LANES-1:0] write_level_fail = 0;
     reg[lanes_clog2-1:0] wb2_write_lane;
     reg sync_rst = 0;
-    
+    // test registers
+    reg test_stb; //request a transfer
+    reg test_we; //write-enable (1 = write, 0 = read)
+    reg[AUX_WIDTH-1:0] test_aux; //request a transfer
+    reg[wb_addr_bits - 1:0] test_addr; //burst-addressable {row,bank,col} 
+    reg[wb_data_bits - 1:0] test_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+    reg[wb_sel_bits - 1:0] test_sel; //byte strobe for write (1 = write the byte)
+
+        
     // initial block for all regs
     initial begin
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
@@ -819,6 +828,28 @@ module ddr3_controller #(
                 {stage1_next_row , stage1_next_bank} <= 0; //anticipated next row and bank to be accessed 
                 stage1_data <= write_calib_data;
             end
+            if(!o_wb_stall)  begin
+                //stage1 will not do the request (pending low) when the
+                //request is on the same bank as the current request. This
+                //will ensure stage1 bank will be different from stage2 bank
+                stage1_pending <= test_stb;//actual request flag
+                stage1_aux <= test_aux; //aux ID for AXI compatibility
+                stage1_we <= test_we; //write-enable
+                stage1_dm <= test_sel; //byte selection
+                stage1_col <= { test_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                stage1_bank <=  test_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
+                stage1_row <= test_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
+                //stage1_next_bank will not increment unless stage1_next_col
+                //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                //precharge and activate will happen only at the end of the
+                //current column with a margin dictated by
+                //MARGIN_BEFORE_ANTICIPATE  
+                /* verilator lint_off WIDTH */
+                {stage1_next_row , stage1_next_bank} <= (test_addr + MARGIN_BEFORE_ANTICIPATE) >> (COL_BITS- $clog2(serdes_ratio*2));
+                //anticipated next row and bank to be accessed 
+                /* verilator lint_on WIDTH */
+                stage1_data <= test_data;
+            end
             
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
@@ -1103,7 +1134,7 @@ module ddr3_controller #(
 
         // control logic for stall
         if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
-        else if(!i_wb_stb) o_wb_stall_d = 0;
+        else if(/*!i_wb_stb*/!test_stb) o_wb_stall_d = 0; /////////////////////////////////////////////////////////////////////////////////////////////////
         else if(!stage1_pending) o_wb_stall_d = stage2_stall;
         else o_wb_stall_d = stage1_stall;
         
@@ -1151,8 +1182,9 @@ module ddr3_controller #(
             write_dqs_q[1] <= write_dqs_q[0];
             write_dqs[0] <= write_dqs_d || write_dqs_q[0] || write_dqs_q[1]; //high for 3 clk cycles
             
-            write_dq_q <= write_dq_d;
-            write_dq[0] <= write_dq_d || write_dq_q; //high for 2 clk cycles
+            write_dq_q[0] <= write_dq_d;
+            write_dq_q[1] <= write_dq_q[0];
+            write_dq[0] <= write_dq_d || write_dq_q[0] || write_dq_q[1]; //high for 3 clk cycles
             for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin //increase by 1 to accomodate postamble            
                 write_dqs[index+1] <= write_dqs[index]; 
                 write_dqs_val[index+1] <= write_dqs_val[index];
@@ -1222,7 +1254,7 @@ module ddr3_controller #(
     assign o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; 
     assign o_wb_data = o_wb_data_q[index_wb_data];
     assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH];
-    assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH+1];
+    assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH];
     generate 
         if(STAGE2_DATA_DEPTH >= 2) begin: TOGGLE_DQS
             assign o_phy_toggle_dqs = write_dqs_val[STAGE2_DATA_DEPTH-2]; 
@@ -1523,6 +1555,7 @@ module ddr3_controller #(
                         write_calib_stb <= 1;//actual request flag
                         write_calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
                         write_calib_we <= 0; //write-enable
+                        write_calib_col <= 0;
                         state_calibrate <= READ_DATA;
                       end   
                       
@@ -1586,7 +1619,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                             train_delay <= 3;
                         end
                     end
-                            
+                           
       DONE_CALIBRATE: begin
                         state_calibrate <= DONE_CALIBRATE;
                         if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
@@ -1625,8 +1658,124 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
     end
     /*********************************************************************************************************************************************/
+    
+    reg[3:0] test_state = 0;
+    reg[wb_addr_bits-1:0] read_test_address_counter = 0, write_test_address_counter = 0, check_test_address_counter = 0;
+    reg[31:0] read_counter = 0, write_counter = 0,correct_read_data = 0, wrong_read_data = 0;
+    
+    always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
+            test_stb <= 0;
+            test_we <= 0;
+            test_aux <= 0;
+            test_addr <= 0;
+            test_data <= 0;
+            test_sel <= 0;
+            read_test_address_counter <= 0;
+            write_test_address_counter <= 0;
+            read_counter <= 0;
+            write_counter <= 0;
+        end
+        else if(state_calibrate == DONE_CALIBRATE) begin
+            case(test_state) 
+                0: begin
+                        if(!o_wb_stall) begin
+                            test_stb <= 1;//actual request flag
+                            test_aux <= 1; //AUX ID for write (1)
+                            test_we <= 1; //write-enable
+                            test_sel <= {wb_sel_bits{1'b1}}; 
+                            test_addr <= write_test_address_counter;
+                            test_data <= {serdes_ratio*2*LANES{write_test_address_counter[7:0]}}; 
+                            write_counter <= write_counter + 1;
+                            write_test_address_counter <= write_test_address_counter + 1;
+                            if(write_test_address_counter == 100) begin
+                                test_state <= 1;
+                            end
+                       end    
+                   end
+                   
+                1: begin
+                        if(!o_wb_stall) begin
+                            test_stb <= 1;//actual request flag
+                            test_aux <= 0; //AUX ID for write (1)
+                            test_we <= 0; //write-enable
+                            test_addr <= read_test_address_counter;
+                            read_counter <= read_counter + 1;
+                            read_test_address_counter <= read_test_address_counter + 1;
+                            if(read_test_address_counter == 100) begin
+                                test_state <= 2;
+                            end
+                        end
+                    end
+                 2: begin
+                         if(!o_wb_stall) begin
+                            test_stb <= 1;//actual request flag
+                            test_aux <= 1; //AUX ID for write (1)
+                            test_we <= 1; //write-enable
+                            test_sel <= {wb_sel_bits{1'b1}}; 
+                            test_addr <= ~write_test_address_counter;
+                            test_data <= {serdes_ratio*2*LANES{write_test_address_counter[7:0]}}; 
+                            write_counter <= write_counter + 1;
+                            write_test_address_counter <= write_test_address_counter + 1;
+                            if(write_test_address_counter == 200) begin
+                                test_state <= 3;
+                            end
+                       end     
+                    end
+                 3: begin
+                        if(!o_wb_stall) begin
+                            test_stb <= 1;//actual request flag
+                            test_aux <= 2; //AUX ID for write (1)
+                            test_we <= 0; //write-enable
+                            test_addr <= ~read_test_address_counter;
+                            read_counter <= read_counter + 1;
+                            read_test_address_counter <= read_test_address_counter + 1;
+                            if(read_test_address_counter == 200) begin
+                                test_state <= 4;
+                            end
+                        end
+                    end
+                 4: begin
+                        test_state <= test_state;
+                        test_stb <= 0;
+                        test_we <= 0;
+                        test_aux <= 0;
+                        test_addr <= 0;
+                        test_data <= 0;
+                        test_sel <= 0;
+                    end
+                    
+            endcase
+        end
+    end
 
-
+    always @(posedge i_controller_clk) begin
+        if(sync_rst) begin
+            check_test_address_counter <= 0;
+            correct_read_data <= 0;
+            wrong_read_data <= 0;
+        end
+        else if(state_calibrate == DONE_CALIBRATE) begin
+            if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd0, 1'b1}) begin //read ack received 
+                if(o_wb_data == {serdes_ratio*2*LANES{check_test_address_counter[7:0]}}) begin
+                    correct_read_data <= correct_read_data + 1;
+                end
+                else begin
+                    wrong_read_data <= wrong_read_data + 1;
+                end
+                check_test_address_counter <= check_test_address_counter + 1;
+            end
+            else if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd2, 1'b1}) begin //read ack received (random)
+                if(o_wb_data == {serdes_ratio*2*LANES{check_test_address_counter[7:0]}}) begin
+                    correct_read_data <= correct_read_data + 1;
+                end
+                else begin
+                    wrong_read_data <= wrong_read_data + 1;
+                end
+                check_test_address_counter <= check_test_address_counter + 1;
+            end
+        end
+    end
     /******************************************************* Wishbone 2 (PHY) Interface *******************************************************/
 
    always @(posedge i_controller_clk) begin
