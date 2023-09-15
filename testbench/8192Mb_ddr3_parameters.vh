@@ -425,15 +425,15 @@
     parameter PRE_DEF_PAT      =   8'hAA; // value returned during mpr pre-defined pattern readout
     parameter STOP_ON_ERROR    =       1; // If set to 1, the model will halt on command sequence/major errors
     parameter DEBUG            =       0; // Turn on Debug messages
-    parameter BUS_DELAY        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_0        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_1        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_2        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_3        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_4        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_5        =     0; // delay in picoseconds
+    parameter BUS_DELAY        =     625; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_0        =     100; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_1        =     200; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_2        =     100; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_3        =     300; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_4        =     200; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_5        =     50; // delay in picoseconds
     parameter FLY_BY_DELAY_LANE_6        =     0; // delay in picoseconds
-    parameter FLY_BY_DELAY_LANE_7        =     0; // delay in picoseconds
+    parameter FLY_BY_DELAY_LANE_7        =     250; // delay in picoseconds
     parameter RANDOM_OUT_DELAY =       0; // If set to 1, the model will put a random amount of delay on DQ/DQS during reads
     parameter RANDOM_SEED      =   31913; //seed value for random generator.
 

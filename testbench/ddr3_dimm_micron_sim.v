@@ -21,10 +21,10 @@
 `timescale 1ps / 1ps
 `define den8192Mb
 `define sg125
-`define x8
+`define x16
 //`define USE_CLOCK_WIZARD
-//`define TWO_LANES_x8
-`define EIGHT_LANES_x8
+`define TWO_LANES_x8
+//`define EIGHT_LANES_x8
 `define RAM_8Gb
 
 module ddr3_dimm_micron_sim;
@@ -44,7 +44,7 @@ module ddr3_dimm_micron_sim;
 
 `ifdef TWO_LANES_x8
     localparam LANES = 2,
-                ODELAY_SUPPORTED = 0;
+                ODELAY_SUPPORTED = 1;
 `endif 
 
 `ifdef EIGHT_LANES_x8
@@ -269,7 +269,7 @@ ddr3_top #(
         @(posedge i_controller_clk) begin
             i_rst_n <= 0;
             // Wishbone 1
-            i_wb_cyc <= 0;
+            i_wb_cyc <= 1;
             i_wb_stb <= 0;
             i_wb_we <= 0;
             i_wb_sel <= -1; //write to all lanes
@@ -289,7 +289,7 @@ ddr3_top #(
             i_rst_n <= 1;
         end
         wait(ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE);
-        
+
         // test 1 phase 1: Write random word sequentially
         // write to row 1
         number_of_op <= 0;
@@ -342,21 +342,24 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        while(i_wb_stb) begin
+        /*while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
-        end
+        end*/
 
         $display("\n--------------------------------\nDONE TEST 1: FIRST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
-        #100_000;
+       // #100_000;
         
-        @(posedge i_controller_clk) begin
+        /*@(posedge i_controller_clk) begin
             // write to middle row
             start_address <= ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS)/2)*($bits(ddr3_top.i_wb_data)/32)/8; //start at the middle row
-        end
+        end*/
+        
         #1; //just to make sure the non-blocking are assignments are all over
+        start_address <= ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS)/2)*($bits(ddr3_top.i_wb_data)/32)/8; //start at the middle row
+        #1;
         address <= start_address;
         number_of_op <= 0; 
         time_started <= $time;
@@ -404,14 +407,14 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        while(i_wb_stb) begin
+        /*while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
-        end
+        end*/
         $display("\n--------------------------------\nDONE TEST 1: MIDDLE ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
-        #100_000;
+        //#100_000;
 
 
          // write to last row (then go back to first row)
@@ -464,14 +467,14 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        while(i_wb_stb) begin
+        /*while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
-        end
+        end*/
         $display("\n--------------------------------\nDONE TEST 1: LAST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
-        #100_000;
+        //#100_000;
        
         
         
@@ -585,47 +588,19 @@ ddr3_top #(
 
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        while(i_wb_stb) begin
+        while(i_wb2_stb) begin
            @(posedge i_controller_clk) begin
-               if (!o_wb_stall) i_wb_stb <= 1'b0;
+               if (!o_wb2_stall) i_wb2_stb <= 1'b0;
           end
         end
-        #100_000;
-
-        /*
-        // write
-        //wait until ready to access
-        wait(!o_wb_stall);
-        @(negedge i_controller_clk);
-        i_wb_cyc = 1;
-        i_wb_stb = 1;
-        i_wb_we = 1;
-        i_wb_addr = 0;
-        i_wb_data = "BURST_8 BURST_7 BURST_6 BURST_5 BURST_4 BURST_3 BURST_2 BURST_1 ";
-        //i_wb_data = 512'h77777777_77777777__66666666_66666666__55555555_55555555__44444444_44444444__33333333_33333333__22222222_22222222__11111111_11111111__00000000_00000000;
-        @(negedge i_controller_clk);
-        i_wb_addr = 1;
-        i_wb_data = "SAMPLE8 SAMPLE7 SAMPLE6 SAMPLE5 SAMPLE4 SAMPLE3 SAMPLE2 SAMPLE1 SAMPLE0";
-        //i_wb_data = 512'h77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100__77665544_33221100;
-        @(negedge i_controller_clk);
-        i_wb_stb = 0;
-        i_wb_data = 0;
-        
-        //read
-        wait(!o_wb_stall);
-        @(negedge i_controller_clk);
-        i_wb_stb = 1;
-        i_wb_we = 0;
-        i_wb_addr = 0;
-        @(negedge i_controller_clk);
-        i_wb_addr = 1;
-        @(negedge i_controller_clk);
-        i_wb_stb = 0;
-        */
       
         #1000_000;
         $display("\n\n------- SUMMARY -------\nNumber of Writes = %0d\nNumber of Reads = %0d\nNumber of Success = %0d\nNumber of Fails = %0d\nNumber of Injected Errors = %0d\n", 
                                                 number_of_writes, number_of_reads,number_of_successful, number_of_failed, number_of_injected_errors); 
+        $display("\n\nTEST CALIBRATION\n[-]: write_test_address_counter = %0d", ddr3_top.ddr3_controller_inst.write_test_address_counter);
+        $display("[-]: read_test_address_counter = %0d", ddr3_top.ddr3_controller_inst.read_test_address_counter);
+        $display("[-]: correct_read_data = %0d", ddr3_top.ddr3_controller_inst.correct_read_data);
+        $display("[-]: wrong_read_data = %0d", ddr3_top.ddr3_controller_inst.wrong_read_data);
         $stop;
     end
     
@@ -799,6 +774,7 @@ ddr3_top #(
                
             end
         end
+
     end
 
     reg[8*3-1:0] command_used; //store command in ASCII
