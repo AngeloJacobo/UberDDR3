@@ -33,7 +33,6 @@
 ################################################################################
 ##
 ## }}}
-
 # Wishbone 1
 @PREFIX=ddr3_controller
 @DEVID=DDR3_CONTROLLER
@@ -76,8 +75,8 @@
                     @$(DEVID)COL_BITS = 10,  // width of column address
                     @$(DEVID)BA_BITS  =  3,  // width of bank address
                     @$(DEVID)DQ_BITS  =  8,  // Size of one octet
-                    @$(DEVID)LANES = @$(NLANES), //8 lanes of DQ
-                    @$(DEVID)AUX_WIDTH = 1,
+                    @$(DEVID)LANES = 8, //@$(NLANES), //8 lanes of DQ
+                    @$(DEVID)AUX_WIDTH = 8, //must be 8 bits or more (also used in internal test and calibration)
                     @$(DEVID)SERDES_RATIO = $rtoi(@$(DEVID)CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                     //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
                     @$(DEVID)CMD_LEN = 4 + 3 + @$(DEVID)BA_BITS + @$(DEVID)ROW_BITS;
@@ -112,13 +111,17 @@
 	wire    [@$(DEVID)CMD_LEN*@$(DEVID)SERDES_RATIO-1:0] @$(PREFIX)_cmd;
 	wire    @$(PREFIX)_dqs_tri_control, @$(PREFIX)_dq_tri_control;
 	wire    @$(PREFIX)_toggle_dqs;
-	wire    [@$(SLAVE.BUS.WIDTH)-1:0] @$(PREFIX)_data;
-	wire    [@$(SLAVE.BUS.WIDTH)/8-1:0] @$(PREFIX)_dm;
+	wire    [@$(DEVID)DQ_BITS*@$(DEVID)LANES*8-1:0] @$(PREFIX)_data;
+	wire    [(@$(DEVID)DQ_BITS*@$(DEVID)LANES*8)/8-1:0] @$(PREFIX)_dm;
 	wire    [4:0] @$(PREFIX)_odelay_data_cntvaluein, @$(PREFIX)_odelay_dqs_cntvaluein;
 	wire    [4:0] @$(PREFIX)_idelay_data_cntvaluein, @$(PREFIX)_idelay_dqs_cntvaluein;
 	wire    [@$(DEVID)LANES-1:0] @$(PREFIX)_odelay_data_ld, @$(PREFIX)_odelay_dqs_ld;
 	wire    [@$(DEVID)LANES-1:0] @$(PREFIX)_idelay_data_ld, @$(PREFIX)_idelay_dqs_ld;
 	wire    [@$(DEVID)LANES-1:0] @$(PREFIX)_bitslip;
+	wire    @$(PREFIX)_write_leveling_calib;
+	wire    @$(PREFIX)_reset;
+	wire    [@$(DEVID)LANES-1:0] @$(PREFIX)_debug_read_dqs_p, @$(PREFIX)_debug_read_dqs_n;
+	wire    @$(PREFIX)_debug_clk_p, @$(PREFIX)_debug_clk_n;
 	// }}}
 @TOP.MAIN=
         	// DDR3 Controller-PHY Interface
@@ -132,8 +135,27 @@
         	@$(PREFIX)_idelay_data_cntvaluein, @$(PREFIX)_idelay_dqs_cntvaluein,
         	@$(PREFIX)_odelay_data_ld, @$(PREFIX)_odelay_dqs_ld,
         	@$(PREFIX)_idelay_data_ld, @$(PREFIX)_idelay_dqs_ld,
-        	@$(PREFIX)_bitslip
+        	@$(PREFIX)_bitslip,
+        	@$(PREFIX)_write_leveling_calib,
+        	@$(PREFIX)_reset
 @TOP.INSERT=
+/*
+    wire clk_locked;
+    wire controller_clk, ddr3_clk, ref_ddr3_clk, ddr3_clk_90;
+    clk_wiz_0 clk_ddr3
+     (
+      // Clock out ports
+      .clk_out1(controller_clk),
+      .clk_out2(ddr3_clk),
+      .clk_out3(ref_ddr3_clk),
+      .clk_out4(ddr3_clk_90),
+      // Status and control signals
+      .reset(s_reset),
+      .locked(clk_locked),
+     // Clock in ports
+      .clk_in1(s_clk200)
+     );
+*/
 	// DDR3 PHY Instantiation
 	ddr3_phy #(
 		.ROW_BITS(@$(DEVID)ROW_BITS), //width of row address
@@ -141,14 +163,17 @@
 		.DQ_BITS(@$(DEVID)DQ_BITS),  //width of DQ
 		.LANES(@$(DEVID)LANES), //8 lanes of DQ
 		.CONTROLLER_CLK_PERIOD(@$(DEVID)CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
-		.DDR3_CLK_PERIOD(DDR3_CLK_PERIOD) //ns, period of clock input to DDR3 RAM device 
+		.DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+		.ODELAY_SUPPORTED(1)
 	) ddr3_phy_inst (
             // clock and reset
             .i_controller_clk(s_clk), 
             .i_ddr3_clk(s_clk4x),
             .i_ref_clk(s_clk200),
+            .i_ddr3_clk_90(0), //required only when ODELAY_SUPPORTED is zero
             .i_rst_n(!s_reset),
             // Controller Interface
+            .i_controller_reset(@$(PREFIX)_reset),
             .i_controller_cmd(@$(PREFIX)_cmd),
             .i_controller_dqs_tri_control(@$(PREFIX)_dqs_tri_control), 
             .i_controller_dq_tri_control(@$(PREFIX)_dq_tri_control),
@@ -164,6 +189,7 @@
             .i_controller_idelay_data_ld(@$(PREFIX)_idelay_data_ld), 
             .i_controller_idelay_dqs_ld(@$(PREFIX)_idelay_dqs_ld),
             .i_controller_bitslip(@$(PREFIX)_bitslip),
+            .i_controller_write_leveling_calib(@$(PREFIX)_write_leveling_calib),
             .o_controller_iserdes_data(@$(PREFIX)_iserdes_data),
             .o_controller_iserdes_dqs(@$(PREFIX)_iserdes_dqs),
             .o_controller_iserdes_bitslip_reference(@$(PREFIX)_iserdes_bitslip_reference),
@@ -183,9 +209,12 @@
             .io_ddr3_dqs(io_ddr3_dqs_p),
             .io_ddr3_dqs_n(io_ddr3_dqs_n),
             .o_ddr3_dm(o_ddr3_dm),
-            .o_ddr3_odt(o_ddr3_odt[0]) // on-die termination
+            .o_ddr3_odt(o_ddr3_odt[0]), // on-die termination
+            // DEBUG PHY
+            .o_ddr3_debug_read_dqs_p(@$(PREFIX)_debug_read_dqs_p),
+            .o_ddr3_debug_read_dqs_n(@$(PREFIX)_debug_read_dqs_n)
         );
-
+        //assign	o_tp = {@$(PREFIX)_debug_read_dqs_n[1:0],@$(PREFIX)_debug_read_dqs_p[1:0]};
         assign o_ddr3_s_n[1] = 1; // set to 1 (disabled) since controller only supports single rank
         assign o_ddr3_cke[1] = 0; // set to 0 (disabled) since controller only supports single rank
         assign o_ddr3_odt[1] = 0; // set to 0 (disabled) since controller only supports single rank
@@ -195,7 +224,17 @@
 	begin : GEN_UNUSED_@$(DEVID)_ASSIGN
 		assign o_ddr3_a[@$(PREFIX)gen_index] = 0;
 	end endgenerate
- 	
+	/*
+	// OBUFDS: Differential Output Buffer
+    // 7 Series
+    // Xilinx HDL Libraries Guide, version 13.4
+    OBUFDS OBUFDS_inst (
+    .O(o_ddr3_clk_p[1]), // Diff_p output (connect directly to top-level port)
+    .OB(o_ddr3_clk_n[1]), // Diff_n output (connect directly to top-level port)
+    .I(s_clk4x) // Buffer input
+    );
+    // End of OBUFDS_inst instantiation
+ 	*/
 @MAIN.PORTLIST=
 		// DDR3 Controller Interface
 		i_@$(PREFIX)_iserdes_data, i_@$(PREFIX)_iserdes_dqs,
@@ -208,7 +247,9 @@
 		o_@$(PREFIX)_idelay_data_cntvaluein, o_@$(PREFIX)_idelay_dqs_cntvaluein,
 		o_@$(PREFIX)_odelay_data_ld, o_@$(PREFIX)_odelay_dqs_ld,
 		o_@$(PREFIX)_idelay_data_ld, o_@$(PREFIX)_idelay_dqs_ld,
-		o_@$(PREFIX)_bitslip
+		o_@$(PREFIX)_bitslip,
+		o_@$(PREFIX)_leveling_calib,
+		o_@$(PREFIX)_reset
 @MAIN.PARAM=@$(TOP.PARAM)
 @MAIN.IODECL=
 	// DDR3 Controller I/O declarations
@@ -220,18 +261,20 @@
 	output wire    [@$(DEVID)CMD_LEN*@$(DEVID)SERDES_RATIO-1:0] o_@$(PREFIX)_cmd;
 	output wire    o_@$(PREFIX)_dqs_tri_control, o_@$(PREFIX)_dq_tri_control;
 	output wire    o_@$(PREFIX)_toggle_dqs;
-	output wire    [@$(SLAVE.BUS.WIDTH)-1:0] o_@$(PREFIX)_data;
-	output wire    [@$(SLAVE.BUS.WIDTH)/8-1:0] o_@$(PREFIX)_dm;
+	output wire    [@$(DEVID)DQ_BITS*@$(DEVID)LANES*8-1:0] o_@$(PREFIX)_data;
+	output wire    [(@$(DEVID)DQ_BITS*@$(DEVID)LANES*8)/8-1:0] o_@$(PREFIX)_dm;
 	output wire    [4:0] o_@$(PREFIX)_odelay_data_cntvaluein, o_@$(PREFIX)_odelay_dqs_cntvaluein;
 	output wire    [4:0] o_@$(PREFIX)_idelay_data_cntvaluein, o_@$(PREFIX)_idelay_dqs_cntvaluein;
 	output wire    [@$(DEVID)LANES-1:0] o_@$(PREFIX)_odelay_data_ld, o_@$(PREFIX)_odelay_dqs_ld;
 	output wire    [@$(DEVID)LANES-1:0] o_@$(PREFIX)_idelay_data_ld, o_@$(PREFIX)_idelay_dqs_ld;
 	output wire    [@$(DEVID)LANES-1:0] o_@$(PREFIX)_bitslip;
+	output wire    o_@$(PREFIX)_leveling_calib;
+	output wire    o_@$(PREFIX)_reset;
 	// }}}
 @MAIN.DEFNS=
 	// Verilator lint_off UNUSED
 	wire	[@$(DEVID)AUX_WIDTH-1:0]	@$(PREFIX)_aux_out;
-	wire	[31:0]	@$(PREFIX)_debug1, @$(PREFIX)_debug2;
+	wire	[31:0]	@$(PREFIX)_debug1, @$(PREFIX)_debug2, @$(PREFIX)_debug3;
 	// Verilator lint_on  UNUSED
 @MAIN.INSERT=
 	////////////////////////////////////////////////////////////////////////
@@ -247,6 +290,8 @@
             .DQ_BITS(@$(DEVID)DQ_BITS),  //width of DQ
             .LANES(@$(DEVID)LANES), //8 lanes of DQ
             .AUX_WIDTH(@$(DEVID)AUX_WIDTH), //
+            .MICRON_SIM(0), //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+            .ODELAY_SUPPORTED(1), //set to 1 when ODELAYE2 is supported
             .OPT_LOWPOWER(1), //1 = low power, 0 = low logic
             .OPT_BUS_ABORT(1)  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
 	) ddr3_controller_inst (
@@ -279,9 +324,12 @@
             .o_phy_idelay_data_ld(o_@$(PREFIX)_idelay_data_ld), 
             .o_phy_idelay_dqs_ld(o_@$(PREFIX)_idelay_dqs_ld),
             .o_phy_bitslip(o_@$(PREFIX)_bitslip),
+            .o_phy_write_leveling_calib(o_@$(PREFIX)_leveling_calib),
+            .o_phy_reset(o_@$(PREFIX)_reset),
             // Debug port
             .o_debug1(@$(PREFIX)_debug1),
-            .o_debug2(@$(PREFIX)_debug2)
+            .o_debug2(@$(PREFIX)_debug2),
+            .o_debug3(@$(PREFIX)_debug3)
         );
 	// }}}
 ##

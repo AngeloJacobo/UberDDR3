@@ -80,9 +80,9 @@ public:
         /*
         assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0], i_phy_iserdes_dqs[15:0], 
                 o_phy_dqs_tri_control, o_phy_dq_tri_control,
-                (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b0}}), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
+                (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
                 }; 
-        */
+        
 
 		register_trace("idelay_dqs_cntvaluein",5,26);
 		register_trace("idelay_data_cntvaluein",5,21);
@@ -93,6 +93,11 @@ public:
 		register_trace("i_phy_iserdes_data_is_zero",1,2);
 		register_trace("i_phy_iserdes_data_all_1s",1,1);
 		register_trace("i_phy_iserdes_data_less_than_half",1,0);
+		*/
+		/*
+		assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
+		*/
+		register_trace("i_phy_iserdes_data_62_32",31,0);
 	}
 };
 
