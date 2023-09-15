@@ -1,12 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sun Jul  9 01:37:07 2023
+[*] Thu Sep 14 06:23:44 2023
 [*]
-
+[dumpfile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/ddr3_controller/engine_0/trace_induct.vcd"
+[dumpfile_mtime] "Thu Sep 14 06:21:18 2023"
+[dumpfile_size] 165043
+[savefile] "/home/angelo/Desktop/switch_fpga/DDR3_Controller/formal.gtkw"
 [timestart] 0
 [size] 1848 1126
 [pos] -1 -1
-*-5.075655 63 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-4.925239 67 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] ddr3_controller.
 [treeopen] ddr3_controller.wb_properties.
 [sst_width] 391
@@ -20,28 +23,25 @@ ddr3_controller.i_controller_clk
 ddr3_controller.i_rst_n
 ddr3_controller.reset_done
 @24
-ddr3_controller.state_calibrate[4:0]
 ddr3_controller.instruction_address[4:0]
 ddr3_controller.delay_counter[15:0]
 @28
 ddr3_controller.o_wb_stall_q
 ddr3_controller.i_wb_cyc
-@200
--
+@22
+ddr3_controller.stage2_aux[15:0]
 @28
-ddr3_controller.f_read_fifo
-ddr3_controller.f_write_fifo
-ddr3_controller.o_wb_stall
-ddr3_controller.i_wb_stb
-ddr3_controller.stage1_pending
-ddr3_controller.stage2_pending
-@200
--
+ddr3_controller.pause_counter
+@24
+ddr3_controller.state_calibrate[5:0]
 @28
+ddr3_controller.past_sync_rst_controller
+ddr3_controller.sync_rst_controller
+@29
 +{ddr3_controller.[ACT] cmd_d<0>[23:0]} ddr3_controller.cmd_d<0>[23:0]
-@c00028
+@c00029
 +{ddr3_controller.[PRE] cmd_d<1>[23:0]} ddr3_controller.cmd_d<1>[23:0]
-@28
+@29
 (0)ddr3_controller.cmd_d<1>[23:0]
 (1)ddr3_controller.cmd_d<1>[23:0]
 (2)ddr3_controller.cmd_d<1>[23:0]
@@ -66,11 +66,11 @@ ddr3_controller.stage2_pending
 (21)ddr3_controller.cmd_d<1>[23:0]
 (22)ddr3_controller.cmd_d<1>[23:0]
 (23)ddr3_controller.cmd_d<1>[23:0]
-@1401200
+@1401201
 -group_end
-@c00028
+@c00029
 +{ddr3_controller.[RD] cmd_d<2>[23:0]} ddr3_controller.cmd_d<2>[23:0]
-@28
+@29
 (0)ddr3_controller.cmd_d<2>[23:0]
 (1)ddr3_controller.cmd_d<2>[23:0]
 (2)ddr3_controller.cmd_d<2>[23:0]
@@ -95,12 +95,110 @@ ddr3_controller.stage2_pending
 (21)ddr3_controller.cmd_d<2>[23:0]
 (22)ddr3_controller.cmd_d<2>[23:0]
 (23)ddr3_controller.cmd_d<2>[23:0]
-@1401200
+@1401201
 -group_end
-@28
+@29
 +{ddr3_controller.[WR] cmd_d<3>[23:0]} ddr3_controller.cmd_d<3>[23:0]
-ddr3_controller.stage1_issue_command
-ddr3_controller.stage2_issue_command
+@28
+ddr3_controller.f_aux_ack_pipe_after_stage2<0>[16:0]
+ddr3_controller.f_aux_ack_pipe_after_stage2<1>[16:0]
+ddr3_controller.f_aux_ack_pipe_after_stage2<2>[16:0]
+ddr3_controller.f_aux_ack_pipe_after_stage2<3>[16:0]
+ddr3_controller.f_aux_ack_pipe_after_stage2<4>[16:0]
+ddr3_controller.f_aux_ack_pipe_after_stage2<5>[16:0]
+ddr3_controller.f_aux_ack_pipe_after_stage2<6>[16:0]
+@22
+ddr3_controller.o_wb_ack_read_q<0>[16:0]
+ddr3_controller.o_wb_ack_read_q<1>[16:0]
+ddr3_controller.o_wb_ack_read_q<2>[16:0]
+ddr3_controller.o_wb_ack_read_q<3>[16:0]
+ddr3_controller.o_wb_ack_read_q<4>[16:0]
+ddr3_controller.o_wb_ack_read_q<5>[16:0]
+ddr3_controller.o_wb_ack_read_q<6>[16:0]
+ddr3_controller.o_wb_ack_read_q<7>[16:0]
+ddr3_controller.o_wb_ack_read_q<8>[16:0]
+ddr3_controller.o_wb_ack_read_q<9>[16:0]
+ddr3_controller.o_wb_ack_read_q<a>[16:0]
+ddr3_controller.o_wb_ack_read_q<b>[16:0]
+ddr3_controller.o_wb_ack_read_q<c>[16:0]
+ddr3_controller.o_wb_ack_read_q<d>[16:0]
+ddr3_controller.o_wb_ack_read_q<e>[16:0]
+ddr3_controller.o_wb_ack_read_q<f>[16:0]
+@24
+ddr3_controller.f_sum_of_pending_acks[15:0]
+@28
+ddr3_controller.stage1_pending
+ddr3_controller.stage2_pending
+@22
+ddr3_controller.o_wb_ack_read_q<0>[16:0]
+ddr3_controller.o_wb_ack_read_q<1>[16:0]
+ddr3_controller.o_wb_ack_read_q<2>[16:0]
+ddr3_controller.calib_addr[23:0]
+ddr3_controller.calib_addr_plus_anticipate[23:0]
+ddr3_controller.calib_aux[15:0]
+ddr3_controller.calib_data[511:0]
+ddr3_controller.calib_sel[63:0]
+@28
+ddr3_controller.calib_stb
+ddr3_controller.calib_we
+@200
+-
+@28
+ddr3_controller.wb_properties.i_wb_cyc
+@22
+ddr3_controller.wb_properties.f_outstanding[3:0]
+ddr3_controller.wb_properties.f_nacks[3:0]
+ddr3_controller.wb_properties.f_nreqs[3:0]
+@28
+ddr3_controller.wb_properties.i_wb_ack
+ddr3_controller.wb_properties.i_wb_err
+@200
+-
+@28
+ddr3_controller.fifo_1.empty
+@24
+ddr3_controller.fifo_1.fifo_reg<0>[24:0]
+ddr3_controller.fifo_1.fifo_reg<1>[24:0]
+@28
+ddr3_controller.fifo_1.full
+ddr3_controller.fifo_1.i_clk
+ddr3_controller.fifo_1.i_rst_n
+@22
+ddr3_controller.fifo_1.read_data[24:0]
+ddr3_controller.fifo_1.read_data_next[24:0]
+@28
+ddr3_controller.fifo_1.read_fifo
+ddr3_controller.fifo_1.read_pointer
+@22
+ddr3_controller.fifo_1.write_data[24:0]
+@28
+ddr3_controller.fifo_1.write_fifo
+ddr3_controller.fifo_1.write_pointer
+@200
+-
+@28
+ddr3_controller.f_read_fifo
+ddr3_controller.f_write_fifo
+ddr3_controller.o_wb_stall
+ddr3_controller.i_wb_stb
+ddr3_controller.stage1_pending
+ddr3_controller.stage2_pending
+@200
+-
+@28
+ddr3_controller.f_empty
+@22
+ddr3_controller.calib_aux[15:0]
+ddr3_controller.calib_data[511:0]
+ddr3_controller.calib_sel[63:0]
+@28
+ddr3_controller.calib_stb
+ddr3_controller.calib_we
+@24
+ddr3_controller.calib_addr[23:0]
+@28
+ddr3_controller.bank_status_q[7:0]
+ddr3_controller.f_bank_status[7:0]
 @200
 -
 @22
@@ -128,12 +226,7 @@ ddr3_controller.f_sum_of_pending_acks[15:0]
 ddr3_controller.wb_properties.f_ackwait_count[3:0]
 @28
 ddr3_controller.f_ack_pipe_after_stage2[6:0]
-@22
-ddr3_controller.f_stall_count[4:0]
-@28
 ddr3_controller.delay_counter_is_zero
-ddr3_controller.write_calib_stb
-ddr3_controller.write_calib_we
 @200
 -
 @28
@@ -214,7 +307,6 @@ ddr3_controller.wb_properties.i_wb_cyc
 @200
 -
 @28
-ddr3_controller.wb_properties.i_slave_busy
 ddr3_controller.i_wb_stb
 ddr3_controller.o_wb_stall
 ddr3_controller.i_wb_cyc
@@ -361,12 +453,6 @@ ddr3_controller.o_wb_ack_read_q<6>[16:0]
 ddr3_controller.o_wb_ack_read_q<7>[16:0]
 ddr3_controller.o_wb_ack_read_q<8>[16:0]
 ddr3_controller.o_wb_ack_read_q<9>[16:0]
-ddr3_controller.o_wb_ack_read_q<10>[16:0]
-ddr3_controller.o_wb_ack_read_q<11>[16:0]
-ddr3_controller.o_wb_ack_read_q<12>[16:0]
-ddr3_controller.o_wb_ack_read_q<13>[16:0]
-ddr3_controller.o_wb_ack_read_q<14>[16:0]
-ddr3_controller.o_wb_ack_read_q<15>[16:0]
 @24
 ddr3_controller.added_read_pipe_max[3:0]
 @28
@@ -398,7 +484,6 @@ ddr3_controller.o_aux[15:0]
 ddr3_controller.stage1_aux[15:0]
 ddr3_controller.stage2_aux[15:0]
 ddr3_controller.write_pattern[127:0]
-ddr3_controller.read_ack_width[31:0]
 ddr3_controller.o_wb_ack_read_q<0>[16:0]
 ddr3_controller.o_wb_ack_read_q<1>[16:0]
 ddr3_controller.shift_reg_read_pipe_q<0>[16:0]
@@ -414,8 +499,6 @@ ddr3_controller.shift_reg_read_pipe_d<3>[16:0]
 -
 @28
 ddr3_controller.fifo_1.i_rst_n
-ddr3_controller.write_calib_stb
-ddr3_controller.write_calib_we
 @200
 -
 @28
@@ -440,8 +523,6 @@ ddr3_controller.i_wb_cyc
 ddr3_controller.f_empty
 ddr3_controller.fifo_1.empty
 ddr3_controller.f_full
-ddr3_controller.write_calib_stb
-ddr3_controller.write_calib_we
 @200
 -
 @24

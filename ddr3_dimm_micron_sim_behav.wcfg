@@ -11,29 +11,48 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="11.041 ns"></ZoomEndTime>
-      <Cursor1Time time="0.000 ns"></Cursor1Time>
+      <ZoomStartTime time="0.827199 us"></ZoomStartTime>
+      <ZoomEndTime time="581.827200 us"></ZoomEndTime>
+      <Cursor1Time time="151.827199 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="258"></NameColumnWidth>
-      <ValueColumnWidth column_width="117"></ValueColumnWidth>
+      <NameColumnWidth column_width="273"></NameColumnWidth>
+      <ValueColumnWidth column_width="73"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="159" />
+   <WVObjectSize size="240" />
    <wave_markers>
       <marker label="" time="78646475" />
-      <marker label="" time="66286475" />
       <marker label="" time="74056475" />
       <marker label="" time="74043967" />
       <marker label="" time="74005554" />
       <marker label="" time="74040000" />
       <marker label="" time="74042500" />
-      <marker label="" time="171594604" />
       <marker label="" time="74044604" />
+      <marker label="" time="66286475" />
+      <marker label="" time="36394174" />
+      <marker label="" time="35384174" />
+      <marker label="" time="34900424" />
+      <marker label="" time="171594604" />
    </wave_markers>
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Model File</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/sync_rst">
+      <obj_property name="ElementShortName">sync_rst</obj_property>
+      <obj_property name="ObjectShortName">sync_rst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/o_controller_idelayctrl_rdy">
+      <obj_property name="ElementShortName">o_controller_idelayctrl_rdy</obj_property>
+      <obj_property name="ObjectShortName">o_controller_idelayctrl_rdy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/idelayctrl_rdy">
+      <obj_property name="ElementShortName">idelayctrl_rdy</obj_property>
+      <obj_property name="ObjectShortName">idelayctrl_rdy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/dci_locked">
+      <obj_property name="ElementShortName">dci_locked</obj_property>
+      <obj_property name="ObjectShortName">dci_locked</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/clk_locked">
       <obj_property name="ElementShortName">clk_locked</obj_property>
@@ -162,10 +181,25 @@
       <obj_property name="ObjectShortName">ba_addr[2:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dq">
-      <obj_property name="ElementShortName">dq[63:0]</obj_property>
-      <obj_property name="ObjectShortName">dq[63:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/o_ddr3_odt">
+      <obj_property name="ElementShortName">o_ddr3_odt</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_odt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_dqs_tri_control">
+      <obj_property name="ElementShortName">i_controller_dqs_tri_control</obj_property>
+      <obj_property name="ObjectShortName">i_controller_dqs_tri_control</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_dq_tri_control">
+      <obj_property name="ElementShortName">i_controller_dq_tri_control</obj_property>
+      <obj_property name="ObjectShortName">i_controller_dq_tri_control</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_dqs_tri_control">
+      <obj_property name="ElementShortName">i_controller_dqs_tri_control</obj_property>
+      <obj_property name="ObjectShortName">i_controller_dqs_tri_control</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_dq_tri_control">
+      <obj_property name="ElementShortName">i_controller_dq_tri_control</obj_property>
+      <obj_property name="ObjectShortName">i_controller_dq_tri_control</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
       <obj_property name="ElementShortName">i_controller_clk</obj_property>
@@ -179,22 +213,19 @@
       <obj_property name="ElementShortName">i_ddr3_clk_90</obj_property>
       <obj_property name="ObjectShortName">i_ddr3_clk_90</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dqs">
-      <obj_property name="ElementShortName">dqs[7:0]</obj_property>
-      <obj_property name="ObjectShortName">dqs[7:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_module/U4R0/dq">
-      <obj_property name="ElementShortName">dq[7:0]</obj_property>
-      <obj_property name="ObjectShortName">dq[7:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_module/U4R0/dqs">
-      <obj_property name="ElementShortName">dqs[0:0]</obj_property>
-      <obj_property name="ObjectShortName">dqs[0:0]</obj_property>
-   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dqs_n">
       <obj_property name="ElementShortName">dqs_n[7:0]</obj_property>
       <obj_property name="ObjectShortName">dqs_n[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/lane">
+      <obj_property name="ElementShortName">lane[2:0]</obj_property>
+      <obj_property name="ObjectShortName">lane[2:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_lane_data">
+      <obj_property name="ElementShortName">read_lane_data[63:0]</obj_property>
+      <obj_property name="ObjectShortName">read_lane_data[63:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/o_ddr3_clk_p">
       <obj_property name="ElementShortName">o_ddr3_clk_p</obj_property>
@@ -224,6 +255,7 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_data_store">
       <obj_property name="ElementShortName">read_data_store[511:0]</obj_property>
       <obj_property name="ObjectShortName">read_data_store[511:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_data">
       <obj_property name="ElementShortName">o_wb_data[511:0]</obj_property>
@@ -248,9 +280,323 @@
       <obj_property name="ElementShortName">toggle_dqs_q</obj_property>
       <obj_property name="ObjectShortName">toggle_dqs_q</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_lane_data">
+      <obj_property name="ElementShortName">read_lane_data[63:0]</obj_property>
+      <obj_property name="ObjectShortName">read_lane_data[63:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
    <wvobject fp_name="divider251" type="divider">
-      <obj_property name="label">Bank Track</obj_property>
+      <obj_property name="label">test</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_odt_q">
+      <obj_property name="ElementShortName">cmd_odt_q</obj_property>
+      <obj_property name="ObjectShortName">cmd_odt_q</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_odt">
+      <obj_property name="ElementShortName">cmd_odt</obj_property>
+      <obj_property name="ObjectShortName">cmd_odt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_calib_odt">
+      <obj_property name="ElementShortName">write_calib_odt</obj_property>
+      <obj_property name="ObjectShortName">write_calib_odt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
+      <obj_property name="ElementShortName">i_controller_clk</obj_property>
+      <obj_property name="ObjectShortName">i_controller_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_pending">
+      <obj_property name="ElementShortName">stage2_pending</obj_property>
+      <obj_property name="ObjectShortName">stage2_pending</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_we">
+      <obj_property name="ElementShortName">stage2_we</obj_property>
+      <obj_property name="ObjectShortName">stage2_we</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_col">
+      <obj_property name="ElementShortName">stage2_col[9:0]</obj_property>
+      <obj_property name="ObjectShortName">stage2_col[9:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_bank">
+      <obj_property name="ElementShortName">stage2_bank[2:0]</obj_property>
+      <obj_property name="ObjectShortName">stage2_bank[2:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_row">
+      <obj_property name="ElementShortName">stage2_row[15:0]</obj_property>
+      <obj_property name="ObjectShortName">stage2_row[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_write_counter_q">
+      <obj_property name="ElementShortName">delay_before_write_counter_q[7:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_write_counter_q[7:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_write_counter_d">
+      <obj_property name="ElementShortName">delay_before_write_counter_d[7:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_write_counter_d[7:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ba_addr">
+      <obj_property name="ElementShortName">ba_addr[2:0]</obj_property>
+      <obj_property name="ObjectShortName">ba_addr[2:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/addr">
+      <obj_property name="ElementShortName">addr[15:0]</obj_property>
+      <obj_property name="ObjectShortName">addr[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/cs_n[0]">
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="ElementShortName">[0]</obj_property>
+      <obj_property name="ObjectShortName">[0]</obj_property>
+      <obj_property name="label">cs</obj_property>
+      <obj_property name="CustomSignalColor">#FF0080</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_pending">
+      <obj_property name="ElementShortName">stage1_pending</obj_property>
+      <obj_property name="ObjectShortName">stage1_pending</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_pending">
+      <obj_property name="ElementShortName">stage2_pending</obj_property>
+      <obj_property name="ObjectShortName">stage2_pending</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d">
+      <obj_property name="ElementShortName">cmd_d[3:0][25:0]</obj_property>
+      <obj_property name="ObjectShortName">cmd_d[3:0][25:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[3]">
+         <obj_property name="ElementShortName">[3][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[3][25:0]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[2]">
+         <obj_property name="ElementShortName">[2][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[2][25:0]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[1]">
+         <obj_property name="ElementShortName">[1][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[1][25:0]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[0]">
+         <obj_property name="ElementShortName">[0][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[0][25:0]</obj_property>
+         <obj_property name="Radix">BINARYRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[3]">
+         <obj_property name="ElementShortName">[3][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[3][25:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[2]">
+         <obj_property name="ElementShortName">[2][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[2][25:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[1]">
+         <obj_property name="ElementShortName">[1][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[1][25:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_d[0]">
+         <obj_property name="ElementShortName">[0][25:0]</obj_property>
+         <obj_property name="ObjectShortName">[0][25:0]</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_update">
+      <obj_property name="ElementShortName">stage2_update</obj_property>
+      <obj_property name="ObjectShortName">stage2_update</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/o_ddr3_cs_n">
+      <obj_property name="ElementShortName">o_ddr3_cs_n</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_cs_n</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
+      <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
+      <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/command_used">
+      <obj_property name="ElementShortName">command_used[23:0]</obj_property>
+      <obj_property name="ObjectShortName">command_used[23:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
+      <obj_property name="CustomSignalColor">#FFD700</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/calib_addr">
+      <obj_property name="ElementShortName">calib_addr[25:0]</obj_property>
+      <obj_property name="ObjectShortName">calib_addr[25:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_col">
+      <obj_property name="ElementShortName">stage1_col[9:0]</obj_property>
+      <obj_property name="ObjectShortName">stage1_col[9:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_col">
+      <obj_property name="ElementShortName">stage2_col[9:0]</obj_property>
+      <obj_property name="ObjectShortName">stage2_col[9:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_stall_q">
+      <obj_property name="ElementShortName">o_wb_stall_q</obj_property>
+      <obj_property name="ObjectShortName">o_wb_stall_q</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_stall">
+      <obj_property name="ElementShortName">stage2_stall</obj_property>
+      <obj_property name="ObjectShortName">stage2_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_stall">
+      <obj_property name="ElementShortName">stage1_stall</obj_property>
+      <obj_property name="ObjectShortName">stage1_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/o_wb_stall">
+      <obj_property name="ElementShortName">o_wb_stall</obj_property>
+      <obj_property name="ObjectShortName">o_wb_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_dqs_tri_control">
+      <obj_property name="ElementShortName">o_phy_dqs_tri_control</obj_property>
+      <obj_property name="ObjectShortName">o_phy_dqs_tri_control</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_dq_tri_control">
+      <obj_property name="ElementShortName">o_phy_dq_tri_control</obj_property>
+      <obj_property name="ObjectShortName">o_phy_dq_tri_control</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_odt">
+      <obj_property name="ElementShortName">cmd_odt</obj_property>
+      <obj_property name="ObjectShortName">cmd_odt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
+      <obj_property name="ElementShortName">i_controller_clk</obj_property>
+      <obj_property name="ObjectShortName">i_controller_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/o_ddr3_odt">
+      <obj_property name="ElementShortName">o_ddr3_odt</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_odt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/o_ddr3_clk_p">
+      <obj_property name="ElementShortName">o_ddr3_clk_p</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_clk_p</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dqs">
+      <obj_property name="ElementShortName">dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">dqs[7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/dq">
+      <obj_property name="ElementShortName">dq[63:0]</obj_property>
+      <obj_property name="ObjectShortName">dq[63:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/o_wb_data">
+      <obj_property name="ElementShortName">o_wb_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_wb_data[511:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_data_store">
+      <obj_property name="ElementShortName">read_data_store[511:0]</obj_property>
+      <obj_property name="ObjectShortName">read_data_store[511:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_aux">
+      <obj_property name="ElementShortName">o_aux[15:0]</obj_property>
+      <obj_property name="ObjectShortName">o_aux[15:0]</obj_property>
+      <obj_property name="CustomSignalColor">#800080</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/lane">
+      <obj_property name="ElementShortName">lane[2:0]</obj_property>
+      <obj_property name="ObjectShortName">lane[2:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
+      <obj_property name="ElementShortName">state_calibrate[5:0]</obj_property>
+      <obj_property name="ObjectShortName">state_calibrate[5:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_stall_q">
+      <obj_property name="ElementShortName">o_wb_stall_q</obj_property>
+      <obj_property name="ObjectShortName">o_wb_stall_q</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_stall">
+      <obj_property name="ElementShortName">o_wb_stall</obj_property>
+      <obj_property name="ObjectShortName">o_wb_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb2_stall">
+      <obj_property name="ElementShortName">o_wb2_stall</obj_property>
+      <obj_property name="ObjectShortName">o_wb2_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage2_stall">
+      <obj_property name="ElementShortName">stage2_stall</obj_property>
+      <obj_property name="ObjectShortName">stage2_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_stall">
+      <obj_property name="ElementShortName">stage1_stall</obj_property>
+      <obj_property name="ObjectShortName">stage1_stall</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_stall_d">
+      <obj_property name="ElementShortName">o_wb_stall_d</obj_property>
+      <obj_property name="ObjectShortName">o_wb_stall_d</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/calib_stb">
+      <obj_property name="ElementShortName">calib_stb</obj_property>
+      <obj_property name="ObjectShortName">calib_stb</obj_property>
+      <obj_property name="CustomSignalColor">#FFA500</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_wb_stb">
+      <obj_property name="ElementShortName">i_wb_stb</obj_property>
+      <obj_property name="ObjectShortName">i_wb_stb</obj_property>
+      <obj_property name="CustomSignalColor">#FFA500</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/calib_aux">
+      <obj_property name="ElementShortName">calib_aux[15:0]</obj_property>
+      <obj_property name="ObjectShortName">calib_aux[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/calib_we">
+      <obj_property name="ElementShortName">calib_we</obj_property>
+      <obj_property name="ObjectShortName">calib_we</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/calib_data">
+      <obj_property name="ElementShortName">calib_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">calib_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_test_address_counter">
+      <obj_property name="ElementShortName">read_test_address_counter[25:0]</obj_property>
+      <obj_property name="ObjectShortName">read_test_address_counter[25:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_test_address_counter">
+      <obj_property name="ElementShortName">write_test_address_counter[25:0]</obj_property>
+      <obj_property name="ObjectShortName">write_test_address_counter[25:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/check_test_address_counter">
+      <obj_property name="ElementShortName">check_test_address_counter[25:0]</obj_property>
+      <obj_property name="ObjectShortName">check_test_address_counter[25:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/correct_read_data">
+      <obj_property name="ElementShortName">correct_read_data[31:0]</obj_property>
+      <obj_property name="ObjectShortName">correct_read_data[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/wrong_read_data">
+      <obj_property name="ElementShortName">wrong_read_data[31:0]</obj_property>
+      <obj_property name="ObjectShortName">wrong_read_data[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider274" type="divider">
+      <obj_property name="label">bank track</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
+      <obj_property name="ElementShortName">state_calibrate[5:0]</obj_property>
+      <obj_property name="ObjectShortName">state_calibrate[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_data_store">
+      <obj_property name="ElementShortName">read_data_store[511:0]</obj_property>
+      <obj_property name="ObjectShortName">read_data_store[511:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_read_counter_q">
       <obj_property name="ElementShortName">delay_before_read_counter_q[7:0][3:0]</obj_property>
@@ -292,18 +638,6 @@
       <obj_property name="ElementShortName">stage2_we</obj_property>
       <obj_property name="ObjectShortName">stage2_we</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_calib_stb">
-      <obj_property name="ElementShortName">write_calib_stb</obj_property>
-      <obj_property name="ObjectShortName">write_calib_stb</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_calib_aux">
-      <obj_property name="ElementShortName">write_calib_aux[15:0]</obj_property>
-      <obj_property name="ObjectShortName">write_calib_aux[15:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_calib_we">
-      <obj_property name="ElementShortName">write_calib_we</obj_property>
-      <obj_property name="ObjectShortName">write_calib_we</obj_property>
-   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_ack_read_q">
       <obj_property name="ElementShortName">o_wb_ack_read_q[15:0][16:0]</obj_property>
       <obj_property name="ObjectShortName">o_wb_ack_read_q[15:0][16:0]</obj_property>
@@ -327,6 +661,102 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_next_row">
       <obj_property name="ElementShortName">stage1_next_row[15:0]</obj_property>
       <obj_property name="ObjectShortName">stage1_next_row[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein">
+      <obj_property name="ElementShortName">idelay_data_cntvaluein[7:0][4:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_data_cntvaluein[7:0][4:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[7]">
+         <obj_property name="ElementShortName">[7][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[7][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[6]">
+         <obj_property name="ElementShortName">[6][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[6][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[5]">
+         <obj_property name="ElementShortName">[5][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[5][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[4]">
+         <obj_property name="ElementShortName">[4][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[4][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[3]">
+         <obj_property name="ElementShortName">[3][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[3][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[2]">
+         <obj_property name="ElementShortName">[2][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[2][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[1]">
+         <obj_property name="ElementShortName">[1][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[1][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein[0]">
+         <obj_property name="ElementShortName">[0][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[0][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_data_cntvaluein_prev">
+      <obj_property name="ElementShortName">idelay_data_cntvaluein_prev[4:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_data_cntvaluein_prev[4:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein">
+      <obj_property name="ElementShortName">idelay_dqs_cntvaluein[7:0][4:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_dqs_cntvaluein[7:0][4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[7]">
+         <obj_property name="ElementShortName">[7][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[7][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[6]">
+         <obj_property name="ElementShortName">[6][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[6][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[5]">
+         <obj_property name="ElementShortName">[5][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[5][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[4]">
+         <obj_property name="ElementShortName">[4][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[4][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[3]">
+         <obj_property name="ElementShortName">[3][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[3][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[2]">
+         <obj_property name="ElementShortName">[2][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[2][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[1]">
+         <obj_property name="ElementShortName">[1][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[1][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/idelay_dqs_cntvaluein[0]">
+         <obj_property name="ElementShortName">[0][4:0]</obj_property>
+         <obj_property name="ObjectShortName">[0][4:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stage1_stall">
       <obj_property name="ElementShortName">stage1_stall</obj_property>
@@ -356,14 +786,24 @@
       <obj_property name="label">DDR3 Controller</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/prev_write_level_feedback">
+      <obj_property name="ElementShortName">prev_write_level_feedback</obj_property>
+      <obj_property name="ObjectShortName">prev_write_level_feedback</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
-      <obj_property name="ElementShortName">state_calibrate[4:0]</obj_property>
-      <obj_property name="ObjectShortName">state_calibrate[4:0]</obj_property>
+      <obj_property name="ElementShortName">state_calibrate[5:0]</obj_property>
+      <obj_property name="ObjectShortName">state_calibrate[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_before_write_level_feedback">
+      <obj_property name="ElementShortName">delay_before_write_level_feedback[4:0]</obj_property>
+      <obj_property name="ObjectShortName">delay_before_write_level_feedback[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/lane">
       <obj_property name="ElementShortName">lane[2:0]</obj_property>
       <obj_property name="ObjectShortName">lane[2:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
       <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
@@ -378,14 +818,16 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_start_index">
       <obj_property name="ElementShortName">dqs_start_index[5:0]</obj_property>
       <obj_property name="ObjectShortName">dqs_start_index[5:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_target_index">
       <obj_property name="ElementShortName">dqs_target_index[5:0]</obj_property>
       <obj_property name="ObjectShortName">dqs_target_index[5:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dq_target_index">
-      <obj_property name="ElementShortName">dq_target_index[5:0]</obj_property>
-      <obj_property name="ObjectShortName">dq_target_index[5:0]</obj_property>
+      <obj_property name="ElementShortName">dq_target_index[7:0][5:0]</obj_property>
+      <obj_property name="ObjectShortName">dq_target_index[7:0][5:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_target_index_orig">
@@ -405,6 +847,38 @@
       <obj_property name="ElementShortName">data_start_index[7:0][6:0]</obj_property>
       <obj_property name="ObjectShortName">data_start_index[7:0][6:0]</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[56]">
+      <obj_property name="ElementShortName">[56]</obj_property>
+      <obj_property name="ObjectShortName">[56]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[48]">
+      <obj_property name="ElementShortName">[48]</obj_property>
+      <obj_property name="ObjectShortName">[48]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[32]">
+      <obj_property name="ElementShortName">[32]</obj_property>
+      <obj_property name="ObjectShortName">[32]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[40]">
+      <obj_property name="ElementShortName">[40]</obj_property>
+      <obj_property name="ObjectShortName">[40]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[24]">
+      <obj_property name="ElementShortName">[24]</obj_property>
+      <obj_property name="ObjectShortName">[24]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[16]">
+      <obj_property name="ElementShortName">[16]</obj_property>
+      <obj_property name="ObjectShortName">[16]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[8]">
+      <obj_property name="ElementShortName">[8]</obj_property>
+      <obj_property name="ObjectShortName">[8]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[0]">
+      <obj_property name="ElementShortName">[0]</obj_property>
+      <obj_property name="ObjectShortName">[0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs">
       <obj_property name="ElementShortName">i_phy_iserdes_dqs[63:0]</obj_property>
       <obj_property name="ObjectShortName">i_phy_iserdes_dqs[63:0]</obj_property>
@@ -414,6 +888,80 @@
       <obj_property name="ElementShortName">i_phy_iserdes_dqs[63:0]</obj_property>
       <obj_property name="ObjectShortName">i_phy_iserdes_dqs[63:0]</obj_property>
       <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject type="vbus" fp_name="vbus345">
+      <obj_property name="label">i_phy_iserdes_dqs_lane2</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[15]">
+         <obj_property name="ElementShortName">[15]</obj_property>
+         <obj_property name="ObjectShortName">[15]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[14]">
+         <obj_property name="ElementShortName">[14]</obj_property>
+         <obj_property name="ObjectShortName">[14]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[13]">
+         <obj_property name="ElementShortName">[13]</obj_property>
+         <obj_property name="ObjectShortName">[13]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[12]">
+         <obj_property name="ElementShortName">[12]</obj_property>
+         <obj_property name="ObjectShortName">[12]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[11]">
+         <obj_property name="ElementShortName">[11]</obj_property>
+         <obj_property name="ObjectShortName">[11]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[10]">
+         <obj_property name="ElementShortName">[10]</obj_property>
+         <obj_property name="ObjectShortName">[10]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[9]">
+         <obj_property name="ElementShortName">[9]</obj_property>
+         <obj_property name="ObjectShortName">[9]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[8]">
+         <obj_property name="ElementShortName">[8]</obj_property>
+         <obj_property name="ObjectShortName">[8]</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject type="vbus" fp_name="vbus336">
+      <obj_property name="label">lane0</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[7]">
+         <obj_property name="ElementShortName">[7]</obj_property>
+         <obj_property name="ObjectShortName">[7]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[6]">
+         <obj_property name="ElementShortName">[6]</obj_property>
+         <obj_property name="ObjectShortName">[6]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[5]">
+         <obj_property name="ElementShortName">[5]</obj_property>
+         <obj_property name="ObjectShortName">[5]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[4]">
+         <obj_property name="ElementShortName">[4]</obj_property>
+         <obj_property name="ObjectShortName">[4]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[3]">
+         <obj_property name="ElementShortName">[3]</obj_property>
+         <obj_property name="ObjectShortName">[3]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[2]">
+         <obj_property name="ElementShortName">[2]</obj_property>
+         <obj_property name="ObjectShortName">[2]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[1]">
+         <obj_property name="ElementShortName">[1]</obj_property>
+         <obj_property name="ObjectShortName">[1]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_dqs[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="vbus" fp_name="vbus181">
       <obj_property name="label">i_phy_iserdes_dqs_lane1</obj_property>
@@ -493,6 +1041,30 @@
          <obj_property name="ObjectShortName">[0]</obj_property>
       </wvobject>
    </wvobject>
+   <wvobject type="vbus" fp_name="VirtualBus">
+      <obj_property name="label">data_lane01</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+      <obj_property name="Reversed">true</obj_property>
+      <obj_property name="ElementShortName">VirtualBus[]</obj_property>
+      <obj_property name="ObjectShortName">VirtualBus[]</obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[1]">
+         <obj_property name="ElementShortName">[1]</obj_property>
+         <obj_property name="ObjectShortName">[1]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[64]">
+         <obj_property name="ElementShortName">[64]</obj_property>
+         <obj_property name="ObjectShortName">[64]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_data[65]">
+         <obj_property name="ElementShortName">[65]</obj_property>
+         <obj_property name="ObjectShortName">[65]</obj_property>
+      </wvobject>
+   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_bitslip_reference">
       <obj_property name="ElementShortName">i_phy_iserdes_bitslip_reference[63:0]</obj_property>
       <obj_property name="ObjectShortName">i_phy_iserdes_bitslip_reference[63:0]</obj_property>
@@ -545,8 +1117,8 @@
       <obj_property name="Radix">BINARYRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/train_delay">
-      <obj_property name="ElementShortName">train_delay[1:0]</obj_property>
-      <obj_property name="ObjectShortName">train_delay[1:0]</obj_property>
+      <obj_property name="ElementShortName">train_delay[3:0]</obj_property>
+      <obj_property name="ObjectShortName">train_delay[3:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_phy_iserdes_bitslip_reference">
       <obj_property name="ElementShortName">i_phy_iserdes_bitslip_reference[63:0]</obj_property>
@@ -754,8 +1326,8 @@
       <obj_property name="ObjectShortName">dqs_target_index_orig[5:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dq_target_index">
-      <obj_property name="ElementShortName">dq_target_index[5:0]</obj_property>
-      <obj_property name="ObjectShortName">dq_target_index[5:0]</obj_property>
+      <obj_property name="ElementShortName">dq_target_index[7:0][5:0]</obj_property>
+      <obj_property name="ObjectShortName">dq_target_index[7:0][5:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/dqs_target_index_value">
       <obj_property name="ElementShortName">dqs_target_index_value[5:0]</obj_property>
@@ -779,8 +1351,8 @@
       <obj_property name="ObjectShortName">i_controller_clk</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
-      <obj_property name="ElementShortName">state_calibrate[4:0]</obj_property>
-      <obj_property name="ObjectShortName">state_calibrate[4:0]</obj_property>
+      <obj_property name="ElementShortName">state_calibrate[5:0]</obj_property>
+      <obj_property name="ObjectShortName">state_calibrate[5:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
       <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
