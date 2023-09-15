@@ -96,7 +96,7 @@
 `timescale 1ps / 1ps
 `define den8192Mb
 `define sg125
-`define x8
+`define x16
 `default_nettype wire
 
 module ddr3 (
@@ -138,8 +138,8 @@ module ddr3 (
     parameter feature_truebl4 = 0;
     parameter feature_odt_hi = 0;
     parameter PERTCKAVG=TDLLK;
-    parameter FLY_BY_DELAY = 0;
-   
+    parameter FLY_BY_DELAY = 1600, DQ_DELAY = 0;
+    
     // text macros
     `define DQ_PER_DQS DQ_BITS/DQS_BITS
     `define BANKS      (1<<BA_BITS)
@@ -534,9 +534,10 @@ module ddr3 (
     reg                    dqs_out;
     reg     [DQS_BITS-1:0] dqs_out_dly;
     reg                    dq_out_en;
-    reg     [DQ_BITS-1:0]  dq_out_en_dly;
+    reg     [DQ_BITS-1:0]  dq_out_en_dly, dq_out_en_dly_delayed;
     reg     [DQ_BITS-1:0]  dq_out;
-    reg     [DQ_BITS-1:0]  dq_out_dly;
+    reg     [DQ_BITS-1:0]  dq_out_dly, dq_out_dly_delayed;
+    reg out_en_delayed;
     integer                rdqsen_cntr;
     integer                rdqs_cntr;
     integer                rdqen_cntr;
@@ -544,7 +545,13 @@ module ddr3 (
 
     bufif1 buf_dqs    [DQS_BITS-1:0] (dqs,     dqs_out_dly,  dqs_out_en_dly & {DQS_BITS{out_en}});
     bufif1 buf_dqs_n  [DQS_BITS-1:0] (dqs_n,   ~dqs_out_dly, dqs_out_en_dly & {DQS_BITS{out_en}});
-    bufif1 buf_dq     [DQ_BITS-1:0]  (dq,      dq_out_dly,   dq_out_en_dly  & {DQ_BITS {out_en}});
+    
+    //add delay to DQ
+    always @(dq_out_dly) dq_out_dly_delayed   <= #(DQ_DELAY) dq_out_dly;
+    always @(dq_out_en_dly) dq_out_en_dly_delayed   <= #(DQ_DELAY) dq_out_en_dly;
+    always @(out_en) out_en_delayed   <= #(DQ_DELAY) out_en;
+    
+    bufif1 buf_dq     [DQ_BITS-1:0]  (dq,      dq_out_dly_delayed,   dq_out_en_dly_delayed  & {DQ_BITS {out_en_delayed}});
     assign tdqs_n = {DQS_BITS{1'bz}};
 
     assign TZQCS   = max( 64, ceil( 80000/tck_avg));
