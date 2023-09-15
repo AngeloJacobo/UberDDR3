@@ -90,6 +90,7 @@ module ddr3_top #(
     wire[LANES-1:0] odelay_data_ld, odelay_dqs_ld;
     wire[LANES-1:0] idelay_data_ld, idelay_dqs_ld;
     wire write_leveling_calib;
+    wire reset;
     
     //module instantiations
     ddr3_controller #(
@@ -156,6 +157,7 @@ module ddr3_top #(
             .o_phy_idelay_dqs_ld(idelay_dqs_ld),
             .o_phy_bitslip(bitslip),
             .o_phy_write_leveling_calib(write_leveling_calib),
+            .o_phy_reset(reset),
             .o_debug1(o_debug1),
             .o_debug2(o_debug2)
         );
@@ -174,6 +176,7 @@ module ddr3_top #(
             .i_ddr3_clk_90(i_ddr3_clk_90), 
             .i_rst_n(i_rst_n),
             // Controller Interface
+            .i_controller_reset(reset),
             .i_controller_cmd(cmd),
             .i_controller_dqs_tri_control(dqs_tri_control), 
             .i_controller_dq_tri_control(dq_tri_control),
