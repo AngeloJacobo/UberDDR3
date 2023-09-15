@@ -51,6 +51,7 @@ module ddr3_controller #(
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
    /* verilator lint_on UNUSEDPARAM */
                    MICRON_SIM = 0, //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+                   TEST_DATAMASK = 0, //Add test to datamask during calibration
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
@@ -108,6 +109,7 @@ module ddr3_controller #(
         (* mark_debug = "true" *) output reg[LANES-1:0] o_phy_idelay_dqs_ld,
         output reg[LANES-1:0] o_phy_bitslip,
         output reg o_phy_write_leveling_calib,
+        output wire o_phy_reset,
         // Debug port
         output	wire	[31:0]	o_debug1,
         output	wire	[31:0]	o_debug2,
@@ -280,11 +282,18 @@ module ddr3_controller #(
                 ANALYZE_DATA = 13, 
                 CHECK_STARTING_DATA = 14,
                 BITSLIP_DQS_TRAIN_3 = 15,
-                DONE_CALIBRATE = 16;
+                //WRITE_ZERO = 16,
+                BURST_WRITE = 17,
+                BURST_READ = 18,
+                RANDOM_WRITE = 19,
+                RANDOM_READ = 20,
+                ALTERNATE_WRITE_READ = 21,
+                FINISH_READ = 22,
+                DONE_CALIBRATE = 23;
                 
      localparam STORED_DQS_SIZE = 5, //must be >= 2           
                 REPEAT_DQS_ANALYZE = 1,
-                REPEAT_CLK_SAMPLING = 20; // repeat DQS read to find the accurate starting position of DQS
+                REPEAT_CLK_SAMPLING = 5; // repeat DQS read to find the accurate starting position of DQS
 
     /*********************************************************************************************************************************************/
 
@@ -362,7 +371,7 @@ module ddr3_controller #(
     reg[ROW_BITS-1:0] stage1_row = 0;
     reg[BA_BITS-1:0] stage1_next_bank = 0;
     reg[ROW_BITS-1:0] stage1_next_row = 0;
-    wire[wb_addr_bits-1:0] wb_addr_plus_anticipate;
+    wire[wb_addr_bits-1:0] wb_addr_plus_anticipate, calib_addr_plus_anticipate;
     
     //pipeline stage 2 regs
     reg stage2_pending = 0;
@@ -390,7 +399,7 @@ module ddr3_controller #(
         o_phy_bitslip = 0;
     end
     reg cmd_odt_q = 0, cmd_odt, cmd_ck_en, cmd_reset_n;  
-    reg o_wb_stall_q = 1, o_wb_stall_d;
+    reg o_wb_stall_q = 1, o_wb_stall_d = 1, o_wb_stall_calib = 1;
     reg precharge_slot_busy;
     reg activate_slot_busy;
     reg[1:0] write_dqs_q;
@@ -408,10 +417,10 @@ module ddr3_controller #(
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dq_target_index[LANES-1:0];
+    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8):0] dq_target_index[LANES-1:0];
     (* mark_debug ="true" *) wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
     reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
-    reg[1:0] train_delay;
+    reg[3:0] train_delay;
     (* mark_debug = "true" *) reg[3:0] delay_before_read_data = 0;
     reg[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0] delay_before_write_level_feedback = 0;
     reg initial_dqs = 0;
@@ -431,12 +440,13 @@ module ddr3_controller #(
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
- 
-    reg write_calib_stb = 0;
-    reg[AUX_WIDTH-1:0] write_calib_aux = 0;
-    reg write_calib_we = 0;
-    reg[COL_BITS-1:0] write_calib_col = 0;
-    reg[wb_data_bits-1:0] write_calib_data = 0;
+    
+    reg calib_stb = 0;
+    reg[wb_sel_bits-1:0] calib_sel = 0;
+    reg[AUX_WIDTH-1:0] calib_aux = 0;
+    reg calib_we = 0;
+    reg[wb_addr_bits-1:0] calib_addr = 0;
+    reg[wb_data_bits-1:0] calib_data = 0;
     reg write_calib_odt = 0;
     reg write_calib_dqs = 0;
     reg write_calib_dq = 0;
@@ -454,6 +464,7 @@ module ddr3_controller #(
     reg[5:0] start_index_check = 0;
     reg[63:0] read_lane_data = 0;
     reg odelay_cntvalue_repeated = 0;
+    reg already_finished_calibration = 0;
     // Wishbone 2
     reg wb2_stb = 0;
     reg wb2_update = 0;
@@ -471,18 +482,21 @@ module ddr3_controller #(
     reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
     reg[LANES-1:0] write_level_fail = 0;
     reg[lanes_clog2-1:0] wb2_write_lane;
-    reg sync_rst = 0;
-    // test registers
-    reg test_stb; //request a transfer
-    reg test_we; //write-enable (1 = write, 0 = read)
-    reg[AUX_WIDTH-1:0] test_aux; //request a transfer
-    reg[wb_addr_bits - 1:0] test_addr; //burst-addressable {row,bank,col} 
-    reg[wb_data_bits - 1:0] test_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
-    reg[wb_sel_bits - 1:0] test_sel; //byte strobe for write (1 = write the byte)
+    reg sync_rst_wb2 = 0, sync_rst_controller = 0;
+    reg reset_from_wb2 = 0, reset_from_calibrate = 0, reset_from_test = 0, repeat_test = 0;
+    // test calibration 
+    reg[wb_addr_bits-1:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
+    reg[31:0] write_test_address_counter = 0;
+    reg[31:0] correct_read_data = 0, wrong_read_data = 0;
 
         
     // initial block for all regs
     initial begin
+        o_wb_stall = 1;
+        for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
+            o_wb_ack_read_q[index] = 0;
+        end
+        
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
             bank_status_q[index] = 0;  
             bank_status_d[index] = 0;
@@ -545,7 +559,7 @@ module ddr3_controller #(
     
             5'd0: 
              if (MICRON_SIM)
-                read_rom_instruction = {5'b01000 , CMD_NOP , ns_to_cycles(POWER_ON_RESET_HIGH/1000)}; 
+                read_rom_instruction = {5'b01000 , CMD_NOP , ns_to_cycles(POWER_ON_RESET_HIGH/500)}; 
              else
                 read_rom_instruction = {5'b01000 , CMD_NOP , ns_to_cycles(POWER_ON_RESET_HIGH)}; 
                 //0. RESET# needs to be maintained low for minimum 200us with power-up initialization. CKE is pulled
@@ -553,7 +567,7 @@ module ddr3_controller #(
 
             5'd1: 
              if (MICRON_SIM)
-                 read_rom_instruction =  {5'b01001 , CMD_NOP, ns_to_cycles(INITIAL_CKE_LOW/1000)}; 
+                 read_rom_instruction =  {5'b01001 , CMD_NOP, ns_to_cycles(INITIAL_CKE_LOW/500)}; 
              else
                  read_rom_instruction =  {5'b01001 , CMD_NOP, ns_to_cycles(INITIAL_CKE_LOW)}; 
                 //1. After RESET# is de-asserted, wait for another 500 us until CKE becomes active. During this time, the
@@ -640,10 +654,13 @@ module ddr3_controller #(
 
     /******************************************* Reset Sequence ROM Controller *******************************************/
     always @(posedge i_controller_clk) begin
-        sync_rst <= !i_rst_n;
+        sync_rst_controller <= !i_rst_n || reset_from_wb2 || reset_from_calibrate || reset_from_test;
+        sync_rst_wb2 <= !i_rst_n;
     end
+    assign o_phy_reset = sync_rst_controller;
+    
     always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
+        if(sync_rst_controller) begin
             instruction_address <= 0;
             `ifdef FORMAL_COVER
                 instruction_address <= 21;
@@ -685,9 +702,10 @@ module ddr3_controller #(
     /******************************************************* Track Bank Status and Issue Command *******************************************************/
     //process request transaction 
     always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
+        if(sync_rst_controller) begin
             o_wb_stall <= 1'b1; 
             o_wb_stall_q <= 1'b1;
+            o_wb_stall_calib <= 1'b1;
             //set stage 1 to 0
             stage1_pending <= 0;
             stage1_aux <= 0;
@@ -737,8 +755,8 @@ module ddr3_controller #(
         // can only start accepting requests  when reset is done
         else if(reset_done) begin 
             o_wb_stall <= o_wb_stall_d || state_calibrate != DONE_CALIBRATE;
-            o_wb_stall_q <= o_wb_stall_d; //working even at calibration stage
-            //o_wb_stall <= stage2_stall || state_calibrate != DONE_CALIBRATE;
+            o_wb_stall_q <= o_wb_stall_d; 
+            o_wb_stall_calib <= o_wb_stall_d; //wb stall for calibration stage
             cmd_odt_q <= cmd_odt;
 
             //update delay counter 
@@ -767,6 +785,7 @@ module ddr3_controller #(
             if(!instruction[REF_IDLE]) begin
                 //no transaction will be pending during refresh
                 o_wb_stall <= 1'b1; 
+                o_wb_stall_calib <= 1'b1;
             end
             
             //if pipeline is not stalled (or a request is left on the prestall
@@ -817,38 +836,18 @@ module ddr3_controller #(
                 /* verilator lint_on WIDTH */
                 stage1_data <= i_wb_data;
             end
-            else if(state_calibrate != DONE_CALIBRATE) begin
-                stage1_pending <= write_calib_stb;//actual request flag
-                stage1_we <= write_calib_we; //write-enable
-                stage1_dm <= {wb_sel_bits{1'b1}};
-                stage1_aux <= write_calib_aux; //aux ID for AXI compatibility
-                stage1_col <= write_calib_col; //column address (n-burst word-aligned)
-                stage1_bank <=  0; //bank_address
-                stage1_row <= 0; //row_address
-                {stage1_next_row , stage1_next_bank} <= 0; //anticipated next row and bank to be accessed 
-                stage1_data <= write_calib_data;
-            end
-            if(!o_wb_stall)  begin
-                //stage1 will not do the request (pending low) when the
-                //request is on the same bank as the current request. This
-                //will ensure stage1 bank will be different from stage2 bank
-                stage1_pending <= test_stb;//actual request flag
-                stage1_aux <= test_aux; //aux ID for AXI compatibility
-                stage1_we <= test_we; //write-enable
-                stage1_dm <= test_sel; //byte selection
-                stage1_col <= { test_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
-                stage1_bank <=  test_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
-                stage1_row <= test_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                //stage1_next_bank will not increment unless stage1_next_col
-                //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
-                //precharge and activate will happen only at the end of the
-                //current column with a margin dictated by
-                //MARGIN_BEFORE_ANTICIPATE  
+            else if(state_calibrate != DONE_CALIBRATE && !o_wb_stall_calib) begin
+                stage1_pending <= calib_stb;//actual request flag
+                stage1_we <= calib_we; //write-enable
+                stage1_dm <= calib_sel;
+                stage1_aux <= calib_aux; //aux ID for AXI compatibility
+                stage1_col <= { calib_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                stage1_bank <= calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
+                stage1_row <= calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
                 /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank} <= (test_addr + MARGIN_BEFORE_ANTICIPATE) >> (COL_BITS- $clog2(serdes_ratio*2));
-                //anticipated next row and bank to be accessed 
+                {stage1_next_row , stage1_next_bank} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
                 /* verilator lint_on WIDTH */
-                stage1_data <= test_data;
+                stage1_data <= calib_data;
             end
             
             for(index = 0; index < LANES; index = index + 1) begin
@@ -892,6 +891,7 @@ module ddr3_controller #(
     assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
     /* verilator lint_off WIDTH */
     assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE;
+    assign calib_addr_plus_anticipate = calib_addr + MARGIN_BEFORE_ANTICIPATE;
     /* verilator lint_on WIDTH */
     // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
     //
@@ -986,9 +986,9 @@ module ddr3_controller #(
                         delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
                     end
                     for(index=0; index < (1<<BA_BITS); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
-                        delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY;
+                        delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY + 1;
                     end
-                    delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY;     
+                    delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY + 1;     
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
                     //issue read command
                     if(COL_BITS <= 10) begin
@@ -1018,7 +1018,10 @@ module ddr3_controller #(
                         delay_before_precharge_counter_d[stage2_bank] = READ_TO_PRECHARGE_DELAY;
                     end
                     delay_before_read_counter_d[stage2_bank] = READ_TO_READ_DELAY;     
-                    delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY;
+                    delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY + 1; //temporary solution since its possible odt to go hig already while reading previously
+                    for(index=0; index < (1<<BA_BITS); index=index+1) begin //the read to write delay applies to all banks (odt must be turned on properly before writing)
+                        delay_before_write_counter_d[index] = READ_TO_WRITE_DELAY + 1;
+                    end
                     shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; 
 
                     //issue read command
@@ -1045,7 +1048,9 @@ module ddr3_controller #(
                 if(delay_before_read_counter_q[stage2_bank] <= ACTIVATE_TO_READ_DELAY) begin
                     delay_before_read_counter_d[stage2_bank] = ACTIVATE_TO_READ_DELAY;
                 end
-                delay_before_write_counter_d[stage2_bank] = ACTIVATE_TO_WRITE_DELAY;
+                if(delay_before_write_counter_q[stage2_bank] <= ACTIVATE_TO_WRITE_DELAY) begin
+                    delay_before_write_counter_d[stage2_bank] = ACTIVATE_TO_WRITE_DELAY;
+                end
                 //issue activate command
                 cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
                 //update bank status and active row
@@ -1090,7 +1095,9 @@ module ddr3_controller #(
                 if(delay_before_read_counter_d[stage1_next_bank] <= ACTIVATE_TO_READ_DELAY) begin
                     delay_before_read_counter_d[stage1_next_bank] = ACTIVATE_TO_READ_DELAY;
                 end
-                delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
+                if(delay_before_write_counter_d[stage1_next_bank] <= ACTIVATE_TO_WRITE_DELAY) begin
+                    delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
+                end
                 cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
                 bank_status_d[stage1_next_bank] = 1'b1;
                 bank_active_row_d[stage1_next_bank] = stage1_next_row;
@@ -1134,11 +1141,11 @@ module ddr3_controller #(
 
         // control logic for stall
         if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
-        else if(/*!i_wb_stb*/!test_stb) o_wb_stall_d = 0; /////////////////////////////////////////////////////////////////////////////////////////////////
+        else if( (!i_wb_stb && state_calibrate == DONE_CALIBRATE) || (!calib_stb && state_calibrate != DONE_CALIBRATE) ) o_wb_stall_d = 0; 
         else if(!stage1_pending) o_wb_stall_d = stage2_stall;
         else o_wb_stall_d = stage1_stall;
         
-        if(!i_wb_cyc) o_wb_stall_d = 0;
+        if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) o_wb_stall_d = 0;
 
     // Vivado Benchmarking
     // LUT = 1254, FF = 2878
@@ -1150,7 +1157,7 @@ module ddr3_controller #(
 
     /******************************************************* Align Read Data from ISERDES *******************************************************/
     always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
+        if(sync_rst_controller) begin
             index_read_pipe <= 0;
             index_wb_data <= 0;
             write_dqs_val <= 0;
@@ -1267,8 +1274,9 @@ module ddr3_controller #(
     
 
     /******************************************************* Read/Write Calibration Sequence *******************************************************/
+    reg[$clog2(wb_sel_bits)-1:0] write_by_byte_counter = 0;
     always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
+        if(sync_rst_controller) begin
             state_calibrate <= IDLE;
             train_delay <= 0;
             dqs_store <= 0;
@@ -1290,11 +1298,12 @@ module ddr3_controller #(
             write_calib_dq <= 0;
             write_calib_odt <= 0;
             prev_write_level_feedback <= 1;
-            write_calib_stb <= 0;//actual request flag
-            write_calib_aux <= 0; //AUX ID
-            write_calib_we <= 0; //write-enable
-            write_calib_col <= 0;
-            write_calib_data <= 0;
+            calib_stb <= 0;//actual request flag
+            calib_sel <= 0;
+            calib_aux <= 0; //AUX ID
+            calib_we <= 0; //write-enable
+            calib_addr <= 0;
+            calib_data <= 0;
             pause_counter <= 0;
             read_data_store <= 0;
             write_pattern <= 0;
@@ -1307,6 +1316,11 @@ module ddr3_controller #(
             o_phy_write_leveling_calib <= 0;
             odelay_cntvalue_repeated <= 0;
             write_level_fail <= 0;
+            read_test_address_counter <= 0;
+            write_test_address_counter <= 0;
+            reset_from_calibrate <= 0;
+            write_by_byte_counter <= 0;
+            already_finished_calibration <= 0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -1318,11 +1332,6 @@ module ddr3_controller #(
             end
         end
         else begin
-            write_calib_stb <= 0;//actual request flag
-            write_calib_aux <= 0; //AUX ID
-            write_calib_we <= 0; //write-enable
-            write_calib_col <= 0;
-            write_calib_data <= 0;
             write_calib_dq <= 0;
             train_delay <= (train_delay==0)? 0:(train_delay - 1);
             delay_before_read_data <= (delay_before_read_data == 0)? 0: delay_before_read_data - 1;
@@ -1336,7 +1345,8 @@ module ddr3_controller #(
             lane_times_8 <= lane << 3;
             /* verilator lint_on WIDTH */
             idelay_data_cntvaluein_prev <= idelay_data_cntvaluein[lane];
-
+            reset_from_calibrate <= 0;
+            
             if(wb2_update) begin
                 odelay_data_cntvaluein[wb2_write_lane] <=  wb2_phy_odelay_data_ld[wb2_write_lane]? wb2_phy_odelay_data_cntvaluein : odelay_data_cntvaluein[wb2_write_lane];
                 odelay_dqs_cntvaluein[wb2_write_lane] <= wb2_phy_odelay_dqs_ld[wb2_write_lane]? wb2_phy_odelay_dqs_cntvaluein : odelay_dqs_cntvaluein[wb2_write_lane];
@@ -1357,7 +1367,7 @@ module ddr3_controller #(
             end
             if(initial_dqs) begin
                 dqs_target_index <= dqs_target_index_value;
-                dq_target_index[lane] <= dqs_target_index_value;
+                dq_target_index[lane] <= {1'b0, dqs_target_index_value};
                 dqs_target_index_orig <= dqs_target_index_value;
             end
             if(idelay_dqs_cntvaluein[lane] == 0) begin //go back to previous odd
@@ -1535,32 +1545,35 @@ module ddr3_controller #(
                              end     
                          end
                             
-        ISSUE_WRITE_1: if(instruction_address == 22 && !o_wb_stall_q) begin
-                        write_calib_stb <= 1;//actual request flag
-                        write_calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
-                        write_calib_we <= 1; //write-enable
-                        write_calib_col <= 0;
-                        write_calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
+        ISSUE_WRITE_1: if(instruction_address == 22 && !o_wb_stall_calib) begin
+                        calib_stb <= 1;//actual request flag
+                        calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
+                        calib_sel <= {wb_sel_bits{1'b1}};
+                        calib_we <= 1; //write-enable
+                        calib_addr <= 0;
+                        calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
                         state_calibrate <= ISSUE_WRITE_2;
                        end    
         ISSUE_WRITE_2: begin
-                        write_calib_stb <= 1;//actual request flag
-                        write_calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
-                        write_calib_we <= 1; //write-enable
-                        write_calib_col <= 8;
-                        write_calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
+                        calib_stb <= 1;//actual request flag
+                        calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
+                        calib_sel <= {wb_sel_bits{1'b1}};
+                        calib_we <= 1; //write-enable
+                        calib_addr <= 1;
+                        calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
                         state_calibrate <= ISSUE_READ;
                        end    
-          ISSUE_READ: if(!o_wb_stall_q && write_calib_stb == 0) begin
-                        write_calib_stb <= 1;//actual request flag
-                        write_calib_aux <= 0; //AUX ID to determine later if ACK is for read or write
-                        write_calib_we <= 0; //write-enable
-                        write_calib_col <= 0;
+          ISSUE_READ: begin
+                        calib_stb <= 1;//actual request flag
+                        calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
+                        calib_we <= 0; //write-enable
+                        calib_addr <= 0;
                         state_calibrate <= READ_DATA;
                       end   
                       
-           READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH){1'b0}}, 1'b1}) begin //wait for the read ack (which has UAX ID of 0}
+           READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
                          read_data_store <= o_wb_data;
+                         calib_stb <= 0;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index[lane] <= 0;
                          // Possible Patterns (strong autocorrel stat)
@@ -1570,6 +1583,9 @@ module ddr3_controller #(
                          //0x22ee5319a15aa382
                          write_pattern <= 128'h80dbcfd275f12c3d_9177298cd0ad51c1;
                       end   
+                      else if(!o_wb_stall_calib) begin
+                            calib_stb <= 0;
+                      end
                  
         ANALYZE_DATA: if(write_pattern[data_start_index[lane] +: 64] == {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
                         read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
@@ -1577,7 +1593,7 @@ module ddr3_controller #(
                             /* verilator lint_off WIDTH */
                             if(lane == LANES - 1) begin
                             /* verilator lint_on WIDTH */
-                                state_calibrate <= DONE_CALIBRATE;
+                                state_calibrate <= BURST_WRITE;
                             end        
                             else begin
                                 lane <= lane + 1;
@@ -1606,6 +1622,9 @@ module ddr3_controller #(
                         else begin
                             start_index_check <= start_index_check + 16;
                             dq_target_index[lane] <= dq_target_index[lane] + 2;
+                            if(dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)] )begin //if last bit goes high, we are outside the possible values so we need to reset now
+                                reset_from_calibrate <= 1;
+                            end
                         end
                       end
       
@@ -1618,19 +1637,200 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                             o_phy_bitslip[lane] <= 1;
                             train_delay <= 3;
                         end
-                    end
-                           
-      DONE_CALIBRATE: begin
-                        state_calibrate <= DONE_CALIBRATE;
-                        if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
-                            pause_counter <= 1; // pause instruction address until pre-stall delay before refresh sequence finishes
-                            //skip to instruction address 20 (precharge all before refresh) when no pending requests anymore
-                            //toggle it for 1 clk cycle only
-                            if(!stage1_pending && !stage2_pending && o_wb_stall) begin 
-                               pause_counter <= 0; // pre-stall delay done since all remaining requests are completed
+                     end
+             
+       /* WRITE_ZERO: if(!o_wb_stall_calib) begin //write zero to all addresses before starting write-read test
+                            calib_stb <= 1;
+                            calib_aux <= 2;
+                            calib_sel <= {wb_sel_bits{1'b1}};
+                            calib_we <= 1; 
+                            calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
+                            calib_data <= 0; 
+                            write_test_address_counter <= write_test_address_counter + 1;
+                            if(MICRON_SIM) begin
+                                if(write_test_address_counter[wb_addr_bits-1:0] == 999 ) begin 
+                                    state_calibrate <= BURST_WRITE;
+                                    calib_stb <= 0;
+                                    calib_aux <= 0;
+                                    calib_we <= 0; 
+                                    write_test_address_counter <= 0;
+                                end 
+                            end
+                            else begin
+                                if(write_test_address_counter[wb_addr_bits-1:0] == {(wb_addr_bits){1'b1}} ) begin
+                                    state_calibrate <= BURST_WRITE;
+                                    calib_stb <= 0;
+                                    calib_aux <= 0;
+                                    calib_we <= 0; 
+                                    write_test_address_counter <= 0;
+                                end 
+                            end
+                            
+                     end*/
+                                   
+       BURST_WRITE: if(!o_wb_stall_calib) begin // Test 1: Burst write (per byte write to test datamask feature), then burst read
+                            calib_stb <= 1;
+                            calib_aux <= 2;
+                            if(TEST_DATAMASK) begin //Test datamask by writing 1 byte at a time
+                                calib_sel <= 1 << write_by_byte_counter;
+                                calib_we <= 1; 
+                                calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
+                                calib_data<= {wb_sel_bits{8'haa}}; 
+                                calib_data[8*write_by_byte_counter +: 8] <= write_test_address_counter[7:0]; 
+
+                                if(MICRON_SIM) begin
+                                    //if(write_test_address_counter[wb_addr_bits-1:0] == 500) begin //inject error at middle
+                                    //    calib_data <= 1;
+                                    //end
+                                    if(write_by_byte_counter == {$clog2(wb_sel_bits){1'b1}}) begin
+                                        if(write_test_address_counter[wb_addr_bits-1:0] == 999 ) begin //MUST END AT ODD NUMBER
+                                            state_calibrate <= BURST_READ;
+                                        end 
+                                        write_test_address_counter <= write_test_address_counter + 1;
+                                    end
+                                end
+                                else begin
+                                   //if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b00 , 1'b0, {(wb_addr_bits-3){1'b1}} }) begin //inject error at middle
+                                   //     calib_data <= 1;
+                                   // end
+                                    if(write_by_byte_counter == {$clog2(wb_sel_bits){1'b1}}) begin
+                                        if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b00 , {(wb_addr_bits-2){1'b1}} } ) begin //MUST END AT ODD NUMBER
+                                            state_calibrate <= BURST_READ;
+                                        end 
+                                        write_test_address_counter <= write_test_address_counter + 1;
+                                    end
+                                end
+                                write_by_byte_counter <= write_by_byte_counter + 1;
+                                
+                           end
+                           else begin // Straight burst to all bytes (all datamask on)
+                                calib_sel <= {wb_sel_bits{1'b1}};
+                                calib_we <= 1; 
+                                calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
+                                calib_data<= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+
+                                if(MICRON_SIM) begin
+                                    //if(write_test_address_counter[wb_addr_bits-1:0] == 500) begin //inject error at middle
+                                    //    calib_data <= 1;
+                                    //end 
+                                    if(write_test_address_counter[wb_addr_bits-1:0] == 999 ) begin //MUST END AT ODD NUMBER
+                                        state_calibrate <= BURST_READ;
+                                    end 
+                                end
+                                else begin
+                                   //if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b00 , 1'b0, {(wb_addr_bits-3){1'b1}} }) begin //inject error at middle
+                                   //     calib_data <= 1;
+                                   //end
+                                   if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b00 , {(wb_addr_bits-2){1'b1}} } ) begin //MUST END AT ODD NUMBER
+                                        state_calibrate <= BURST_READ;
+                                   end 
+                                end
+                                write_test_address_counter <= write_test_address_counter + 1;
+                           end
+                     end
+                   
+         BURST_READ: if(!o_wb_stall_calib) begin
+                            calib_stb <= 1;
+                            calib_aux <= 3; 
+                            calib_we <= 0; 
+                            calib_addr <= read_test_address_counter;
+                            read_test_address_counter <= read_test_address_counter + 1;
+                            if(MICRON_SIM) begin
+                                if(read_test_address_counter == 999) begin //MUST END AT ODD NUMBER
+                                        state_calibrate <= RANDOM_WRITE;  
+                                end
+                            end
+                            else begin
+                                if(read_test_address_counter == { 2'b00 , {(wb_addr_bits-2){1'b1}} }) begin //MUST END AT ODD NUMBER
+                                    state_calibrate <= RANDOM_WRITE;
+                                end  
+                            end
+                            
+                       end
+                       
+        RANDOM_WRITE: if(!o_wb_stall_calib) begin // Test 2: Random write (increments row address to force precharge-act-r/w) then random read
+                            calib_stb <= 1;
+                            calib_aux <= 2; 
+                            calib_sel <= {wb_sel_bits{1'b1}};
+                            calib_we <= 1; 
+                            calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]
+                                       <= write_test_address_counter[ROW_BITS-1:0];
+                            calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : 0] 
+                                       <= write_test_address_counter[wb_addr_bits-1:ROW_BITS];
+                            calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+                            if(MICRON_SIM) begin
+                                //if(write_test_address_counter[wb_addr_bits-1:0] == 1500) begin //inject error
+                                //    calib_data <= 1;
+                                //end
+                                if(write_test_address_counter[wb_addr_bits-1:0] == 1999) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                                    state_calibrate <= RANDOM_READ;
+                                end
+                            end
+                            else begin
+                               // if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b01 , 1'b0, {(wb_addr_bits-3){1'b1}}} ) begin //inject error
+                               //     calib_data <= 1;
+                               // end
+                                if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b01 , {(wb_addr_bits-2){1'b1}} } ) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                                    state_calibrate <= RANDOM_READ;
+                                end
+                            end
+                            write_test_address_counter <= write_test_address_counter + 1;
+                      end
+                    
+        RANDOM_READ: if(!o_wb_stall_calib) begin
+                        calib_stb <= 1;
+                        calib_aux <= 3; 
+                        calib_we <= 0;
+                        calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]
+                                       <= read_test_address_counter[ROW_BITS-1:0];
+                        calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : 0] 
+                                       <= read_test_address_counter[wb_addr_bits-1:ROW_BITS];
+                        read_test_address_counter <= read_test_address_counter + 1;
+                        if(MICRON_SIM) begin
+                            if(read_test_address_counter == 1999) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                                state_calibrate <= ALTERNATE_WRITE_READ;
                             end
                         end
-                      end
+                        else begin
+                             if(read_test_address_counter == { 2'b01 , {(wb_addr_bits-2){1'b1}} } ) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                                state_calibrate <= ALTERNATE_WRITE_READ;
+                            end
+                        end
+                     end
+                     
+ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
+                        calib_stb <= 1;
+                        calib_aux <= 4 + { {(AUX_WIDTH-1){1'b0}} , write_test_address_counter[0]}; //4 (write), 5 (read)
+                        calib_sel <= {wb_sel_bits{1'b1}};
+                        calib_we <= !write_test_address_counter[0]; //0(write) -> 1(read)
+                        calib_addr <= {1'b0, write_test_address_counter[wb_addr_bits-1:1]}; //same address to be used for write and read ( so basically write then read instantly)
+                        calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+                        if(MICRON_SIM) begin
+                            if(write_test_address_counter == 4999) begin
+                                train_delay <= 15;
+                                state_calibrate <= FINISH_READ;
+                            end
+                        end
+                        else begin
+                            if(write_test_address_counter[wb_addr_bits-1:0] == { 2'b11 , {(wb_addr_bits-2){1'b1}} }  ) begin
+                                train_delay <= 15;
+                                state_calibrate <= FINISH_READ;
+                            end
+                        end
+                        write_test_address_counter <= write_test_address_counter + 1;
+                    end         
+       FINISH_READ: begin
+                        calib_stb <= 0;
+                        if(train_delay == 0) begin
+                            state_calibrate <= DONE_CALIBRATE;
+                        end
+                    end    
+                               
+    DONE_CALIBRATE: begin
+                        calib_stb <= 0;
+                        state_calibrate <= DONE_CALIBRATE;
+                        already_finished_calibration <= 1;
+                     end
 
             endcase
         `ifdef FORMAL_COVER
@@ -1644,6 +1844,20 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
              if(odelay_data_cntvaluein[lane] == 31) begin
                 odelay_cntvalue_repeated <= 1; 
              end
+            if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
+                pause_counter <= 1; // pause instruction address until pre-stall delay before refresh sequence finishes
+                //skip to instruction address 20 (precharge all before refresh) when no pending requests anymore
+                //toggle it for 1 clk cycle only
+                if( !stage1_pending && !stage2_pending && ( (o_wb_stall && state_calibrate == DONE_CALIBRATE) || (o_wb_stall_calib && state_calibrate != DONE_CALIBRATE) ) ) begin 
+                   pause_counter <= 0; // pre-stall delay done since all remaining requests are completed
+                end
+            end
+            
+            if(repeat_test && state_calibrate == DONE_CALIBRATE) begin //can only repeat test once calibration is over
+                state_calibrate <= BURST_WRITE;
+                read_test_address_counter <= 0;
+                write_test_address_counter <= 0;
+            end
         end
     end      
     assign issue_read_command = (state_calibrate == MPR_READ && delay_before_read_data == 0);
@@ -1658,128 +1872,56 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
     end
     /*********************************************************************************************************************************************/
-    
-    reg[3:0] test_state = 0;
-    reg[wb_addr_bits-1:0] read_test_address_counter = 0, write_test_address_counter = 0, check_test_address_counter = 0;
-    reg[31:0] read_counter = 0, write_counter = 0,correct_read_data = 0, wrong_read_data = 0;
-    
-    always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
-            test_stb <= 0;
-            test_we <= 0;
-            test_aux <= 0;
-            test_addr <= 0;
-            test_data <= 0;
-            test_sel <= 0;
-            read_test_address_counter <= 0;
-            write_test_address_counter <= 0;
-            read_counter <= 0;
-            write_counter <= 0;
-        end
-        else if(state_calibrate == DONE_CALIBRATE) begin
-            case(test_state) 
-                0: begin
-                        if(!o_wb_stall) begin
-                            test_stb <= 1;//actual request flag
-                            test_aux <= 1; //AUX ID for write (1)
-                            test_we <= 1; //write-enable
-                            test_sel <= {wb_sel_bits{1'b1}}; 
-                            test_addr <= write_test_address_counter;
-                            test_data <= {serdes_ratio*2*LANES{write_test_address_counter[7:0]}}; 
-                            write_counter <= write_counter + 1;
-                            write_test_address_counter <= write_test_address_counter + 1;
-                            if(write_test_address_counter == 100) begin
-                                test_state <= 1;
-                            end
-                       end    
-                   end
-                   
-                1: begin
-                        if(!o_wb_stall) begin
-                            test_stb <= 1;//actual request flag
-                            test_aux <= 0; //AUX ID for write (1)
-                            test_we <= 0; //write-enable
-                            test_addr <= read_test_address_counter;
-                            read_counter <= read_counter + 1;
-                            read_test_address_counter <= read_test_address_counter + 1;
-                            if(read_test_address_counter == 100) begin
-                                test_state <= 2;
-                            end
-                        end
-                    end
-                 2: begin
-                         if(!o_wb_stall) begin
-                            test_stb <= 1;//actual request flag
-                            test_aux <= 1; //AUX ID for write (1)
-                            test_we <= 1; //write-enable
-                            test_sel <= {wb_sel_bits{1'b1}}; 
-                            test_addr <= ~write_test_address_counter;
-                            test_data <= {serdes_ratio*2*LANES{write_test_address_counter[7:0]}}; 
-                            write_counter <= write_counter + 1;
-                            write_test_address_counter <= write_test_address_counter + 1;
-                            if(write_test_address_counter == 200) begin
-                                test_state <= 3;
-                            end
-                       end     
-                    end
-                 3: begin
-                        if(!o_wb_stall) begin
-                            test_stb <= 1;//actual request flag
-                            test_aux <= 2; //AUX ID for write (1)
-                            test_we <= 0; //write-enable
-                            test_addr <= ~read_test_address_counter;
-                            read_counter <= read_counter + 1;
-                            read_test_address_counter <= read_test_address_counter + 1;
-                            if(read_test_address_counter == 200) begin
-                                test_state <= 4;
-                            end
-                        end
-                    end
-                 4: begin
-                        test_state <= test_state;
-                        test_stb <= 0;
-                        test_we <= 0;
-                        test_aux <= 0;
-                        test_addr <= 0;
-                        test_data <= 0;
-                        test_sel <= 0;
-                    end
-                    
-            endcase
-        end
-    end
 
+    /******************************************************* Calibration Test Receiver *******************************************************/
+    reg[wb_data_bits-1:0] wrong_data = 0;
     always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
+        if(sync_rst_controller) begin
             check_test_address_counter <= 0;
             correct_read_data <= 0;
             wrong_read_data <= 0;
+            reset_from_test <= 0;
         end
-        else if(state_calibrate == DONE_CALIBRATE) begin
-            if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd0, 1'b1}) begin //read ack received 
-                if(o_wb_data == {serdes_ratio*2*LANES{check_test_address_counter[7:0]}}) begin
-                    correct_read_data <= correct_read_data + 1;
+        else begin
+            reset_from_test <= 0;
+            if(state_calibrate != DONE_CALIBRATE) begin
+                if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-3){1'b0}}, 3'd3, 1'b1}) begin //read ack received 
+                    if(o_wb_data == {wb_sel_bits{check_test_address_counter[7:0]}}) begin
+                        correct_read_data <= correct_read_data + 1;
+                    end
+                    else begin
+                        wrong_read_data <= wrong_read_data + 1;
+                        wrong_data <= o_wb_data;
+                        reset_from_test <= !already_finished_calibration; //reset controller when a wrong data is received (only when calibration is not yet done)
+                    end
+                    check_test_address_counter <= check_test_address_counter + 1;
                 end
-                else begin
-                    wrong_read_data <= wrong_read_data + 1;
+                else if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-3){1'b0}}, 3'd5, 1'b1}) begin //read ack received (alternate write read)
+                    if(o_wb_data == {wb_sel_bits{check_test_address_counter[7:0]}}) begin
+                        correct_read_data <= correct_read_data + 1;
+                    end
+                    else begin
+                        wrong_read_data <= wrong_read_data + 1;
+                        wrong_data <= o_wb_data;
+                        reset_from_test <= !already_finished_calibration; //reset controller when a wrong data is received (only when calibration is not yet done)
+                    end
+                    check_test_address_counter <= check_test_address_counter + 2;
                 end
-                check_test_address_counter <= check_test_address_counter + 1;
             end
-            else if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd2, 1'b1}) begin //read ack received (random)
-                if(o_wb_data == {serdes_ratio*2*LANES{check_test_address_counter[7:0]}}) begin
-                    correct_read_data <= correct_read_data + 1;
-                end
-                else begin
-                    wrong_read_data <= wrong_read_data + 1;
-                end
-                check_test_address_counter <= check_test_address_counter + 1;
+            if(repeat_test) begin
+                check_test_address_counter <= 0;
+                correct_read_data <= 0;
+                wrong_read_data <= 0;
             end
         end
+
     end
+    /*********************************************************************************************************************************************/
+    
     /******************************************************* Wishbone 2 (PHY) Interface *******************************************************/
 
    always @(posedge i_controller_clk) begin
-        if(sync_rst) begin
+        if(sync_rst_wb2) begin
             wb2_stb <= 0;
             wb2_we <= 0; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN}
             wb2_addr <= 0;
@@ -1805,7 +1947,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
    end 
 
    always @(posedge i_controller_clk) begin
-       if(sync_rst) begin
+       if(sync_rst_wb2) begin
            wb2_phy_odelay_data_cntvaluein <= 0;
            wb2_phy_odelay_data_ld <= 0;
            wb2_phy_odelay_dqs_cntvaluein <= 0;
@@ -1819,6 +1961,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
            o_wb2_ack <= 0;
            o_wb2_stall <= 1;
            o_wb2_data <= 0;
+           reset_from_wb2 <= 0;
+           repeat_test <= 0;
        end
        else begin
            wb2_phy_odelay_data_ld <= 0; 
@@ -1829,8 +1973,10 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
            wb2_write_lane <= 0;
            o_wb2_ack <= wb2_stb && i_wb2_cyc; //always ack right after request
            o_wb2_stall <= 0; //never stall
+           reset_from_wb2 <= 0;
+           repeat_test <= 0;
            if(wb2_stb && i_wb2_cyc) begin
-                case(wb2_addr[3:0]) 
+                case(wb2_addr[4:0]) 
                     //read/write odelay cntvalue for DQ line
                     0: if(wb2_we) begin 
                             wb2_phy_odelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQ
@@ -1873,9 +2019,9 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
 
                     4: if(!wb2_we) begin
                             o_wb2_data[0] <= i_phy_idelayctrl_rdy; //1 bit, should be high when IDELAYE2 is ready
-                            o_wb2_data[1 +: 5] <= state_calibrate; //5 bits, FSM state of the calibration sequence
-                            o_wb2_data[1 + 5 +: 5] <= instruction_address; //5 bits, address of the reset sequence
-                            o_wb2_data[1 + 5 + 5 +: 4] <= added_read_pipe_max; //4 bit, max added read delay (must have a max value of 1)
+                            o_wb2_data[1 +: 6] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
+                            o_wb2_data[1 + 6 +: 5] <= instruction_address; //5 bits, address of the reset sequence
+                            o_wb2_data[1 + 6 + 5 +: 4] <= added_read_pipe_max; //4 bit, max added read delay (must have a max value of 1)
                        end
 
                     5: if(!wb2_we) begin
@@ -1890,35 +2036,45 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                         end
 
                     7: if(!wb2_we) begin
-                            for(index = 0; 8*index < 32 && index < LANES; index = index + 1) begin
-                                 o_wb2_data[8*index +: 8] <= i_phy_iserdes_bitslip_reference[8*index +: 8]; //show the 8-bit bitslip reference for lanes 0[7:0], 1[15:8], 2[23:16], 3[31:24]
-                            end
+                            o_wb2_data <= wrong_data[31:0]; //lane 1
                         end
 
                     8: if(!wb2_we) begin
-                            o_wb2_data <= read_data_store[31:0]; //first 32 bits of the data read after first write using the write_pattern 128'h80dbcfd275f12c3d_9177298cd0ad51c1
+                            o_wb2_data <= wrong_data[63:32]; //first 32 bits of the data read after first write using the write_pattern 128'h80dbcfd275f12c3d_9177298cd0ad51c1
                         end
 
                     9: if(!wb2_we) begin
-                            o_wb2_data <= write_pattern[31:0]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                            o_wb2_data <= wrong_data[95:64]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
                         end
                         
                     10: if(!wb2_we) begin //0x28 (data read back)
-                            o_wb2_data <= wb_data_to_wb2[31:0]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                            o_wb2_data <= wrong_data[127:96]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
                         end
                     11: if(!wb2_we) begin //0x2c (data write)
-                            o_wb2_data <= stage2_data_unaligned[31:0]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                            o_wb2_data <= wrong_data[159:128]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
                         end   
                     12: if(!wb2_we) begin //0x30
-                            o_wb2_data <= {stage1_we,stage1_col[6:0],stage1_data[7:0],{8'b0,stage1_dm[7:0]}}; //check if proper request is received
+                            o_wb2_data <= wrong_data[191:160]; //check if proper request is received
                         end   
                     13: if(!wb2_we) begin //0x30
-                            o_wb2_data <= 32'hf7; //lane 1
+                            o_wb2_data <= wrong_data[223:192];//lane 1
                         end
                     14: if(!wb2_we) begin //0x30
-                            o_wb2_data <= {{(32-LANES){1'b0}} , write_level_fail}; //lane 1
+                            o_wb2_data <= wrong_data[255:224]; //lane 1
                         end
-                        
+                    15: if(!wb2_we) begin //0x30
+                            o_wb2_data <= correct_read_data; //lane 1
+                        end
+                    16: if(!wb2_we) begin //0x30
+                            o_wb2_data <=  wrong_read_data; //lane 1
+                        end
+                    17: if(wb2_we) begin
+                            repeat_test <= wb2_data[0];
+                            reset_from_wb2 <= wb2_data[1];
+                        end
+                    18: if(!wb2_we) begin //0x30
+                            o_wb2_data <= 32'h50; //lane 1
+                        end
               default: if(!wb2_we) begin //read 
                            o_wb2_data <= {(WB2_DATA_BITS/2){2'b10}}; //return alternating 1s and 0s when address to be read is invalid 
                        end
@@ -1951,11 +2107,11 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                         i_phy_iserdes_data[256 +: 3], i_phy_iserdes_data[192 +: 3], i_phy_iserdes_data[128 +: 3], i_phy_iserdes_data[64 +: 3], i_phy_iserdes_data[0 +: 3]};*/
     //assign o_debug3 = {debug_trigger, i_phy_iserdes_data[192 +: 7], i_phy_iserdes_data[128 +: 8], i_phy_iserdes_data[64 +: 8], i_phy_iserdes_data[0 +: 8]};
     //assign o_debug3 = {debug_trigger,  i_phy_iserdes_data[48 +: 7], i_phy_iserdes_data[32 +: 8], i_phy_iserdes_data[16 +: 8], i_phy_iserdes_data[0 +: 8]};
-    assign o_debug1 = {debug_trigger,i_phy_iserdes_dqs[7:0],state_calibrate[4:0], instruction_address[4:0],o_phy_idelay_dqs_ld[lane],o_phy_idelay_data_ld[lane],
-                        o_phy_odelay_data_ld[lane],o_phy_odelay_dqs_ld[lane], delay_before_read_data[2:0], delay_before_write_level_feedback[4:0],lane};
+    assign o_debug1 = {debug_trigger,i_phy_iserdes_dqs[7:0],state_calibrate[4:0], instruction_address[4:0],reset_from_wb2,
+                        repeat_test, delay_before_read_data[2:0], delay_before_write_level_feedback[4:0],lane[2:0]};
     assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
     assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
-    assign debug_trigger = o_wb_ack_read_q[0][0];
+    assign debug_trigger = repeat_test /*o_wb_ack_read_q[0][0]*/;
     (* mark_debug = "true" *) wire dq_all_zeroes;
     assign dq_all_zeroes = (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b0}});
     /*********************************************************************************************************************************************/
@@ -2314,193 +2470,6 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
     `endif //endif for FORMAL_COVER
 
 
-     `ifdef TEST_TIME_PARAMETERS
-        // Test time parameter violations
-        reg[6:0] f_precharge_time_stamp[(1<<BA_BITS)-1:0]; 
-        reg[6:0] f_activate_time_stamp[(1<<BA_BITS)-1:0]; 
-        reg[6:0] f_read_time_stamp[(1<<BA_BITS)-1:0]; 
-        reg[6:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
-        reg[6:0] f_timer = 0;
-        (*anyconst*) reg[2:0] bank_const;
-        reg f_past_valid = 0;
-
-        initial assume(!i_rst_n); 
-        always @(posedge i_controller_clk)  f_past_valid <= 1;
-
-        always @(posedge i_controller_clk) begin
-            f_timer <= f_timer + 4;
-            if(f_past_valid) begin
-                assume($past(f_timer) < f_timer); //assume that counter will never overflow
-            end
-        end
-
-        always @(posedge i_controller_clk, negedge i_rst_n) begin
-            if(!i_rst_n) begin
-                for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                    f_precharge_time_stamp[index] <= 0;
-                    f_activate_time_stamp[index] <= 0;
-                    f_read_time_stamp[index] <= 0;
-                    f_write_time_stamp[index] <= 0;
-                end
-            end
-            else begin
-                //check if a DDR3 command is issued
-                if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
-                    f_precharge_time_stamp[cmd_d[PRECHARGE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + PRECHARGE_SLOT; 
-                end
-
-                if(cmd_d[ACTIVATE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0011) begin //ACTIVATE
-                    f_activate_time_stamp[cmd_d[ACTIVATE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + ACTIVATE_SLOT; 
-                end
-
-                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
-                    f_write_time_stamp[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + WRITE_SLOT;
-                    //Check tCCD (write-to-write delay)
-                    assert((f_timer+WRITE_SLOT) - f_write_time_stamp[bank_const] >= tCCD); 
-                end
-
-                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
-                    f_read_time_stamp[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] <= f_timer + READ_SLOT;
-                    //Check tCCD (read-to-read delay)
-                    assert((f_timer+READ_SLOT) - f_read_time_stamp[bank_const] >= tCCD); 
-                end
-            end
-        end
-
-        always @* begin
-            // make sure saved time stamp is valid
-            assert(f_precharge_time_stamp[bank_const] <= f_timer);
-            assert(f_activate_time_stamp[bank_const] <= f_timer);
-            assert(f_read_time_stamp[bank_const] <= f_timer);
-            assert(f_write_time_stamp[bank_const] <= f_timer);
-                
-            // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
-            if(f_precharge_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
-                assert((f_precharge_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= ns_to_nCK(10));
-            end
-
-            // Check tWTR (Delay from start of internal write transaction to internal read command)
-            if(f_read_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
-                assert((f_read_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWTR)));
-            end
-
-            // Check tRCD (ACT to internal read delay time)
-            if(f_read_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
-                assert((f_read_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
-            end 
-            
-            // Check tRCD (ACT to internal write delay time)
-            if(f_write_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
-                assert((f_write_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
-            end
-
-            // Check tRP (PRE command period)
-            if(f_activate_time_stamp[bank_const] > f_precharge_time_stamp[bank_const]) begin
-                assert((f_activate_time_stamp[bank_const] - f_precharge_time_stamp[bank_const]) >= ns_to_nCK(tRP));
-            end
-            
-            // Check tRAS (ACTIVE to PRECHARGE command period)
-            if(f_precharge_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
-                assert((f_precharge_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRAS));
-            end
-
-            // Check tWR (WRITE recovery time for write-to-precharge)
-            if(f_precharge_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
-                assert((f_precharge_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWR)));
-            end
-
-            // Check delay from read-to-write
-            if(f_write_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
-                assert((f_write_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= (CL_nCK + tCCD + 3'd2 - CWL_nCK));
-            end
-
-        end
-
-        // extra assertions to make sure engine starts properly
-        always @* begin
-            assert(instruction_address <= 22);
-            assert(state_calibrate <= DONE_CALIBRATE);
-
-            if(!o_wb_stall) begin
-                assert(state_calibrate == DONE_CALIBRATE);
-                assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0));
-            end
-
-            if(instruction_address == 19 && delay_counter != 0 && state_calibrate == DONE_CALIBRATE) begin
-                if(stage1_pending || stage2_pending) begin
-                    assert(pause_counter);
-                end
-            end
-
-            if(stage1_pending || stage2_pending) begin
-               assert(state_calibrate > ISSUE_WRITE_1); 
-               assert(instruction_address == 22 || instruction_address == 19);
-            end
-
-            if(instruction_address < 13) begin
-                assert(state_calibrate == IDLE);
-            end
-
-            if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
-                assert(instruction_address == 13);
-                assert(pause_counter);
-            end
-
-
-            if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
-                assert(instruction_address == 17);
-                assert(pause_counter);
-            end
-            
-            if(pause_counter) begin
-                assert(delay_counter != 0);
-            end
-            
-            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
-                assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
-                assert(reset_done);
-            end
-
-            if(state_calibrate == DONE_CALIBRATE) begin
-                assert(reset_done);
-                assert(instruction_address >= 19);
-            end
-
-            if(reset_done) begin
-                assert(instruction_address >= 19);
-            end
-
-            if(!reset_done) begin
-                assert(!stage1_pending && !stage2_pending);
-                assert(o_wb_stall);
-            end
-            if(reset_done) begin
-                assert(instruction_address >= 19 && instruction_address <= 22);
-            end
-            //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
-            if(instruction_address == 19 && delay_counter != 0) begin
-                assert(o_wb_stall);
-            end
-
-            if(instruction_address == 19 && pause_counter) begin //pre-stall delay to finish all remaining requests
-               assert(delay_counter == PRE_REFRESH_DELAY); 
-               assert(reset_done);
-               assert(DONE_CALIBRATE);
-            end
-        end
-
-        /*
-        always @(posedge i_controller_clk) begin
-            if(f_past_valid) begin
-                if($past(instruction_address) == 22 && instruction_address == 19) begin
-                    assert(state_calibrate == DONE_CALIBRATE);
-                end
-            end
-        end
-        */
-    `endif //endif for TEST_TIME_PARAMETERS
-
-
     `ifdef TEST_CONTROLLER_PIPELINE 
         // wires and registers used in this formal section
         `ifdef TEST_DATA
@@ -2530,8 +2499,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         reg[F_TEST_CMD_DATA_WIDTH - 1:0] f_write_data;
         reg f_write_fifo = 0, f_read_fifo = 0;
         reg[ROW_BITS-1:0] f_bank_active_row[(1<<BA_BITS)-1:0]; 
-        reg[(1<<BA_BITS)-1:0] f_bank_status;
-        (*keep*) reg[(1<<BA_BITS)-1:0] f_bank_status_2; 
+        reg[(1<<BA_BITS)-1:0] f_bank_status = 0;
+        (*keep*) reg[(1<<BA_BITS)-1:0] f_bank_status_2 = 0; 
         wire f_empty, f_full;
         wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data;
         wire[F_TEST_CMD_DATA_WIDTH - 1:0] f_read_data_next;
@@ -2544,6 +2513,10 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         (*anyconst*) reg[$bits(instruction_address) - 1: 0] f_const_addr;
         
         initial assume(!i_rst_n); 
+        reg past_sync_rst_controller = 1;
+        always @(posedge i_controller_clk) begin
+            past_sync_rst_controller <= sync_rst_controller;
+        end
         
         always @* begin
             //assert(tMOD + tZQinit > nCK_to_cycles(tDLLK)); //Initialization sequence requires that tDLLK is satisfied after MRS to mode register 0 and ZQ calibration
@@ -2567,8 +2540,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         //2-stage Pipeline: f_addr (update address)  ->  f_read (read instruction from rom)  
         
         //pipeline stage logic: f_addr (update address)  ->  f_read (read instruction from rom)  
-        always @(posedge i_controller_clk, negedge i_rst_n) begin
-            if(!i_rst_n) begin
+        always @(posedge i_controller_clk) begin
+            if(sync_rst_controller) begin
                 f_addr <= 0;
                 f_read <= 0;
             end
@@ -2592,7 +2565,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         
         // main assertions for the reset sequence 
         always @(posedge i_controller_clk) begin
-                if(!i_rst_n || !$past(i_rst_n)) begin
+                if(past_sync_rst_controller) begin
                     assert(f_addr == 0);
                     assert(f_read == 0);
                     assert(instruction_address == 0);
@@ -2708,11 +2681,15 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                 assert(delay_counter != 0);
             end
             
-            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
                 assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
                 assert(reset_done);
             end
-
+            
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= DONE_CALIBRATE) begin
+                assert(reset_done);
+            end
+            
             if(state_calibrate == DONE_CALIBRATE) begin
                 assert(reset_done);
                 assert(instruction_address >= 19);
@@ -2721,6 +2698,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             if(reset_done) begin
                 assert(instruction_address >= 19);
             end
+            
+            assume(repeat_test == 0);
         end
         
         always @* begin
@@ -2741,7 +2720,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             .DATA_WIDTH(F_TEST_CMD_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
        ) fifo_1 (
             .i_clk(i_controller_clk), 
-            .i_rst_n(i_rst_n && i_wb_cyc), //reset outstanding request at reset or when cyc goes low
+            .i_rst_n(!past_sync_rst_controller && i_wb_cyc), //reset outstanding request at reset or when cyc goes low
             .read_fifo(f_read_fifo), 
             .write_fifo(f_write_fifo),
             .empty(f_empty), 
@@ -2787,20 +2766,44 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             if(state_calibrate == ANALYZE_DATA) begin
                 assert(!stage1_pending && !stage2_pending);
             end
+            if(state_calibrate == READ_DATA && calib_stb) begin //if read request is not yet sent, the stage we must both be writes
+                if(stage1_pending) begin
+                    assert(stage1_we);
+                end
+                if(stage2_pending) begin
+                    assert(stage2_we);
+                end
+                assert(f_sum_of_pending_acks <= 2);
+            end
+             if(state_calibrate == READ_DATA && !calib_stb) begin //if read request is not yet sent, the stage we must both be writes
+                if(stage1_pending && !stage2_pending) begin 
+                    assert(!stage1_we);
+                end
+                if(!stage1_pending && stage2_pending) begin
+                    assert(!stage2_we);
+                end
+                if(stage1_pending && stage2_pending) begin
+                    assert(!stage1_we);
+                    assert(stage2_we);
+                end
+                 
+            end
+            assume(state_calibrate != CHECK_STARTING_DATA && state_calibrate != BITSLIP_DQS_TRAIN_3); //this state should not be used (only for ddr3 with problems on DQ-DQS alignment)
         end
 
         always @(posedge i_controller_clk) begin
             if(f_past_valid) begin
                 //switch from calibrate to done
                 if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE) begin
-                    assert($past(state_calibrate) == ANALYZE_DATA);
+                    //assert($past(state_calibrate) == FINISH_READ);
+                    assert($past(state_calibrate) == FINISH_READ);
                     assert(f_empty);
                     assert(!stage1_pending);
                     assert(!stage2_pending);
                     //assert(f_bank_status == 1); //only first bank is activated
                     //assert(bank_status_q == 1);
                 end
-                if(stage1_pending && $past(state_calibrate) == READ_DATA && state_calibrate == READ_DATA) begin
+                if(stage1_pending /*&& $past(state_calibrate) == READ_DATA */ && state_calibrate == READ_DATA && !calib_stb) begin
                     assert(!stage1_we);
                 end
                 //if(instruction_address == 21 || ($past(instruction_address) == 20 && $past(instruction_address,2) == 19) || instruction_address < 19) begin //calibration
@@ -2811,10 +2814,10 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                     assert(f_bank_status == 0);
                     assert(bank_status_q == 0);
                end
-               if(state_calibrate != DONE_CALIBRATE) begin
+               /*if(state_calibrate <= ANALYZE_DATA) begin
                     assert(f_bank_status == 0 || f_bank_status == 1); //only first bank is activated
                     assert(bank_status_q == 0 || f_bank_status == 1);
-               end
+               end*/
             end
         end
 
@@ -2864,8 +2867,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                        assert(f_read_data[0]); //i_wb_we must be high
                        f_read_fifo = 1; //advance read pointer to prepare for next read
                     end
-                    else if(state_calibrate > ISSUE_WRITE_1) begin
-                        assert(stage2_aux == 1);
+                    else if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
+                        assert(stage2_aux == 0);
                     end
                     //assert(f_bank_active_row[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == current_row); //column to be written must be the current active row
                 end
@@ -2887,8 +2890,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                        assert(!f_read_data[0]); //i_wb_we must be low
                        f_read_fifo = 1; //advance read pointer to prepare for next read
                    end
-                    else if(state_calibrate > ISSUE_WRITE_1) begin
-                        assert(stage2_aux == 0);
+                    else if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
+                        assert(stage2_aux == 1);
                     end
                     //assert(f_bank_active_row[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == current_row);//column to be written must be the current active row
                 end
@@ -2915,7 +2918,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             if(state_calibrate == DONE_CALIBRATE) begin
                 assert(reset_done);
             end
-            if(state_calibrate != DONE_CALIBRATE) begin
+            if(state_calibrate != DONE_CALIBRATE && !past_sync_rst_controller) begin
                 assert(o_wb_stall); //if not yet finished calibrating, stall should never go low
             end
             if(state_calibrate != DONE_CALIBRATE) begin
@@ -2923,6 +2926,9 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             end
             if(!f_empty) begin
                 assert(state_calibrate == DONE_CALIBRATE);
+            end
+            if(train_delay == 0 && state_calibrate == FINISH_READ) begin//remove
+                assume(f_sum_of_pending_acks == 0);
             end
         end
 
@@ -2963,8 +2969,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         end
        
         (*keep*) reg[31:0] bank; 
-        always @(posedge i_controller_clk, negedge i_rst_n) begin
-            if(!i_rst_n) begin
+        always @(posedge i_controller_clk) begin
+            if(sync_rst_controller) begin
                 //reset bank status and active row
                 for(index=0; index < (1<<BA_BITS); index=index+1) begin
                         f_bank_status[index] <= 0;  
@@ -3022,10 +3028,12 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                     end
                     if(instruction_address != 22 && $past(instruction_address) != 22) begin
                         assert(o_wb_stall);
+                        assert(o_wb_stall_calib);
                     end
                     //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
                     if(instruction_address == 19 && delay_counter != 0) begin
                         assert(o_wb_stall);
+                        assert(o_wb_stall_calib);
                     end
                     if(instruction_address == 20 || instruction_address == 21) begin //no pending request at precharge all and refresh command
                         assert(!stage1_pending);
@@ -3064,16 +3072,16 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                 assert(bank_status_q == 0);
             end
 
-            if(!DONE_CALIBRATE) begin
+            if(state_calibrate != DONE_CALIBRATE) begin
                 assert(o_wb_ack == 0); //o_wb_ack must not go high before done calibration
             end
 
-            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
+            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
                 if(stage1_pending) begin
-                    assert(stage1_we == stage1_aux); //if write, then aux id must be 1 else 0
+                    assert(!stage1_we == stage1_aux); //if write, then aux id must be 1 else 0
                 end
                 if(stage2_pending) begin
-                    assert(stage2_we == stage2_aux); //if write, then aux id must be 1 else 0
+                    assert(!stage2_we == stage2_aux); //if write, then aux id must be 1 else 0
                 end
             end
 
@@ -3089,7 +3097,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
 
         integer f_sum_of_pending_acks = 0;
         always @* begin
-                if(!i_rst_n) begin
+                if(past_sync_rst_controller) begin
                     assume(f_nreqs == 0);
                     assume(f_nacks == 0);
                 end
@@ -3128,38 +3136,38 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                 end
 
 
-                if(i_rst_n && state_calibrate == DONE_CALIBRATE) begin
+                if(!past_sync_rst_controller && state_calibrate == DONE_CALIBRATE) begin
                     assert(f_outstanding == f_sum_of_pending_acks || !i_wb_cyc);
                 end
-                else if(!i_rst_n) begin
+                else if(past_sync_rst_controller) begin
                     assert(f_sum_of_pending_acks == 0);
                 end
-                if(state_calibrate != DONE_CALIBRATE && i_rst_n) begin
+                if(state_calibrate != DONE_CALIBRATE && !past_sync_rst_controller) begin
                     assert(f_outstanding == 0 || !i_wb_cyc);
                 end
-                if(state_calibrate <= ISSUE_WRITE_1 && i_rst_n) begin
+                if(state_calibrate <= ISSUE_WRITE_1 && !past_sync_rst_controller) begin
                     //not inside tREFI, prestall delay, nor precharge
                     assert(f_outstanding == 0 || !i_wb_cyc); 
                     assert(f_sum_of_pending_acks == 0);
                 end
-                if(state_calibrate == READ_DATA && i_rst_n) begin
+                if(state_calibrate == READ_DATA && !past_sync_rst_controller) begin
                     assert(f_outstanding == 0 || !i_wb_cyc); 
                     assert(f_sum_of_pending_acks <= 3);
 
                     if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
-                        assert(o_wb_ack_read_q[0] == {1, 1'b1});
+                        assert(o_wb_ack_read_q[0] == {0, 1'b1}); //if sum of pending acks > 1 then the first two will be write and have aux of 0, while the last will have aux of 1 (read)
                     end
 
                     f_ack_pipe_marker = 0;
                     for(index = 0; index < READ_ACK_PIPE_WIDTH + 2; index = index + 1) begin //check each ack stage starting from last stage
                         if(f_aux_ack_pipe_after_stage2[index][0]) begin //if ack is high
-                            if(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 0) begin //ack for read
+                            if(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 1) begin //ack for read
                                 assert(f_ack_pipe_marker == 0); //read ack must be the last ack on the pipe(f_pipe_marker must still be zero)
                                 f_ack_pipe_marker = f_ack_pipe_marker + 1;
                                 assert(!stage1_pending && !stage2_pending); //a single read request must be the last request on this calibration
                             end
                             else begin //ack for write
-                                assert(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 1);
+                                assert(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 0);
                                 f_ack_pipe_marker = f_ack_pipe_marker + 1;
                             end
                         end
@@ -3167,21 +3175,30 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                     assert(f_ack_pipe_marker <= 3);
                 end
 
-                if(state_calibrate == ANALYZE_DATA && i_rst_n) begin
+                if(state_calibrate == ANALYZE_DATA && !past_sync_rst_controller) begin
                     assert(f_outstanding == 0 || !i_wb_cyc); 
                     assert(f_sum_of_pending_acks == 0);
                 end
-                if(state_calibrate != DONE_CALIBRATE  && i_rst_n) begin //if not yet done calibration, no request should be accepted
+                if(state_calibrate != DONE_CALIBRATE && !past_sync_rst_controller) begin //if not yet done calibration, no request should be accepted
                     assert(f_nreqs == 0);
                     assert(f_nacks == 0);
                     assert(f_outstanding == 0 || !i_wb_cyc); 
                 end
 
                if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
-                   if(write_calib_stb == 1) begin
-                        assert(write_calib_aux == 1);          
-                        assert(write_calib_we == 1);
+                   if(calib_stb == 1) begin
+                        assert(calib_aux == 0);          
+                        assert(calib_we == 1);
                     end
+               end
+               if(state_calibrate == READ_DATA) begin
+                   if(calib_stb == 1) begin
+                        assert(calib_aux == 1);          
+                        assert(calib_we == 0);
+                    end
+               end
+               if(state_calibrate <= ISSUE_WRITE_1 || state_calibrate == ANALYZE_DATA || state_calibrate == DONE_CALIBRATE) begin
+                        assert(calib_stb == 0);
                end
                 if(!stage1_pending) begin
                     assert(!stage1_stall);
@@ -3193,10 +3210,10 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         end
         always @(posedge i_controller_clk) begin
             if(f_past_valid) begin
-                if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && i_rst_n) begin
+                if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && !past_sync_rst_controller) begin
                    assert(f_nreqs == $past(f_nreqs));           
                 end
-                if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && i_rst_n) begin//just started DONE_CALBRATION
+                if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && !past_sync_rst_controller) begin//just started DONE_CALBRATION
                     assert(f_nreqs == 0);
                     assert(f_nacks == 0);
                     assert(f_outstanding == 0); 
@@ -3214,8 +3231,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             for(index=0; index< (1<<BA_BITS); index=index+1) begin
                 assert(delay_before_precharge_counter_q[index] <= max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)));
                 assert(delay_before_activate_counter_q[index] <= PRECHARGE_TO_ACTIVATE_DELAY); 
-                assert(delay_before_write_counter_q[index] <= max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY));
-                assert(delay_before_read_counter_q[index] <= max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY));
+                assert(delay_before_write_counter_q[index] <= (max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY) + 1) );
+                assert(delay_before_read_counter_q[index] <= (max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY)) + 1);
             end
             if(stage2_pending) begin
                 if(delay_before_precharge_counter_q[stage2_bank] == max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY))) begin
@@ -3259,6 +3276,14 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         reg[6:0] f_read_time_stamp[(1<<BA_BITS)-1:0]; 
         reg[6:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
         reg[6:0] f_timer = 0;
+        initial begin
+            for(index=0; index < (1<<BA_BITS); index=index+1) begin
+                f_precharge_time_stamp[index] = 0;
+                f_activate_time_stamp[index] = 0;
+                f_read_time_stamp[index] = 0;
+                f_write_time_stamp[index] = 0;
+            end
+        end
         (*anyconst*) reg[2:0] bank_const;
 
 
@@ -3269,8 +3294,8 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             end
         end
 
-        always @(posedge i_controller_clk, negedge i_rst_n) begin
-            if(!i_rst_n) begin
+        always @(posedge i_controller_clk) begin
+            if(sync_rst_controller) begin
                 for(index=0; index < (1<<BA_BITS); index=index+1) begin
                     f_precharge_time_stamp[index] <= 0;
                     f_activate_time_stamp[index] <= 0;
@@ -3353,77 +3378,81 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
 
         // extra assertions to make sure engine starts properly
         always @* begin
-            assert(instruction_address <= 22);
-            assert(state_calibrate <= DONE_CALIBRATE);
+            //if(!past_sync_rst_controller) begin
+                assert(instruction_address <= 22);
+                assert(state_calibrate <= DONE_CALIBRATE);
 
-            if(!o_wb_stall) begin
-                assert(state_calibrate == DONE_CALIBRATE);
-                assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0));
-            end
+                if(!o_wb_stall) begin
+                    assert(state_calibrate == DONE_CALIBRATE);
+                    assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0));
+                end
 
-            if(instruction_address == 19 && delay_counter != 0 && state_calibrate == DONE_CALIBRATE) begin
+                if(instruction_address == 19 && delay_counter != 0 && state_calibrate == DONE_CALIBRATE) begin
+                    if(stage1_pending || stage2_pending) begin
+                        assert(pause_counter);
+                    end
+                end
+
                 if(stage1_pending || stage2_pending) begin
+                   assert(state_calibrate > ISSUE_WRITE_1); 
+                   assert(instruction_address == 22 || instruction_address == 19);
+                end
+
+                if(instruction_address < 13) begin
+                    assert(state_calibrate == IDLE);
+                end
+
+                if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
+                    assert(instruction_address == 13);
                     assert(pause_counter);
                 end
-            end
-
-            if(stage1_pending || stage2_pending) begin
-               assert(state_calibrate > ISSUE_WRITE_1); 
-               assert(instruction_address == 22 || instruction_address == 19);
-            end
-
-            if(instruction_address < 13) begin
-                assert(state_calibrate == IDLE);
-            end
-
-            if(state_calibrate > IDLE && state_calibrate <= BITSLIP_DQS_TRAIN_2) begin
-                assert(instruction_address == 13);
-                assert(pause_counter);
-            end
 
 
-            if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
-                assert(instruction_address == 17);
-                assert(pause_counter);
-            end
-            
-            if(pause_counter) begin
-                assert(delay_counter != 0);
-            end
-            
-            if(state_calibrate > ISSUE_WRITE_1 && state_calibrate < DONE_CALIBRATE) begin
-                assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
-                assert(reset_done);
-            end
+                if(state_calibrate > START_WRITE_LEVEL  && state_calibrate <= WAIT_FOR_FEEDBACK) begin
+                    assert(instruction_address == 17);
+                    assert(pause_counter);
+                end
+                
+                if(pause_counter) begin
+                    assert(delay_counter != 0);
+                end
+                
+                if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
+                    assume(instruction_address == 22); //write-then-read calibration will not take more than tREFI (7.8us, delay a address 22)
+                    assert(reset_done);
+                end
 
-            if(state_calibrate == DONE_CALIBRATE) begin
-                assert(reset_done);
-                assert(instruction_address >= 19);
-            end
+                if(state_calibrate == DONE_CALIBRATE) begin
+                    assert(reset_done);
+                    assert(instruction_address >= 19);
+                end
 
-            if(reset_done) begin
-                assert(instruction_address >= 19);
-            end
+                if(reset_done) begin
+                    assert(instruction_address >= 19);
+                end
 
-            if(!reset_done) begin
-                assert(!stage1_pending && !stage2_pending);
-                assert(o_wb_stall);
-            end
-            if(reset_done) begin
-                assert(instruction_address >= 19 && instruction_address <= 22);
-            end
-            //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
-            if(instruction_address == 19 && delay_counter != 0) begin
-                assert(o_wb_stall);
-            end
+                if(!reset_done) begin
+                    assert(!stage1_pending && !stage2_pending);
+                    assert(o_wb_stall);
+                    assert(o_wb_stall_calib);
+                end
+                if(reset_done) begin
+                    assert(instruction_address >= 19 && instruction_address <= 22);
+                end
+                //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
+                if(instruction_address == 19 && delay_counter != 0) begin
+                    assert(o_wb_stall);
+                    assert(o_wb_stall_calib);
+                end
 
-            if(instruction_address == 19 && pause_counter) begin //pre-stall delay to finish all remaining requests
-               assert(delay_counter == PRE_REFRESH_DELAY); 
-               assert(reset_done);
-               assert(DONE_CALIBRATE);
-            end
+                if(instruction_address == 19 && pause_counter) begin //pre-stall delay to finish all remaining requests
+                   assert(delay_counter == PRE_REFRESH_DELAY); 
+                   //assert(reset_done);
+                   //assert(state_calibrate >= ISSUE_WRITE_1);
+               end
+           //end
         end
-
+/*
         // verify the wishbone 2
         localparam F_TEST_WB2_DATA_WIDTH = wb2_sel_bits + 5 + lanes_clog2 + 4 + 1; //WB2_SEL + CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
         reg f_read_fifo_2, f_write_fifo_2;
@@ -3456,14 +3485,14 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             end
 
             if(state_calibrate != DONE_CALIBRATE && i_wb2_stb) begin
-                /* must not be a read/write to delays when not yet done calibrating */
+                // must not be a read/write to delays when not yet done calibrating 
                 assume(i_wb2_addr[3:0] > 3);
             end
         end
         
         //verify outcome of request
-        always @(posedge i_controller_clk, negedge i_rst_n) begin
-            if(!i_rst_n) begin
+        always @(posedge i_controller_clk) begin
+            if(sync_rst_controller) begin
                 f_o_wb2_ack_q <= 0;
                 f_read_data_2_q <= 0;
             end
@@ -3473,7 +3502,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             end
         end
         always @* begin
-            if(i_rst_n) begin
+            if(!past_sync_rst_controller) begin
                 if(wb2_stb && o_wb2_ack) begin
                     assert(f_full_2 || !i_wb2_cyc);
                 end
@@ -3493,11 +3522,11 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             end
             assert(f_outstanding_2 <= 2);
             f_read_fifo_2 = 0;
-           if(o_wb2_ack && !f_read_data_2[0] && i_rst_n) begin //read request
+           if(o_wb2_ack && !f_read_data_2[0] && !past_sync_rst_controller) begin //read request
                 f_read_fifo_2 = 1;
            end
 
-           if(o_wb2_ack && f_read_data_2[0] && i_rst_n) begin
+           if(o_wb2_ack && f_read_data_2[0] && !past_sync_rst_controller) begin
                 f_read_fifo_2 = 1;
            end
         end
@@ -3591,15 +3620,15 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
            if(f_past_valid) begin
                for(index = 0; index < LANES; index = index + 1) begin
                     if(o_phy_bitslip[index]) begin
-                        /* Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
-                        deasserted for at least one CLKDIV cycle between two Bitslip assertions. 
-                        */
+                        //Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
+                        //deasserted for at least one CLKDIV cycle between two Bitslip assertions. 
+                        
                         assert(!$past(o_phy_bitslip[index]));
                     end
                end
            end
         end
-
+        
         mini_fifo #(
             .FIFO_WIDTH(1), //the fifo will have 2**FIFO_WIDTH positions
             .DATA_WIDTH(F_TEST_WB2_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
@@ -3613,7 +3642,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             .write_data(f_write_data_2),
             .read_data(f_read_data_2)
        ); 
-    
+    */
     //assumption on when to do request (so as not to violate the
     //F_MAX_STALL property of fwb_slave) 
     always @* begin
@@ -3657,7 +3686,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
         ) wb_properties (
             // {{{
             .i_clk(i_controller_clk), 
-            .i_reset(!i_rst_n),
+            .i_reset(past_sync_rst_controller),
             // The Wishbone bus
             .i_wb_cyc(i_wb_cyc), 
             .i_wb_stb(i_wb_stb), 
@@ -3679,7 +3708,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             // }}}
             // }}}
         );
-
+/*
     fwb_slave #(
             // {{{
             .AW(WB2_ADDR_BITS), 
@@ -3735,7 +3764,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
             .f_outstanding(f_outstanding_2),
             // }}}
             // }}}
-        );
+        );*/
     `endif //endif for TEST_CONTROLLER_PIPELINE
 `endif //endif for FORMAL
 endmodule
