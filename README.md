@@ -1,10 +1,14 @@
+# DDR3_Controller (This repo will SOON be documented)
+# :construction: :construction_worker_man: :construction_worker_man:  UNDER CONSTRUCTION :construction_worker_man: :construction_worker_man: :construction: 
+
+
+
 ![mpr_4](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/519c6cd1-3f11-4790-a6bc-7fd7b63f66d1)
 ![mpr_3](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/2f3bd9bf-4e7b-4cac-8528-34156c89fc2e)
 ![mpr_2](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/8a631e87-fb64-4de6-8b97-6d4e11eabcce)
 ![first_mpr](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/f0367289-5575-4fce-b70d-0e00e520be73)
 ![cntvalue_increments_until_end](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/0a90ac6b-07f2-4d9e-a95e-d9eb60523d81)
-# DDR3_Controller
-# :construction: :construction_worker_man: :construction_worker_man:  UNDER CONSTRUCTION :construction_worker_man: :construction_worker_man: :construction: 
+
 
 ## Sequential Read
 ![image](https://user-images.githubusercontent.com/87559347/230342721-c5a575db-0518-4771-a5e6-7fa7e3044273.png)  
