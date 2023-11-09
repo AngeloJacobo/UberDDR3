@@ -2,21 +2,23 @@
 `timescale 1ps / 1ps
 
 module ddr3_top #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
-                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, clock period of the controller interface
+                   DDR3_CLK_PERIOD = 2.5, //ns, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
     parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
-                   LANES = 8, //8 lanes of DQ
-                   AUX_WIDTH = 16, 
-                   WB2_ADDR_BITS = 32,
-                   WB2_DATA_BITS = 32,
+                   LANES = 8, //lanes of DQ
+                   AUX_WIDTH = 4, //width of aux line (must be >= 4) 
+                   WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
+                   WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
+    /* verilator lint_off UNUSEDPARAM */
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-                   MICRON_SIM = 0, //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+   /* verilator lint_on UNUSEDPARAM */
+                   MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+                   TEST_DATAMASK = 0, //add test to datamask during calibration
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
-                    
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
@@ -71,7 +73,8 @@ module ddr3_top #(
         output wire[LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt, // on-die termination
         output wire[31:0] o_debug1,
-        output wire[31:0] o_debug2
+        output wire[31:0] o_debug2,
+        output wire[31:0] o_debug3
     );
 
     // Wire connections between controller and phy
@@ -94,20 +97,21 @@ module ddr3_top #(
     
     //module instantiations
     ddr3_controller #(
-            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
-            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
-            .ODELAY_SUPPORTED(ODELAY_SUPPORTED),
+            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, clock period of the controller interface
+            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+            .ODELAY_SUPPORTED(ODELAY_SUPPORTED),  //set to 1 when ODELAYE2 is supported
             .ROW_BITS(ROW_BITS), //width of row address
             .COL_BITS(COL_BITS), //width of column address
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
             .LANES(LANES), //8 lanes of DQ
-            .AUX_WIDTH(AUX_WIDTH), //
-            .WB2_ADDR_BITS(WB2_ADDR_BITS),
-            .WB2_DATA_BITS(WB2_DATA_BITS),
+            .AUX_WIDTH(AUX_WIDTH), //width of aux line (must be >= 4) 
+            .WB2_ADDR_BITS(WB2_ADDR_BITS), //width of 2nd wishbone address bus 
+            .WB2_DATA_BITS(WB2_DATA_BITS),  //width of 2nd wishbone data bus
             .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
             .OPT_BUS_ABORT(OPT_BUS_ABORT),  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-            .MICRON_SIM(MICRON_SIM) //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+            .MICRON_SIM(MICRON_SIM), //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+            .TEST_DATAMASK(TEST_DATAMASK) //add test to datamask during calibration
         ) ddr3_controller_inst (
             .i_controller_clk(i_controller_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
             .i_rst_n(i_rst_n), //200MHz input clock
@@ -161,6 +165,7 @@ module ddr3_top #(
             .o_debug1(o_debug1),
             .o_debug2(o_debug2)
         );
+        
     ddr3_phy #(
             .ROW_BITS(ROW_BITS), //width of row address
             .BA_BITS(BA_BITS), //width of bank address
