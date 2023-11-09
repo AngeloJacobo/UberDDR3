@@ -1,57 +1,55 @@
-// Background:
-// This DDR3 controller will be used with a DDR3-1600 with Kintex 7 FPGA Board (XC7K160T-3FFG676E). 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename:	ddr3_controller.v
+// {{{
+// Project:	DDR3 Controller
+//
+// Purpose: This DDR3 controller was originally designed to be used on the 
+// Network Switch Project (https://github.com/ZipCPU/eth10g). The Network Switch 
+// project uses a Kintex 7 FPGA (XC7K160T-3FFG676E). 
 // The goal will be to:
 //  - Run this at 1600Mbps (Maximum Physical Interface (PHY) Rate for a 4:1 
 //          memory controller based on "DC and AC Switching Characteristics" for Kintex 7)
 //  - Parameterize everything
 //  - Interface should be (nearly) bus agnostic   
 //  - High (sustained) data throughput. Sequential writes should be able to continue without interruption 
+//
+// Engineer: Angelo C. Jacobo
+//
+////////////////////////////////////////////////////////////////////////////////
 
 
-//`define FORMAL_COVER //change delay in reset sequence to fit in cover statement
-//`define COVER_DELAY 1 //fixed delay used in formal cover for reset sequence
+
+//`define FORMAL_COVER //skip reset sequence to fit in cover depth
 `default_nettype none
 `timescale 1ps / 1ps
-
-
-// THESE DEFINES WILL BE MODIFIED AS PARAMETERS LATER ON
-`define DDR3_1600_11_11_11 // DDR3-1600 (11-11-11) speed bin
-`define RAM_8Gb //DDR3 Capacity
+//
+// speed bin
+`define DDR3_1600_11_11_11 
+//
+//DDR3 Capacity
+`define RAM_8Gb
 //`define RAM_2Gb 
 //`define RAM_4Gb 
 //`define RAM_8Gb
-`define x8 //DDR3 organization (DQ bus width) 
-//`define x4
-//`define x16
 
-//NOTE IN FORMAL INDUCTION: Make formal induction finish in shorter time by lowering the delays between commands. 
-//A good basis on the formal depth is the value of PRE_STALL_DELAY.
-//The value of prestall delay is the longest possible
-//clock cycles needed to finish 2 requests. Since the
-//fifo used in the formal induction has 2 locations
-//only (pertains to the request stored on the two
-// pipeline stages of bank access), we need to flush
-// those two requests on the fifo first, and the max
-// time for two request is also the value of
-// PRE_STALL_DELAY
-                   
 module ddr3_controller #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
-                   DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, clock period of the controller interface
+                   DDR3_CLK_PERIOD = 2.5, //ns, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
     parameter      ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
-                   LANES = 8, //8 lanes of DQ
-                   AUX_WIDTH = 16, 
-                   WB2_ADDR_BITS = 7,
-                   WB2_DATA_BITS = 32,
+                   LANES = 8, //lanes of DQ
+                   AUX_WIDTH = 4, //width of aux line (must be >= 4) 
+                   WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
+                   WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
     /* verilator lint_off UNUSEDPARAM */
     parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
    /* verilator lint_on UNUSEDPARAM */
-                   MICRON_SIM = 0, //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-                   TEST_DATAMASK = 0, //Add test to datamask during calibration
+                   MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+                   TEST_DATAMASK = 0, //add test to datamask during calibration
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
@@ -1500,8 +1498,10 @@ module ddr3_controller #(
                             pause_counter <= 0;
                             lane <= 0;
                             state_calibrate <= ISSUE_WRITE_1;
+                            write_calib_odt <= 0;
+                            o_phy_write_leveling_calib <= 0;
                        end
-                       else if(instruction_address == 17) begin
+                   else if(instruction_address == 17) begin
                             write_calib_dqs <= 1'b1;
                             write_calib_odt <= 1'b1;
                             delay_before_write_level_feedback <= DELAY_BEFORE_WRITE_LEVEL_FEEDBACK[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0];
@@ -2030,7 +2030,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                             end
                             //added read pipe delay for lanes 0-to-3 (4 bits each lane the max is just 1 for each)
                         end
-
+/*
                     6: if(!wb2_we) begin
                             o_wb2_data <= dqs_store[31:0]; //show last 4 sets of received 8-bit DQS during MPR (repeated 4 times, must have a value of 10'b01_01_01_01_00 somewhere)
                         end
@@ -2061,7 +2061,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         end
                     14: if(!wb2_we) begin //0x30
                             o_wb2_data <= wrong_data[255:224]; //lane 1
-                        end
+                        end*/
                     15: if(!wb2_we) begin //0x30
                             o_wb2_data <= correct_read_data; //lane 1
                         end
@@ -2107,8 +2107,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         i_phy_iserdes_data[256 +: 3], i_phy_iserdes_data[192 +: 3], i_phy_iserdes_data[128 +: 3], i_phy_iserdes_data[64 +: 3], i_phy_iserdes_data[0 +: 3]};*/
     //assign o_debug3 = {debug_trigger, i_phy_iserdes_data[192 +: 7], i_phy_iserdes_data[128 +: 8], i_phy_iserdes_data[64 +: 8], i_phy_iserdes_data[0 +: 8]};
     //assign o_debug3 = {debug_trigger,  i_phy_iserdes_data[48 +: 7], i_phy_iserdes_data[32 +: 8], i_phy_iserdes_data[16 +: 8], i_phy_iserdes_data[0 +: 8]};
-    assign o_debug1 = {debug_trigger,i_phy_iserdes_dqs[7:0],state_calibrate[4:0], instruction_address[4:0],reset_from_wb2,
-                        repeat_test, delay_before_read_data[2:0], delay_before_write_level_feedback[4:0],lane[2:0]};
+    //assign o_debug1 = {debug_trigger,i_phy_iserdes_dqs[7:0],state_calibrate[4:0], instruction_address[4:0],reset_from_wb2,
+    //                    repeat_test, delay_before_read_data[2:0], delay_before_write_level_feedback[4:0],lane[2:0]};
+    assign o_debug1 = {27'd0, state_calibrate[4:0]};
     assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
     assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
     assign debug_trigger = repeat_test /*o_wb_ack_read_q[0][0]*/;
