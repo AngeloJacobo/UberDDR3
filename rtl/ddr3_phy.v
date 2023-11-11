@@ -244,7 +244,6 @@ module ddr3_phy #(
         );
         // End of OSERDESE2_inst instantiation
 
-        (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             //Delay the DQ
             // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
             ODELAYE2 #(
@@ -349,7 +348,6 @@ module ddr3_phy #(
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
-                (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
                 ODELAYE2 #(
@@ -480,7 +478,6 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -630,7 +627,6 @@ module ddr3_phy #(
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
-                (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
                 ODELAYE2 #(
@@ -785,7 +781,6 @@ module ddr3_phy #(
                 // ODELAYE2: Output Fixed or Variable Delay Element
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
                 //Delay the DQ
                 ODELAYE2 #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
@@ -921,7 +916,6 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -1193,7 +1187,6 @@ module ddr3_phy #(
     // IDELAYCTRL: IDELAYE2/ODELAYE2 Tap Delay Value Control
     // 7 Series
     // Xilinx HDL Libraries Guide, version 13.4
-    (* IODELAY_GROUP = 0 *) // Specifies group name for associated IDELAYs/ODELAYs and IDELAYCTRL
     IDELAYCTRL IDELAYCTRL_inst (
         .RDY(idelayctrl_rdy), // 1-bit output: Ready output
         .REFCLK(i_ref_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
