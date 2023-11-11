@@ -21,13 +21,11 @@ prf: smtbmc
 read -formal ddr3_controller.v
 read -formal fwb_slave.v
 
---bash-begin--
-if
-sed -i "s/parameter real CONTROLLER_CLK_PERIOD = .*/parameter real CONTROLLER_CLK_PERIOD = 10 \/\/ ns, period of clock input to this DDR3 controller module/" "./rtl/ddr3_controller.v"
+--pycode-begin--
 cmd = "hierarchy -top ddr3_controller"
 
 # Number of Lanes
-if "opt_2lanes" in  :
+if "opt_2lanes" in  tags:
     cmd += " -chparam LANES 2"
 elif "opt_4lanes" in tags:
     cmd += " -chparam LANES 4"
@@ -38,17 +36,17 @@ else:
 
 # Clock period
 if "opt_83MHz" in tags:
-    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 12.5"
-    cmd += " -chparam -set DDR3_CLK_PERIOD 3.5"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 12"
+    cmd += " -chparam DDR3_CLK_PERIOD 3"
 elif "opt_100MHz" in tags:
-    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 10"
-    cmd += " -chparam -set DDR3_CLK_PERIOD 2.5"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 10"
+    cmd += " -chparam DDR3_CLK_PERIOD 2.5"
 elif "opt_200MHz" in tags:
-    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 5"
-    cmd += " -chparam -set DDR3_CLK_PERIOD 1.25"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 5"
+    cmd += " -chparam DDR3_CLK_PERIOD 1.25"
 else:
-    cmd += " -chparam -set CONTROLLER_CLK_PERIOD 10"
-    cmd += " -chparam -set DDR3_CLK_PERIOD 2.5"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 10"
+    cmd += " -chparam DDR3_CLK_PERIOD 2.5"
 
 # ODELAY support
 if "opt_with_ODELAY" in tags:
