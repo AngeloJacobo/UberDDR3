@@ -40,7 +40,7 @@ module ddr3_controller #(
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
-                   LANES = 8, //lanes of DQ
+                   LANES = 2, //lanes of DQ
                    AUX_WIDTH = 4, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
@@ -494,7 +494,7 @@ module ddr3_controller #(
         for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
             o_wb_ack_read_q[index] = 0;
         end
-        
+
         for(index=0; index < (1<<BA_BITS); index=index+1) begin
             bank_status_q[index] = 0;  
             bank_status_d[index] = 0;
@@ -518,7 +518,7 @@ module ddr3_controller #(
             shift_reg_read_pipe_q[index] = 0;
             shift_reg_read_pipe_d[index] = 0;
         end
-
+        
         //set all commands to all 1's makig CS_n high (thus commands are initially NOP)
         for(index=0; index < 4; index=index+1) begin
             cmd_d[index] = -1;
@@ -2495,8 +2495,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         reg[4:0] f_index = 0;
         reg[5:0] f_counter = 0;
 
-        reg[4:0] f_index_1 = 0;
-        reg[4:0] f_index_2 = 0;
+        reg[4:0] f_index_1;
         reg[F_TEST_CMD_DATA_WIDTH - 1:0] f_write_data;
         reg f_write_fifo = 0, f_read_fifo = 0;
         reg[ROW_BITS-1:0] f_bank_active_row[(1<<BA_BITS)-1:0]; 
@@ -2968,15 +2967,15 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         always @* begin
             assert(f_bank_status == bank_status_q);
         end
-       
+         
         (*keep*) reg[31:0] bank; 
         always @(posedge i_controller_clk) begin
             if(sync_rst_controller) begin
                 //reset bank status and active row
-                for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                        f_bank_status[index] <= 0;  
-                        f_bank_status_2[index] = 0;  
-                        f_bank_active_row[index] <= 0; 
+                for(f_index_1=0; f_index_1 < (1<<BA_BITS); f_index_1=f_index_1+1) begin
+                        f_bank_status[f_index_1] <= 0;  
+                        f_bank_status_2[f_index_1] = 0;  
+                        f_bank_active_row[f_index_1] <= 0; 
                 end
             end
             else begin
@@ -2984,8 +2983,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
                     bank = cmd_d[PRECHARGE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1];
                     if(cmd_d[PRECHARGE_SLOT][10]) begin //A10 precharge all banks
-                        for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                                f_bank_status_2[index] = 0;  
+                        for(f_index_1=0; f_index_1 < (1<<BA_BITS); f_index_1=f_index_1+1) begin
+                                f_bank_status_2[f_index_1] = 0;  
                         end
                     end
                     else begin
@@ -3061,11 +3060,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             end
 
             if(state_calibrate <= ISSUE_READ) begin
-                for(index = 0; index < 1; index = index + 1) begin
-                    assert(o_wb_ack_read_q[index] == 0);
+                for(f_index_1 = 0; f_index_1 < 1; f_index_1 = f_index_1 + 1) begin
+                    assert(o_wb_ack_read_q[f_index_1] == 0);
                 end
-                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                    assert(shift_reg_read_pipe_q[index] == 0);
+                for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH; f_index_1 = f_index_1 + 1) begin
+                    assert(shift_reg_read_pipe_q[f_index_1] == 0);
                 end
             end
 
@@ -3105,22 +3104,22 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
                 if(state_calibrate != IDLE) assume(added_read_pipe_max == 1);
                 f_sum_of_pending_acks = stage1_pending + stage2_pending;
-                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                    f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[index][0] + 0;
+                for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH; f_index_1 = f_index_1 + 1) begin
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[f_index_1][0] + 0;
                 end
-                for(index = 0; index < 2; index = index + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
-                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[index][0] + 0;
+                for(f_index_1 = 0; f_index_1 < 2; f_index_1 = f_index_1 + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[f_index_1][0] + 0;
                 end
                 
                 //the remaining o_wb_ack_read_q (>2) should stay zero at
                 //all instance
-                for(index = 2; index < MAX_ADDED_READ_ACK_DELAY ; index = index + 1) begin
-                    assert(o_wb_ack_read_q[index] == 0);
+                for(f_index_1 = 2; f_index_1 < MAX_ADDED_READ_ACK_DELAY ; f_index_1 = f_index_1 + 1) begin
+                    assert(o_wb_ack_read_q[f_index_1] == 0);
                 end
                 f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1] = o_wb_ack_read_q[0]; //last stage of f_aux_ack_pipe_after_stage2 is also the last ack stage
                 f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH] = o_wb_ack_read_q[1];
-                for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - index] = shift_reg_read_pipe_q[index];
+                for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH; f_index_1 = f_index_1 + 1) begin
+                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - f_index_1] = shift_reg_read_pipe_q[f_index_1];
                 end
                 f_ack_pipe_after_stage2 = {
                     o_wb_ack_read_q[0][0], 
@@ -3160,15 +3159,15 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     end
 
                     f_ack_pipe_marker = 0;
-                    for(index = 0; index < READ_ACK_PIPE_WIDTH + 2; index = index + 1) begin //check each ack stage starting from last stage
-                        if(f_aux_ack_pipe_after_stage2[index][0]) begin //if ack is high
-                            if(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 1) begin //ack for read
+                    for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH + 2; f_index_1 = f_index_1 + 1) begin //check each ack stage starting from last stage
+                        if(f_aux_ack_pipe_after_stage2[f_index_1][0]) begin //if ack is high
+                            if(f_aux_ack_pipe_after_stage2[f_index_1][AUX_WIDTH:1] == 1) begin //ack for read
                                 assert(f_ack_pipe_marker == 0); //read ack must be the last ack on the pipe(f_pipe_marker must still be zero)
                                 f_ack_pipe_marker = f_ack_pipe_marker + 1;
                                 assert(!stage1_pending && !stage2_pending); //a single read request must be the last request on this calibration
                             end
                             else begin //ack for write
-                                assert(f_aux_ack_pipe_after_stage2[index][AUX_WIDTH:1] == 0);
+                                assert(f_aux_ack_pipe_after_stage2[f_index_1][AUX_WIDTH:1] == 0);
                                 f_ack_pipe_marker = f_ack_pipe_marker + 1;
                             end
                         end
@@ -3229,11 +3228,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
         //test the delay_before*
         always @* begin 
-            for(index=0; index< (1<<BA_BITS); index=index+1) begin
-                assert(delay_before_precharge_counter_q[index] <= max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)));
-                assert(delay_before_activate_counter_q[index] <= PRECHARGE_TO_ACTIVATE_DELAY); 
-                assert(delay_before_write_counter_q[index] <= (max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY) + 1) );
-                assert(delay_before_read_counter_q[index] <= (max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY)) + 1);
+            for(f_index_1=0; f_index_1< (1<<BA_BITS); f_index_1=f_index_1+1) begin
+                assert(delay_before_precharge_counter_q[f_index_1] <= max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY)));
+                assert(delay_before_activate_counter_q[f_index_1] <= PRECHARGE_TO_ACTIVATE_DELAY); 
+                assert(delay_before_write_counter_q[f_index_1] <= (max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY) + 1) );
+                assert(delay_before_read_counter_q[f_index_1] <= (max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY)) + 1);
             end
             if(stage2_pending) begin
                 if(delay_before_precharge_counter_q[stage2_bank] == max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY))) begin
@@ -3260,9 +3259,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     end
 
                     /*
-                      for(index = 0; index <= PRECHARGE_TO_ACTIVATE_DELAY; index= index +1 ) begin
-                        if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY - index) begin
-                            assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1 + index));
+                      for(f_index_1 = 0; f_index_1 <= PRECHARGE_TO_ACTIVATE_DELAY; f_index_1= f_index_1 +1 ) begin
+                        if(delay_before_activate_counter_q[stage2_bank] == PRECHARGE_TO_ACTIVATE_DELAY - f_index_1) begin
+                            assert(f_ackwait_count <= (max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1 + f_index_1));
                         end
                       end
                       */
@@ -3278,11 +3277,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         reg[6:0] f_write_time_stamp[(1<<BA_BITS)-1:0]; 
         reg[6:0] f_timer = 0;
         initial begin
-            for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                f_precharge_time_stamp[index] = 0;
-                f_activate_time_stamp[index] = 0;
-                f_read_time_stamp[index] = 0;
-                f_write_time_stamp[index] = 0;
+            for(f_index_1=0; f_index_1 < (1<<BA_BITS); f_index_1=f_index_1+1) begin
+                f_precharge_time_stamp[f_index_1] = 0;
+                f_activate_time_stamp[f_index_1] = 0;
+                f_read_time_stamp[f_index_1] = 0;
+                f_write_time_stamp[f_index_1] = 0;
             end
         end
         (*anyconst*) reg[2:0] bank_const;
@@ -3297,11 +3296,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
         always @(posedge i_controller_clk) begin
             if(sync_rst_controller) begin
-                for(index=0; index < (1<<BA_BITS); index=index+1) begin
-                    f_precharge_time_stamp[index] <= 0;
-                    f_activate_time_stamp[index] <= 0;
-                    f_read_time_stamp[index] <= 0;
-                    f_write_time_stamp[index] <= 0;
+                for(f_index_1=0; f_index_1 < (1<<BA_BITS); f_index_1=f_index_1+1) begin
+                    f_precharge_time_stamp[f_index_1] <= 0;
+                    f_activate_time_stamp[f_index_1] <= 0;
+                    f_read_time_stamp[f_index_1] <= 0;
+                    f_write_time_stamp[f_index_1] <= 0;
                 end
             end
             else begin
@@ -3589,8 +3588,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                            end
 
                         5: begin
-                            for(index = 0; index < LANES; index = index + 1) begin
-                             assert(o_wb2_data[4*index +: 4] == $past(added_read_pipe[index]));
+                            for(f_index_1 = 0; f_index_1 < LANES; f_index_1 = f_index_1 + 1) begin
+                             assert(o_wb2_data[4*f_index_1 +: 4] == $past(added_read_pipe[f_index_1]));
                             end
                            end
 
@@ -3599,8 +3598,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                            end
 
                         7: begin
-                                for(index = 0; 8*index < 32 && index < LANES; index = index + 1) begin
-                                     assert(o_wb2_data[8*index +: 8] == $past(i_phy_iserdes_bitslip_reference[8*index +: 8])); 
+                                for(f_index_1 = 0; 8*f_index_1 < 32 && f_index_1 < LANES; f_index_1 = f_index_1 + 1) begin
+                                     assert(o_wb2_data[8*f_index_1 +: 8] == $past(i_phy_iserdes_bitslip_reference[8*f_index_1 +: 8])); 
                                 end
                             end
                         8: begin
@@ -3619,12 +3618,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         assign f_read_data_2_lane = f_read_data_2[5 +: lanes_clog2];
         always @(posedge i_controller_clk) begin
            if(f_past_valid) begin
-               for(index = 0; index < LANES; index = index + 1) begin
-                    if(o_phy_bitslip[index]) begin
+               for(f_index_1 = 0; f_index_1 < LANES; f_index_1 = f_index_1 + 1) begin
+                    if(o_phy_bitslip[f_index_1]) begin
                         //Bitslip cannot be asserted for two consecutive CLKDIV cycles; Bitslip must be
                         //deasserted for at least one CLKDIV cycle between two Bitslip assertions. 
                         
-                        assert(!$past(o_phy_bitslip[index]));
+                        assert(!$past(o_phy_bitslip[f_index_1]));
                     end
                end
            end
