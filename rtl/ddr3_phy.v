@@ -3,9 +3,9 @@
 //`define DEBUG_DQS
 
 module ddr3_phy #(
-   parameter real CONTROLLER_CLK_PERIOD = 12, //ns, period of clock input to this DDR3 controller module
-                  DDR3_CLK_PERIOD = 3, //ns, period of clock input to DDR3 RAM device 
-   parameter      ROW_BITS = 14,
+    parameter     CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
+                  DDR3_CLK_PERIOD = 2_500, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+                  ROW_BITS = 14,   //width of row address
                   BA_BITS = 3,
                   DQ_BITS = 8,
                   LANES = 8,
@@ -67,13 +67,13 @@ module ddr3_phy #(
                CMD_RESET_N = cmd_len - 7,
                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
                CMD_ADDRESS_START = ROW_BITS - 1;
-    localparam SYNC_RESET_DELAY = $rtoi($ceil(1000/CONTROLLER_CLK_PERIOD)); //52 ns of reset pulse width required for IDELAYCTRL 
+    localparam SYNC_RESET_DELAY = $rtoi($ceil(52_000/CONTROLLER_CLK_PERIOD)); //52_000 ps of reset pulse width required for IDELAYCTRL 
     //cmd needs to be center-aligned to the positive edge of the 
     //ddr3_clk. This means cmd needs to be delayed by half the ddr3
     //clk period. Subtract by 600ps to include the IODELAY insertion
     //delay. Divide by a delay resolution of 78.125ps per tap to get 
     //the needed tap value.
-    localparam CMD_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/2) - 600)/78.125;
+    localparam CMD_ODELAY_TAP = ((DDR3_CLK_PERIOD/2) - 600)/78.125;
 
     // Data does not have to be delayed (DQS is the on that has to be
     // delayed and center-aligned to the center eye of data)
@@ -85,11 +85,11 @@ module ddr3_phy #(
     //the IODELAY insertion delay. Divide by a delay resolution of 
     //78.125ps per tap to get the needed tap value. Then add the tap
     //value used in data to have the delay relative to the data.
-    localparam DQS_ODELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_ODELAY_TAP;
+    localparam DQS_ODELAY_TAP = ((DDR3_CLK_PERIOD/4))/78.125 + DATA_ODELAY_TAP;
     
     //Incoming DQS should be 90 degree delayed relative to incoming data
     localparam DATA_IDELAY_TAP = 0; //600ps delay
-    localparam DQS_IDELAY_TAP = ((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_IDELAY_TAP;
+    localparam DQS_IDELAY_TAP = ((DDR3_CLK_PERIOD/4))/78.125 + DATA_IDELAY_TAP;
     
     genvar gen_index;
     wire[cmd_len-1:0] oserdes_cmd, //serialized(4:1) i_controller_cmd_slot_x 
