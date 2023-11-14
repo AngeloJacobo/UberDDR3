@@ -5,14 +5,11 @@ prf8lanes_83MHz   prf opt_8lanes   opt_83MHz    opt_with_ODELAY
 prf2lanes_100MHz  prf opt_2lanes   opt_100MHz   opt_with_ODELAY
 prf4lanes_100MHz  prf opt_4lanes   opt_100MHz   opt_with_ODELAY
 prf8lanes_100MHz  prf opt_8lanes   opt_100MHz   opt_with_ODELAY
-prf2lanes_200MHz  prf opt_2lanes   opt_200MHz   opt_with_ODELAY
-prf4lanes_200MHz  prf opt_4lanes   opt_200MHz   opt_with_ODELAY
-prf8lanes_200MHz  prf opt_8lanes   opt_200MHz   opt_with_ODELAY
-prf_no_ODELAY     prf opt_8lanes   opt_200MHz   opt_no_ODELAY 
+prf_no_ODELAY     prf opt_8lanes   opt_100MHz   opt_no_ODELAY 
 
 [options]
 prf: mode prove
-prf: depth  10
+prf: depth  7
 
 [engines]
 prf: smtbmc
@@ -36,17 +33,14 @@ else:
 
 # Clock period
 if "opt_83MHz" in tags:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 12"
-    cmd += " -chparam DDR3_CLK_PERIOD 3"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 12000"
+    cmd += " -chparam DDR3_CLK_PERIOD 3000"
 elif "opt_100MHz" in tags:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 10"
-    cmd += " -chparam DDR3_CLK_PERIOD 2.5"
-elif "opt_200MHz" in tags:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 5"
-    cmd += " -chparam DDR3_CLK_PERIOD 1.25"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 10000"
+    cmd += " -chparam DDR3_CLK_PERIOD 2500"
 else:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 10"
-    cmd += " -chparam DDR3_CLK_PERIOD 2.5"
+    cmd += " -chparam CONTROLLER_CLK_PERIOD 10000"
+    cmd += " -chparam DDR3_CLK_PERIOD 2500"
 
 # ODELAY support
 if "opt_with_ODELAY" in tags:
