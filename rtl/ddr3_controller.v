@@ -34,9 +34,9 @@
 //`define RAM_8Gb
 
 module ddr3_controller #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, clock period of the controller interface
-                   DDR3_CLK_PERIOD = 2.5, //ns, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
-    parameter      ROW_BITS = 14,   //width of row address
+    parameter      CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
+                   DDR3_CLK_PERIOD = 2_500, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+                   ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
@@ -163,49 +163,49 @@ module ddr3_controller #(
     //the IODELAY insertion delay. Divide by a delay resolution of 
     //78.125ps per tap to get the needed tap value. Then add the tap
     //value used in data to have the delay relative to the data.
-    localparam DQS_INITIAL_ODELAY_TAP = $rtoi(((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_ODELAY_TAP);
+    localparam DQS_INITIAL_ODELAY_TAP = $rtoi(((DDR3_CLK_PERIOD/4))/78.125 + DATA_INITIAL_ODELAY_TAP);
     
     //Incoming DQS should be 90 degree delayed relative to incoming data
     localparam DATA_INITIAL_IDELAY_TAP = 0; //600ps delay
-    localparam DQS_INITIAL_IDELAY_TAP = $rtoi(((DDR3_CLK_PERIOD*1000/4))/78.125 + DATA_INITIAL_IDELAY_TAP);
+    localparam DQS_INITIAL_IDELAY_TAP = $rtoi(((DDR3_CLK_PERIOD/4))/78.125 + DATA_INITIAL_IDELAY_TAP);
     /*********************************************************************************************************************************************/
 
 
     /********************************************************** Timing Parameters ***********************************************************************************/
     localparam DELAY_SLOT_WIDTH = 19; //Bitwidth of the delay slot and mode register slot on the reset/refresh rom will be at the same size as the Mode Register
-    localparam POWER_ON_RESET_HIGH      =     200_000; // 200us reset must be active at initialization
-    localparam INITIAL_CKE_LOW      =       500_000; // 500us cke must be low before activating
+    localparam POWER_ON_RESET_HIGH      =     200_000_000; // 200_000_000 ps (200 us) reset must be active at initialization
+    localparam INITIAL_CKE_LOW      =       500_000_000; // 500_000_000 ps (500 us) cke must be low before activating
     `ifdef DDR3_1600_11_11_11 //DDR3-1600 (11-11-11) speed bin
-        localparam tRCD     =       13.750; // ns Active to Read/Write command time
-        localparam tRP      =      13.750; // ns Precharge command period
-        localparam tRAS     =      35; // ns ACT to PRE command period
+        localparam tRCD     =       13_750; // ps Active to Read/Write command time
+        localparam tRP      =      13_750; // ps Precharge command period
+        localparam tRAS     =      35_000; // ps ACT to PRE command period
     `endif
 
     `ifdef RAM_1Gb
-        localparam tRFC         =           110.0;      // ns Refresh command  to ACT or REF 
+        localparam tRFC         =           110_000;      // ps Refresh command  to ACT or REF 
     `elsif RAM_2Gb
-        localparam tRFC         =           160.0;      // ns Refresh command  to ACT or REF 
+        localparam tRFC         =           160_000;      // ps Refresh command  to ACT or REF 
     `elsif RAM_4Gb
-        localparam tRFC         =           300.0;      // ns Refresh command  to ACT or REF 
+        localparam tRFC         =           300_000;      // ps Refresh command  to ACT or REF 
     `else
-        localparam tRFC             =       350.0;      // ns Refresh command  to ACT or REF 
+        localparam tRFC             =       350_000;      // ps Refresh command  to ACT or REF 
     `endif
-    localparam tREFI = 7800; //ns Average periodic refresh interval
-    localparam tXPR = max(5*DDR3_CLK_PERIOD, tRFC+10); // ns Exit Reset from CKE HIGH to a valid command
-    localparam tWR = 15.0; // ns Write Recovery Time
-    localparam tWTR = max(nCK_to_ns(4), 7.5); //ns Delay from start of internal write transaction to internal read command
+    localparam tREFI = 7_800_000; //ps Average periodic refresh interval
+    localparam tXPR = max(5*DDR3_CLK_PERIOD, tRFC+10_000); // ps Exit Reset from CKE HIGH to a valid command
+    localparam tWR = 15_000; // ps Write Recovery Time
+    localparam tWTR = max(nCK_to_ps(4), 7_500); //ps Delay from start of internal write transaction to internal read command
     localparam[DELAY_SLOT_WIDTH - 1:0] tWLMRD = nCK_to_cycles(40); // nCK First DQS/DQS# rising edge after write leveling mode is programmed
-    localparam tWLO = 7.5; //ns Write leveling output delay
-    localparam tWLOE = 2;
-    localparam tRTP = max(nCK_to_ns(4), 7.5); //ns Internal Command to PRECHARGE Command delay
+    localparam tWLO = 7_500; //ps Write leveling output delay
+    localparam tWLOE = 2_000; //ps Write leveling output error
+    localparam tRTP = max(nCK_to_ps(4), 7_500); //ps Internal Command to PRECHARGE Command delay
     localparam tCCD = 4; //nCK CAS to CAS command delay
     /* verilator lint_off WIDTHEXPAND */
-    localparam tMOD = max_int(nCK_to_cycles(12), ns_to_cycles(15)); //cycles (controller)  Mode Register Set command update delay
-    localparam tZQinit = max_int(nCK_to_cycles(512), ns_to_cycles(640));//cycles (controller)  Power-up and RESET calibration time
+    localparam tMOD = max(nCK_to_cycles(12), ps_to_cycles(15_000)); //cycles (controller)  Mode Register Set command update delay
+    localparam tZQinit = max(nCK_to_cycles(512), ps_to_cycles(640_000));//cycles (controller)  Power-up and RESET calibration time
     /* verilator lint_on WIDTHEXPAND */
     localparam CL_nCK = 6; //create a function for this
     localparam CWL_nCK = 5; //create a function for this
-    localparam DELAY_MAX_VALUE = ns_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
+    localparam DELAY_MAX_VALUE = ps_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam CALIBRATION_DELAY = 2;
                                     
@@ -213,16 +213,16 @@ module ddr3_controller #(
     
 
     /********************************************************** Computed Delay Parameters **********************************************************/
-    localparam[3:0] PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ns_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
-    localparam[3:0] ACTIVATE_TO_PRECHARGE_DELAY = find_delay(ns_to_nCK(tRAS), ACTIVATE_SLOT, PRECHARGE_SLOT);
-    localparam[3:0] ACTIVATE_TO_WRITE_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
-    localparam[3:0] ACTIVATE_TO_READ_DELAY = find_delay(ns_to_nCK(tRCD), ACTIVATE_SLOT, READ_SLOT); //2
+    localparam[3:0] PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ps_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
+    localparam[3:0] ACTIVATE_TO_PRECHARGE_DELAY = find_delay(ps_to_nCK(tRAS), ACTIVATE_SLOT, PRECHARGE_SLOT);
+    localparam[3:0] ACTIVATE_TO_WRITE_DELAY = find_delay(ps_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
+    localparam[3:0] ACTIVATE_TO_READ_DELAY = find_delay(ps_to_nCK(tRCD), ACTIVATE_SLOT, READ_SLOT); //2
     localparam[3:0] READ_TO_WRITE_DELAY = find_delay((CL_nCK + tCCD + 2 - CWL_nCK), READ_SLOT, WRITE_SLOT); //2
     localparam[3:0] READ_TO_READ_DELAY = 0;
-    localparam[3:0] READ_TO_PRECHARGE_DELAY =  find_delay(ns_to_nCK(tRTP), READ_SLOT, PRECHARGE_SLOT);  //1
+    localparam[3:0] READ_TO_PRECHARGE_DELAY =  find_delay(ps_to_nCK(tRTP), READ_SLOT, PRECHARGE_SLOT);  //1
     localparam[3:0] WRITE_TO_WRITE_DELAY = 0;
-    localparam[3:0] WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
-    localparam[3:0] WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 4 + ns_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
+    localparam[3:0] WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 4 + ps_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
+    localparam[3:0] WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 4 + ps_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
     localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
     `ifdef FORMAL 
         (*keep*) wire[3:0] f_PRECHARGE_TO_ACTIVATE_DELAY, f_ACTIVATE_TO_PRECHARGE_DELAY, f_ACTIVATE_TO_WRITE_DELAY, f_ACTIVATE_TO_READ_DELAY,
@@ -258,7 +258,7 @@ module ddr3_controller #(
     localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 ));
     localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
-    localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ns_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
+    localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
                                                                                                       //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
     /*********************************************************************************************************************************************/
    
@@ -557,23 +557,23 @@ module ddr3_controller #(
     
             5'd0: 
              if (MICRON_SIM)
-                read_rom_instruction = {5'b01000 , CMD_NOP , ns_to_cycles(POWER_ON_RESET_HIGH/500)}; 
+                read_rom_instruction = {5'b01000 , CMD_NOP , ps_to_cycles(POWER_ON_RESET_HIGH/500)}; 
              else
-                read_rom_instruction = {5'b01000 , CMD_NOP , ns_to_cycles(POWER_ON_RESET_HIGH)}; 
+                read_rom_instruction = {5'b01000 , CMD_NOP , ps_to_cycles(POWER_ON_RESET_HIGH)}; 
                 //0. RESET# needs to be maintained low for minimum 200us with power-up initialization. CKE is pulled
                     //“Low” anytime before RESET# being de-asserted (min. time 10 ns). .
 
             5'd1: 
              if (MICRON_SIM)
-                 read_rom_instruction =  {5'b01001 , CMD_NOP, ns_to_cycles(INITIAL_CKE_LOW/500)}; 
+                 read_rom_instruction =  {5'b01001 , CMD_NOP, ps_to_cycles(INITIAL_CKE_LOW/500)}; 
              else
-                 read_rom_instruction =  {5'b01001 , CMD_NOP, ns_to_cycles(INITIAL_CKE_LOW)}; 
+                 read_rom_instruction =  {5'b01001 , CMD_NOP, ps_to_cycles(INITIAL_CKE_LOW)}; 
                 //1. After RESET# is de-asserted, wait for another 500 us until CKE becomes active. During this time, the
                     //DRAM will start internal state initialization; this will be done independently of external clocks. 
                     // .... Also, a NOP or Deselect command must be registered (with tIS set up time to clock) before
                     //CKE goes active.
 
-            5'd2: read_rom_instruction = {5'b01011 , CMD_NOP, ns_to_cycles(tXPR)}; 
+            5'd2: read_rom_instruction = {5'b01011 , CMD_NOP, ps_to_cycles(tXPR)}; 
             //2. After CKE is being registered high, wait minimum of Reset CKE Exit time, tXPR.
             
             5'd3: read_rom_instruction = {{2'b00,MR2[10], 2'b11}, CMD_MRS, MR2}; 
@@ -597,7 +597,7 @@ module ddr3_controller #(
             //DRAM IO, which gets reflected as updated output driver
             
              // Precharge all banks before enabling MPR
-            5'd9: read_rom_instruction = {5'b01111, CMD_PRE, ns_to_cycles(tRP)}; 
+            5'd9: read_rom_instruction = {5'b01111, CMD_PRE, ps_to_cycles(tRP)}; 
             //9. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
             5'd10: read_rom_instruction = {{2'b00,MR3_MPR_EN[10], 2'b11}, CMD_MRS, MR3_MPR_EN}; 
@@ -629,14 +629,14 @@ module ddr3_controller #(
             //18. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
             // Perform first refresh and any subsequent refresh (so instruction 12 to 15 will be re-used for the refresh sequence)
-            5'd19: read_rom_instruction = {5'b01111, CMD_PRE, ns_to_cycles(tRP)}; 
+            5'd19: read_rom_instruction = {5'b01111, CMD_PRE, ps_to_cycles(tRP)}; 
             //19. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
-            5'd20: read_rom_instruction = {5'b01011, CMD_REF, ns_to_cycles(tRFC)};
+            5'd20: read_rom_instruction = {5'b01011, CMD_REF, ps_to_cycles(tRFC)};
             //20. A delay between the Refresh Command and the next valid command, except NOP or DES, must be greater than or equal to the minimum 
             //Refresh cycle time tRFC(min) 
             
-            5'd21: read_rom_instruction = {5'b11011, CMD_NOP, ns_to_cycles(tREFI)};
+            5'd21: read_rom_instruction = {5'b11011, CMD_NOP, ps_to_cycles(tREFI)};
             //21. Reset ends now. The refresh interval also starts to count.
             
             5'd22: read_rom_instruction = {5'b01011, CMD_NOP, PRE_REFRESH_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
@@ -1145,9 +1145,6 @@ module ddr3_controller #(
         
         if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) o_wb_stall_d = 0;
 
-    // Vivado Benchmarking
-    // LUT = 1254, FF = 2878
-    // WNS = 0.924 ns (200MHz clk)
     end //end of always block
     assign o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
     /*********************************************************************************************************************************************/
@@ -2121,53 +2118,32 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     /******************************************************* Functions *******************************************************/
     //convert nanoseconds time input to number of controller clock cycles (referenced to CONTROLLER_CLK_PERIOD)
     //output is set at same length as a MRS command (19 bits) to maximize the time slot
-    function [DELAY_SLOT_WIDTH - 1:0] ns_to_cycles (
-`ifdef YOSYS
-    input integer ns
-`else
-    input real ns //YOSYS ERROR: syntax error, unexpected TOK_REAL
-`endif
-    );                
+    function [DELAY_SLOT_WIDTH - 1:0] ps_to_cycles ( input integer ps );                
             /* verilator lint_off WIDTHTRUNC */              
-            ns_to_cycles = $rtoi($ceil(ns*1.0/CONTROLLER_CLK_PERIOD)); 
+            ps_to_cycles = $rtoi( $ceil( ps*1.0/CONTROLLER_CLK_PERIOD ) ); 
             /* verilator lint_on WIDTHTRUNC */
     endfunction
 
     //convert nCK input (number of DDR3 clock cycles) to number of controller clock cycles (referenced to serdes_ratio)
     function [DELAY_SLOT_WIDTH - 1:0] nCK_to_cycles (input integer nCK); 
             /* verilator lint_off WIDTHTRUNC */
-            nCK_to_cycles =  $rtoi($ceil(nCK*1.0/serdes_ratio)); 
+            nCK_to_cycles =  $rtoi( $ceil( nCK*1.0/serdes_ratio ) ); 
             /* verilator lint_on WIDTHTRUNC */
     endfunction
     
     
     //convert nanoseconds time input  to number of DDR clock cycles (referenced to DDR3_CLK_PERIOD)
-    function integer ns_to_nCK (
-`ifdef YOSYS 
-    input integer ns
-`else
-    input real ns //YOSYS ERROR: syntax error, unexpected TOK_REAL
-`endif
-    );
-        ns_to_nCK = $rtoi($ceil(ns*1.0/DDR3_CLK_PERIOD)); 
+    function integer ps_to_nCK ( input integer ps );
+        ps_to_nCK = $rtoi( $ceil( ps*1.0/ DDR3_CLK_PERIOD ) ); 
     endfunction
     
     //convert DDR clock cycles to nanoseconds (referenced to DDR3_CLK_PERIOD)
-`ifdef YOSYS
-    function integer nCK_to_ns (input integer nCK); 
-        nCK_to_ns = $rtoi($ceil(nCK*1.0*DDR3_CLK_PERIOD)); 
-`else
-    function real nCK_to_ns (input integer nCK); //YOSYS ERROR: syntax error, unexpected TOK_REAL
-        nCK_to_ns = $ceil(nCK*1.0*DDR3_CLK_PERIOD); 
-`endif
+    function integer nCK_to_ps (input integer nCK); 
+        nCK_to_ps = $rtoi( $ceil( nCK*1.0*DDR3_CLK_PERIOD ) ); 
     endfunction
     
     // functions used to infer some localparam values
-`ifdef YOSYS
     function integer max(input integer a, input integer b);
-`else
-    function real max(input real a, input real b); //YOSYS ERROR: syntax error, unexpected TOK_REAL
-`endif
         if(a >= b) max = a;
         else max = b;
     endfunction
@@ -2217,11 +2193,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             // find anticipate activate command slot number
             if(CL_nCK > CWL_nCK) slot_number = read_slot;
             else slot_number = write_slot;
-            `ifdef SUPPORT_REAL
-            delay = ns_to_nCK(tRCD); 
-            `else
-            delay = ns_to_nCK($rtoi(tRCD)); 
-            `endif
+                delay = ps_to_nCK($rtoi(tRCD)); 
             for(slot_number = slot_number;  delay != 0; delay = delay - 1) begin
                     slot_number = slot_number - 1'b1;
             end 
@@ -2274,30 +2246,25 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     ///YOSYS: System task `$display' called with invalid/unsupported format specifier
     initial begin
         $display("TEST FUNCTIONS\n-----------------------------\n");
-        $display("Test ns_to_cycles() function:");
-        $display("\tns_to_cycles(15) = %0d [exact]", ns_to_cycles(15) );
-        $display("\tns_to_cycles(14.5) = %0d [round-off]", ns_to_cycles(14.5) );
-        $display("\tns_to_cycles(11) = %0d [round-up]\n", ns_to_cycles(11) );
+        $display("Test ps_to_cycles() function:");
+        $display("\tps_to_cycles(15_000) = %0d [exact]", ps_to_cycles(15_000) );
+        $display("\tps_to_cycles(14_500) = %0d [round-off]", ps_to_cycles(14_500) );
+        $display("\tps_to_cycles(11_000) = %0d [round-up]\n", ps_to_cycles(11_000) );
         
         $display("Test nCK_to_cycles() function:");
-        $display("\tns_to_cycles(16) = %0d [exact]", nCK_to_cycles(16) );
-        $display("\tns_to_cycles(15) = %0d [round-off]", nCK_to_cycles(15) );
-        $display("\tns_to_cycles(13) = %0d [round-up]\n", nCK_to_cycles(13) );
+        $display("\tnCK_to_cycles(16) = %0d [exact]", nCK_to_cycles(16) );
+        $display("\tnCK_to_cycles(15) = %0d [round-off]", nCK_to_cycles(15) );
+        $display("\tnCK_to_cycles(13) = %0d [round-up]\n", nCK_to_cycles(13) );
         
-        $display("Test ns_to_nCK() function:");
-        $display("\tns_to_cycles(15) = %0d [exact]", ns_to_nCK(15) );
-        $display("\tns_to_cycles(14.875) = %0d [round-off]", ns_to_nCK(14.875) );
-        $display("\tns_to_cycles(13.875) = %0d [round-up] \n", ns_to_nCK(13.875) );
+        $display("Test ps_to_nCK() function:");
+        $display("\tps_to_nCK(15_000) = %0d [exact]", ps_to_nCK(15_000) );
+        $display("\tps_to_nCK(14_875) = %0d [round-off]", ps_to_nCK(14_875) );
+        $display("\tps_to_nCK(13_875) = %0d [round-up] \n", ps_to_nCK(13_875) );
         
-        $display("Test nCK_to_ns() function:");
-        $display("\tns_to_cycles(4) =  %f [exact]", nCK_to_ns(4) );
-        $display("\tns_to_cycles(14.875) = %f [round-off]", nCK_to_ns(3) );
-        $display("\tns_to_cycles(13.875) = %f [round-up]\n", nCK_to_ns(5) );
-        
-        $display("Test nCK_to_ns() function:");
-        $display("\tns_to_cycles(4) = %f [exact]", nCK_to_ns(4) );
-        $display("\tns_to_cycles(14.875) = %f [round-off]", nCK_to_ns(3) );
-        $display("\tns_to_cycles(13.875) = %f [round-up]\n", nCK_to_ns(5) );
+        $display("Test nCK_to_ps() function:");
+        $display("\tnCK_to_ps(4) =  %f [exact]", nCK_to_ps(4) );
+        $display("\tnCK_to_ps(14.875) = %f [round-off]", nCK_to_ps(3) );
+        $display("\tnCK_to_ps(13.875) = %f [round-up]\n", nCK_to_ps(5) );
         
         $display("Test $floor() function:");
         $display("\t$floor(5/2) = %f", $floor(5/2) );
@@ -2308,8 +2275,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("\nDISPLAY CONTROLLER PARAMETERS\n-----------------------------\n");
         $display("MICRON_SIM = %0d", MICRON_SIM);
         $display("ODELAY_SUPPORTED = %0d", ODELAY_SUPPORTED);
-        $display("CONTROLLER_CLK_PERIOD = %.2f", CONTROLLER_CLK_PERIOD);
-        $display("DDR3_CLK_PERIOD = %.2f", DDR3_CLK_PERIOD);
+        $display("CONTROLLER_CLK_PERIOD = %0d", CONTROLLER_CLK_PERIOD);
+        $display("DDR3_CLK_PERIOD = %0d", DDR3_CLK_PERIOD);
         $display("ROW_BITS = %0d", ROW_BITS);
         $display("COL_BITS = %0d", COL_BITS);
         $display("BA_BITS = %0d", BA_BITS);
@@ -2340,13 +2307,13 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("PRECHARGE_SLOT = %0d", PRECHARGE_SLOT);
         
         $display("\n\nDELAYS:");
-        $display("\tns_to_nCK(tRCD): %0d", ns_to_nCK(tRCD));
-        $display("\tns_to_nCK(tRP): %0d", ns_to_nCK(tRP));
-        $display("\tns_to_nCK(tRTP): %0d", ns_to_nCK(tRTP));
+        $display("\tps_to_nCK(tRCD): %0d", ps_to_nCK(tRCD));
+        $display("\tps_to_nCK(tRP): %0d", ps_to_nCK(tRP));
+        $display("\tps_to_nCK(tRTP): %0d", ps_to_nCK(tRTP));
         $display("\ttCCD: %0d", tCCD);
         $display("\t(CL_nCK + tCCD + 2 - CWL_nCK): %0d", (CL_nCK + tCCD + 2 - CWL_nCK));
-        $display("\t(CWL_nCK + 4 + ns_to_nCK(tWR)): %0d", (CWL_nCK + 4 + ns_to_nCK(tWR)));
-        $display("\t(CWL_nCK + 4 + ns_to_nCK(tWTR)): %0d", (CWL_nCK + 4 + ns_to_nCK(tWTR)));
+        $display("\t(CWL_nCK + 4 + ps_to_nCK(tWR)): %0d", (CWL_nCK + 4 + ps_to_nCK(tWR)));
+        $display("\t(CWL_nCK + 4 + ps_to_nCK(tWTR)): %0d", (CWL_nCK + 4 + ps_to_nCK(tWTR)));
         
         $display("\n\nPRECHARGE_TO_ACTIVATE_DELAY = %0d", PRECHARGE_TO_ACTIVATE_DELAY);
         $display("ACTIVATE_TO_WRITE_DELAY = %0d", ACTIVATE_TO_WRITE_DELAY);
@@ -3336,37 +3303,37 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 
             // Check tRTP (Internal READ Command to PRECHARGE Command delay in SAME BANK)
             if(f_precharge_time_stamp[bank_const] > f_read_time_stamp[bank_const]) begin
-                assert((f_precharge_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= ns_to_nCK(10));
+                assert((f_precharge_time_stamp[bank_const] - f_read_time_stamp[bank_const]) >= ps_to_nCK(tRTP));
             end
 
             // Check tWTR (Delay from start of internal write transaction to internal read command)
             if(f_read_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
-                assert((f_read_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWTR)));
+                assert((f_read_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ps_to_nCK(tWTR)));
             end
 
             // Check tRCD (ACT to internal read delay time)
             if(f_read_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
-                assert((f_read_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
+                assert((f_read_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ps_to_nCK(tRCD));
             end 
             
             // Check tRCD (ACT to internal write delay time)
             if(f_write_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
-                assert((f_write_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRCD));
+                assert((f_write_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ps_to_nCK(tRCD));
             end
 
             // Check tRP (PRE command period)
             if(f_activate_time_stamp[bank_const] > f_precharge_time_stamp[bank_const]) begin
-                assert((f_activate_time_stamp[bank_const] - f_precharge_time_stamp[bank_const]) >= ns_to_nCK(tRP));
+                assert((f_activate_time_stamp[bank_const] - f_precharge_time_stamp[bank_const]) >= ps_to_nCK(tRP));
             end
             
             // Check tRAS (ACTIVE to PRECHARGE command period)
             if(f_precharge_time_stamp[bank_const] > f_activate_time_stamp[bank_const]) begin
-                assert((f_precharge_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ns_to_nCK(tRAS));
+                assert((f_precharge_time_stamp[bank_const] - f_activate_time_stamp[bank_const]) >= ps_to_nCK(tRAS));
             end
 
             // Check tWR (WRITE recovery time for write-to-precharge)
             if(f_precharge_time_stamp[bank_const] > f_write_time_stamp[bank_const]) begin
-                assert((f_precharge_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ns_to_nCK(tWR)));
+                assert((f_precharge_time_stamp[bank_const] - f_write_time_stamp[bank_const]) >= (CWL_nCK + 3'd4 + ps_to_nCK(tWR)));
             end
 
             // Check delay from read-to-write
