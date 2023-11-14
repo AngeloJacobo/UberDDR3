@@ -2,9 +2,9 @@
 `timescale 1ps / 1ps
 
 module ddr3_top #(
-    parameter real CONTROLLER_CLK_PERIOD = 10, //ns, clock period of the controller interface
-                   DDR3_CLK_PERIOD = 2.5, //ns, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
-    parameter      ROW_BITS = 14,   //width of row address
+    parameter      CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
+                   DDR3_CLK_PERIOD = 2_500, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+                   ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //width of DQ
@@ -97,8 +97,8 @@ module ddr3_top #(
     
     //module instantiations
     ddr3_controller #(
-            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, clock period of the controller interface
-            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, clock period of the controller interface
+            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
             .ODELAY_SUPPORTED(ODELAY_SUPPORTED),  //set to 1 when ODELAYE2 is supported
             .ROW_BITS(ROW_BITS), //width of row address
             .COL_BITS(COL_BITS), //width of column address
@@ -171,8 +171,8 @@ module ddr3_top #(
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
             .LANES(LANES), //8 lanes of DQ
-            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
-            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
+            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, period of clock input to this DDR3 controller module
+            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, period of clock input to DDR3 RAM device 
             .ODELAY_SUPPORTED(ODELAY_SUPPORTED)
         ) ddr3_phy_inst (
             .i_controller_clk(i_controller_clk), 
