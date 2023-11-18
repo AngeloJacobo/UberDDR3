@@ -99,21 +99,21 @@
     
     // DDR3 Controller 
     ddr3_top #(
-        .ROW_BITS(14),   //width of row address
+        .CONTROLLER_CLK_PERIOD(10_000), //ps, clock period of the controller interface
+        .DDR3_CLK_PERIOD(2_500), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+        .ROW_BITS(14), //width of row address
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
         .DQ_BITS(8),  //width of DQ
-        .CONTROLLER_CLK_PERIOD(12), //ns, period of clock input to this DDR3 controller module
-        .DDR3_CLK_PERIOD(3), //ns, period of clock input to DDR3 RAM device 
-        .ODELAY_SUPPORTED(0), //set to 1 when ODELAYE2 is supported
-        .LANES(2), //8 lanes of DQ
-        .AUX_WIDTH(16),
-        .WB2_ADDR_BITS(32),
-        .WB2_DATA_BITS(32),
+        .LANES(2), //number of DDR3 modules to be controlled
+        .AUX_WIDTH(4), //width of aux line (must be >= 4) 
+        .WB2_ADDR_BITS(32), //width of 2nd wishbone address bus 
+        .WB2_DATA_BITS(32), //width of 2nd wishbone data bus
         .OPT_LOWPOWER(1), //1 = low power, 0 = low logic
         .OPT_BUS_ABORT(1),  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-        .MICRON_SIM(0), //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-        .TEST_DATAMASK(1) //add test to datamask during calibration
+        .MICRON_SIM(0), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+        .ODELAY_SUPPORTED(0), //set to 1 when ODELAYE2 is supported
+        .SECOND_WISHBONE(0) //set to 1 if 2nd wishbone is needed 
         ) ddr3_top
         (
             //clock and reset
@@ -136,12 +136,12 @@
             .o_wb_data(o_wb_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
             .o_aux(o_aux),
             // Wishbone 2 (PHY) inputs
-            .i_wb2_cyc(0), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-            .i_wb2_stb(0), //request a transfer
+            .i_wb2_cyc(), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+            .i_wb2_stb(), //request a transfer
             .i_wb2_we(), //write-enable (1 = write, 0 = read)
             .i_wb2_addr(), //burst-addressable {row,bank,col} 
-            .i_wb2_data(0), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
-            .i_wb2_sel(0), //byte strobe for write (1 = write the byte)
+            .i_wb2_data(), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+            .i_wb2_sel(), //byte strobe for write (1 = write the byte)
             // Wishbone 2 (Controller) outputs
             .o_wb2_stall(), //1 = busy, cannot accept requests
             .o_wb2_ack(), //1 = read/write request has completed
@@ -163,7 +163,9 @@
             .io_ddr3_dqs_n(ddr3_dqs_n),
             .o_ddr3_dm(ddr3_dm),
             .o_ddr3_odt(ddr3_odt), // on-die termination
-            .o_debug1(o_debug1)
+            .o_debug1(o_debug1),
+            .o_debug2(),
+            .o_debug3()
             ////////////////////////////////////
         );
 
