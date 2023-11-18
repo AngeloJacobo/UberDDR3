@@ -36,11 +36,11 @@
 module ddr3_controller #(
     parameter      CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
                    DDR3_CLK_PERIOD = 2_500, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
-                   ROW_BITS = 14,   //width of row address
-                   COL_BITS = 10, //width of column address
+                   ROW_BITS = 14,   //width of DDR3 row address
+                   COL_BITS = 10, //width of DDR3 column address
                    BA_BITS = 3, //width of bank address
-                   DQ_BITS = 8,  //width of DQ
-                   LANES = 2, //lanes of DQ
+                   DQ_BITS = 8,  //device width
+                   LANES = 2, //number of DDR3 device to be controlled
                    AUX_WIDTH = 4, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
@@ -49,8 +49,8 @@ module ddr3_controller #(
                    OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
    /* verilator lint_on UNUSEDPARAM */
                    MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-                   TEST_DATAMASK = 0, //add test to datamask during calibration
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
+                   SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -194,7 +194,7 @@ module ddr3_controller #(
     localparam tXPR = max(5*DDR3_CLK_PERIOD, tRFC+10_000); // ps Exit Reset from CKE HIGH to a valid command
     localparam tWR = 15_000; // ps Write Recovery Time
     localparam tWTR = max(nCK_to_ps(4), 7_500); //ps Delay from start of internal write transaction to internal read command
-    localparam[DELAY_SLOT_WIDTH - 1:0] tWLMRD = nCK_to_cycles(40); // nCK First DQS/DQS# rising edge after write leveling mode is programmed
+    localparam tWLMRD = nCK_to_cycles(40); // nCK First DQS/DQS# rising edge after write leveling mode is programmed
     localparam tWLO = 7_500; //ps Write leveling output delay
     localparam tWLOE = 2_000; //ps Write leveling output error
     localparam tRTP = max(nCK_to_ps(4), 7_500); //ps Internal Command to PRECHARGE Command delay
@@ -1668,7 +1668,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
        BURST_WRITE: if(!o_wb_stall_calib) begin // Test 1: Burst write (per byte write to test datamask feature), then burst read
                             calib_stb <= 1;
                             calib_aux <= 2;
-                            if(TEST_DATAMASK) begin //Test datamask by writing 1 byte at a time
+                            if(TDQS == 0) begin //Test datamask by writing 1 byte at a time
                                 calib_sel <= 1 << write_by_byte_counter;
                                 calib_we <= 1; 
                                 calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
@@ -1926,7 +1926,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             wb2_sel <= 0;
         end
         else begin
-            if(i_wb2_cyc && !o_wb2_stall) begin 
+            if( (i_wb2_cyc && SECOND_WISHBONE) && !o_wb2_stall) begin 
                 wb2_stb <= i_wb2_stb;
                 wb2_we <= i_wb2_we; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN} 
                 wb2_addr <= i_wb2_addr;
@@ -1968,11 +1968,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
            wb2_phy_idelay_dqs_ld <= 0;
            wb2_update <= 0;
            wb2_write_lane <= 0;
-           o_wb2_ack <= wb2_stb && i_wb2_cyc; //always ack right after request
+           o_wb2_ack <= wb2_stb && (i_wb2_cyc && SECOND_WISHBONE); //always ack right after request
            o_wb2_stall <= 0; //never stall
            reset_from_wb2 <= 0;
            repeat_test <= 0;
-           if(wb2_stb && i_wb2_cyc) begin
+           if(wb2_stb && (i_wb2_cyc && SECOND_WISHBONE)) begin
                 case(wb2_addr[4:0]) 
                     //read/write odelay cntvalue for DQ line
                     0: if(wb2_we) begin 
@@ -3431,7 +3431,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
         //accept request
         always @* begin
-            if(f_empty_2 && i_wb2_cyc) begin
+            if(f_empty_2 && (i_wb2_cyc && SECOND_WISHBONE)) begin
                 assert(!wb2_stb && !o_wb2_ack);
             end
             if(!wb2_stb && !o_wb2_ack) begin
@@ -3439,7 +3439,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             end
             f_write_data_2 = 0;
             f_write_fifo_2 = 0;
-            if(i_wb2_stb && !o_wb2_stall && i_wb2_cyc) begin //if there is request
+            if(i_wb2_stb && !o_wb2_stall && (i_wb2_cyc && SECOND_WISHBONE)) begin //if there is request
                 if(i_wb2_we) begin //write request
                     f_write_data_2 = {i_wb2_sel, i_wb2_data[4:0], i_wb2_data[5 +: lanes_clog2], i_wb2_addr[3:0], i_wb2_we}; //CNTVALUEIN + LANE_NUMBER + MEMORY_MAPPED_ADDRESS + REQUEST_TYPE
                     assume(i_wb2_data[5 +: lanes_clog2] < LANES);
@@ -3464,27 +3464,27 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 f_read_data_2_q <= 0;
             end
             else begin
-                f_o_wb2_ack_q <= o_wb2_ack && f_read_data_2[0] && i_wb2_cyc;
+                f_o_wb2_ack_q <= o_wb2_ack && f_read_data_2[0] && (i_wb2_cyc && SECOND_WISHBONE);
                 f_read_data_2_q <= f_read_data_2;
             end
         end
         always @* begin
             if(!past_sync_rst_controller) begin
                 if(wb2_stb && o_wb2_ack) begin
-                    assert(f_full_2 || !i_wb2_cyc);
+                    assert(f_full_2 || !(i_wb2_cyc && SECOND_WISHBONE));
                 end
                 if(f_full_2) begin
                     assert(wb2_stb && o_wb2_ack);
-                    assert(f_outstanding_2 == 2 || !i_wb2_cyc);
+                    assert(f_outstanding_2 == 2 || !(i_wb2_cyc && SECOND_WISHBONE));
                 end
                 if(f_outstanding_2 == 2) begin
-                    assert(f_full_2 || !i_wb2_cyc);
+                    assert(f_full_2 || !(i_wb2_cyc && SECOND_WISHBONE));
                 end
                 if(f_empty_2) begin
-                    assert(f_outstanding_2 == 0 || !i_wb2_cyc);
+                    assert(f_outstanding_2 == 0 || !(i_wb2_cyc && SECOND_WISHBONE));
                 end
                 if(f_outstanding_2 == 0) begin
-                    assert(f_empty_2 || !i_wb2_cyc);
+                    assert(f_empty_2 || !(i_wb2_cyc && SECOND_WISHBONE));
                 end
             end
             assert(f_outstanding_2 <= 2);
@@ -3528,11 +3528,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     endcase
                 end  
                 else if(i_rst_n) begin
-                    assert(!$past(wb2_update) || !$past(i_wb2_cyc));
+                    assert(!$past(wb2_update) || !$past((i_wb2_cyc && SECOND_WISHBONE)));
                 end
 
                 //read request
-               if(o_wb2_ack && !f_read_data_2[0] && i_rst_n && i_wb2_cyc && !(f_o_wb2_ack_q && f_read_data_2_q[1 +: (4 + lanes_clog2)] == f_read_data_2[1 +: (4 + lanes_clog2)] )) begin 
+               if(o_wb2_ack && !f_read_data_2[0] && i_rst_n && (i_wb2_cyc && SECOND_WISHBONE) && !(f_o_wb2_ack_q && f_read_data_2_q[1 +: (4 + lanes_clog2)] == f_read_data_2[1 +: (4 + lanes_clog2)] )) begin 
                     case(f_read_data_2[4:1]) //memory-mapped address
                         0: begin
                              assert(o_wb2_data == odelay_data_cntvaluein[f_read_data_2[5 +: lanes_clog2]]); //the stored delay must match the wb2 output 
@@ -3601,7 +3601,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             .DATA_WIDTH(F_TEST_WB2_DATA_WIDTH) //each FIFO position can store DATA_WIDTH bits
        ) fifo_2 (
             .i_clk(i_controller_clk), 
-            .i_rst_n(i_rst_n && i_wb2_cyc), //reset outstanding request at reset or when cyc goes low
+            .i_rst_n(i_rst_n && (i_wb2_cyc && SECOND_WISHBONE)), //reset outstanding request at reset or when cyc goes low
             .read_fifo(f_read_fifo_2), 
             .write_fifo(f_write_fifo_2),
             .empty(f_empty_2), 
@@ -3714,7 +3714,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             .i_clk(i_controller_clk), 
             .i_reset(!i_rst_n),
             // The Wishbone bus
-            .i_wb_cyc(i_wb2_cyc), 
+            .i_wb_cyc((i_wb2_cyc && SECOND_WISHBONE)), 
             .i_wb_stb(i_wb2_stb), 
             .i_wb_we(i_wb2_we),
             .i_wb_addr(i_wb2_addr),
