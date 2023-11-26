@@ -73,7 +73,7 @@
     .clk_out1(i_controller_clk), //83.333 Mhz
     .clk_out2(i_ddr3_clk), // 333.333 MHz
     .clk_out3(i_ref_clk), //200MHz
-    .clk_out4(i_ddr3_clk_90),
+    .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90degree shift
     // Status and control signals
     .reset(i_rst),
     .locked(clk_locked),
@@ -99,8 +99,8 @@
     
     // DDR3 Controller 
     ddr3_top #(
-        .CONTROLLER_CLK_PERIOD(10_000), //ps, clock period of the controller interface
-        .DDR3_CLK_PERIOD(2_500), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+        .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
+        .DDR3_CLK_PERIOD(3_000), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
         .ROW_BITS(14), //width of row address
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
@@ -170,3 +170,4 @@
         );
 
 endmodule
+
