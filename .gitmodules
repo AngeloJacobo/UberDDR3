@@ -1,3 +1,3 @@
 [submodule "testbench/ARTY_S7/verilog-uart"]
-	path = testbench/ARTY_S7/verilog-uart
+	path = ARTY_S7/verilog-uart
 	url = https://github.com/alexforencich/verilog-uart.git
