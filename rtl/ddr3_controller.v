@@ -2247,29 +2247,29 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     initial begin
         $display("TEST FUNCTIONS\n-----------------------------\n");
         $display("Test ps_to_cycles() function:");
-        $display("\tps_to_cycles(15_000) = %0d [exact]", ps_to_cycles(15_000) );
-        $display("\tps_to_cycles(14_500) = %0d [round-off]", ps_to_cycles(14_500) );
-        $display("\tps_to_cycles(11_000) = %0d [round-up]\n", ps_to_cycles(11_000) );
+        $display("\tps_to_cycles(15_000) = %0d", ps_to_cycles(15_000) );
+        $display("\tps_to_cycles(14_500) = %0d", ps_to_cycles(14_500) );
+        $display("\tps_to_cycles(11_000) = %0d\n", ps_to_cycles(11_000) );
         
         $display("Test nCK_to_cycles() function:");
-        $display("\tnCK_to_cycles(16) = %0d [exact]", nCK_to_cycles(16) );
-        $display("\tnCK_to_cycles(15) = %0d [round-off]", nCK_to_cycles(15) );
-        $display("\tnCK_to_cycles(13) = %0d [round-up]\n", nCK_to_cycles(13) );
+        $display("\tnCK_to_cycles(16) = %0d", nCK_to_cycles(16) );
+        $display("\tnCK_to_cycles(15) = %0d", nCK_to_cycles(15) );
+        $display("\tnCK_to_cycles(13) = %0d\n", nCK_to_cycles(13) );
         
         $display("Test ps_to_nCK() function:");
-        $display("\tps_to_nCK(15_000) = %0d [exact]", ps_to_nCK(15_000) );
-        $display("\tps_to_nCK(14_875) = %0d [round-off]", ps_to_nCK(14_875) );
-        $display("\tps_to_nCK(13_875) = %0d [round-up] \n", ps_to_nCK(13_875) );
+        $display("\tps_to_nCK(15_000) = %0d", ps_to_nCK(15_000) );
+        $display("\tps_to_nCK(14_875) = %0d", ps_to_nCK(14_875) );
+        $display("\tps_to_nCK(13_875) = %0d\n", ps_to_nCK(13_875) );
         
         $display("Test nCK_to_ps() function:");
-        $display("\tnCK_to_ps(4) =  %f [exact]", nCK_to_ps(4) );
-        $display("\tnCK_to_ps(14.875) = %f [round-off]", nCK_to_ps(3) );
-        $display("\tnCK_to_ps(13.875) = %f [round-up]\n", nCK_to_ps(5) );
+        $display("\tnCK_to_ps(4) =  %f", nCK_to_ps(4) );
+        $display("\tnCK_to_ps(3) = %f", nCK_to_ps(3) );
+        $display("\tnCK_to_ps(5) = %f\n", nCK_to_ps(5) );
         
         $display("Test $floor() function:");
         $display("\t$floor(5/2) = %f", $floor(5/2) );
         $display("\t$floor(9/4) = %f", $floor(9/4) );
-        $display("\t$floor(9/4) = %f", $floor(8/4) );
+        $display("\t$floor(8/4) = %f", $floor(8/4) );
         $display("\t$floor(9/5) = %f\n", $floor(9/5) );
 
         $display("\nDISPLAY CONTROLLER PARAMETERS\n-----------------------------\n");
