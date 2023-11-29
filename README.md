@@ -1,6 +1,9 @@
 # Specifications and Brief Description
-This DDR3 controller was originally designed to be used on the [10-Gigabit Ethernet Project](https://github.com/ZipCPU/eth10g) but is now being designed to be a more general memory controller with multiple supported FPGA boards. This is a 4:1 memory controller with configurable timing parameters and mode registers so it can be configured to any DDR3 memory device. The interface is the basic Wishbone.
+This DDR3 controller was originally designed to be used on the [10-Gigabit Ethernet Project](https://github.com/ZipCPU/eth10g) for an 8-lane x8 DDR3 module running at 800 MHz DDR, but this is now being designed to be a more general memory controller with multiple supported FPGA boards. This is a 4:1 memory controller with configurable timing parameters and mode registers so it can be configured to any DDR3 memory device. The user-interface is the basic Wishbone.
 
+This memory controller is optimized to maintain a high data throughput and continuous sequential burst operations. The controller handles the reset sequence, refresh sequence, mode register configuration, bank status tracking, timing delay tracking, command issuing, and the PHY's internal calibration. The PHY's internal calibration handles the bitslip training, read dqs alignment via MPR (read calibration), write dqs alignment via write leveling (write calibration), and also an optional comprehensive read/write test. The internal read/write test include a burst access, random access, and alternating read-write access tests. Only if no error is found on these tests will the calibration end and user can start accessing the wishbone interface. 
+
+This design is [formally verified](https://github.com/AngeloJacobo/DDR3_Controller/wiki/User-Documentation#lint-and-formal-verification) and [simulated using the Micron DDR3 model](https://github.com/AngeloJacobo/DDR3_Controller/wiki/User-Documentation#simulation).
 
 # Getting Started
 The recommended way to instantiate this IP is to use the top module [`rtl/ddr3_top.v`](https://github.com/AngeloJacobo/DDR3_Controller/blob/main/rtl/ddr3_top.v), a template for instantiation is also included in that file. Steps to include this DDR3 memory controller IP is to instantiate design, create the constraint file, then edit the localparams. 
@@ -175,7 +178,7 @@ The summary under `TEST CALIBRATION` are the results from the **internal** read/
 
 This will run the DDR3 controller at 333 MHz (3 ns clock period) which is the [maximum clock period for Arty-S7](https://digilent.com/reference/programmable-logic/arty-s7/reference-manual). Upload the bitstream to Arty-S7, after around 2 seconds the 4 LEDS should light up.
 
-- The [10Gb Ethernet Switch](https://github.com/ZipCPU/eth10g) project utilizes this DDR3 controller for accessing a single-rank DDR3 module (8 lanes of x8 DDR3).
+- The [10Gb Ethernet Switch](https://github.com/ZipCPU/eth10g) project utilizes this DDR3 controller for accessing a single-rank DDR3 module (8 lanes of x8 DDR3) at DDR3-800 (100 MHz controller and 400 MHz PHY).
 
 # Other Open-Sourced DDR3 Controllers
 (soon...)
