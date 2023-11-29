@@ -1,3 +1,17 @@
+
+# Table of Contents  
+ - [Brief Description](https://github.com/AngeloJacobo/DDR3_Controller#brief-description)
+ - [Getting Started](https://github.com/AngeloJacobo/DDR3_Controller#getting-started)
+    - [Instantiate Design](https://github.com/AngeloJacobo/DDR3_Controller#heavy_check_mark-instantiate-design)
+    - [Create Constraint File](https://github.com/AngeloJacobo/DDR3_Controller#heavy_check_mark-create-constraint-file)
+    - [Edit Localparams](https://github.com/AngeloJacobo/DDR3_Controller#heavy_check_mark-edit-localparams)
+ - [Lint and Formal Verification](https://github.com/AngeloJacobo/DDR3_Controller#lint-and-formal-verification)
+ - [Simulation](https://github.com/AngeloJacobo/DDR3_Controller#simulation)
+ - [Sample Projects](https://github.com/AngeloJacobo/DDR3_Controller#sample-projects)
+ - [Other Open-Sourced DDR3 Controllers](https://github.com/AngeloJacobo/DDR3_Controller#other-open-sourced-ddr3-controllers)
+ - [Developer Documentation]
+
+   
 # Brief Description
 This DDR3 controller was originally designed to be used on the [10-Gigabit Ethernet Project](https://github.com/ZipCPU/eth10g) for an 8-lane x8 DDR3 module running at 800 MHz DDR, but this is now being designed to be a more general memory controller with multiple supported FPGA boards. This is a 4:1 memory controller with configurable timing parameters and mode registers so it can be configured to any DDR3 memory device. The user-interface is the basic Wishbone.
 
@@ -182,3 +196,6 @@ This will run the DDR3 controller at 333 MHz (3 ns clock period) which is the [m
 
 # Other Open-Sourced DDR3 Controllers
 (soon...)
+
+# Developer Documentation 
+There is no developer documentation yet. But may I include here the [notes I compiled](https://github.com/AngeloJacobo/DDR3-Notes) when I did an intensive study on DDR3 before I started this project.
