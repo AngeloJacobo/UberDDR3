@@ -807,8 +807,8 @@ module ddr3_controller #(
                 //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
             end
             if(!ODELAY_SUPPORTED) begin
-                stage2_data_unaligned <= stage2_data_unaligned_temp; //delayed by 1 clock cycle 
-                stage2_dm_unaligned <= stage2_dm_unaligned_temp;  //delayed by 1 clock cycle 
+                stage2_data_unaligned <= stage2_data_unaligned_temp; //_temp is for added delay of 1 clock cycle (no ODELAY so no added delay)
+                stage2_dm_unaligned <= stage2_dm_unaligned_temp;  //_temp is for added delay of 1 clock cycle (no ODELAY so no added delay)
             end
 
             // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall
@@ -834,6 +834,7 @@ module ddr3_controller #(
                 /* verilator lint_on WIDTH */
                 stage1_data <= i_wb_data;
             end
+            // request from calibrate FSM will be accepted here
             else if(state_calibrate != DONE_CALIBRATE && !o_wb_stall_calib) begin
                 stage1_pending <= calib_stb;//actual request flag
                 stage1_we <= calib_we; //write-enable
@@ -850,6 +851,8 @@ module ddr3_controller #(
             
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
+                // stage2_data_unaligned is the DQ_BITS*LANES*8 raw data from stage 1 so not yet aligned
+                // unaligned_data is 64 bits
                 {unaligned_data[index], { 
                 stage2_data[0][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
                 stage2_data[0][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
@@ -860,7 +863,37 @@ module ddr3_controller #(
                         stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],
                         stage2_data_unaligned[((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*0 + 8*index) +: 8] }
                         << data_start_index[index]) | unaligned_data[index];
+                /*
+                // Example with LANE 0:
+                // Burst_0 to burst_7 of unaligned LANE 0 will be extracted which will be shifted by data_start_index.
+                // Each 8 bits of shift means a burst will be moved to next ddr3_clk cycle, this is needed if for example
+                // the DQ trace is longer than the command trace where the DQ bits must be delayed by 1 ddr3_clk cycle
+                // to align the DQ data to the write command.
+                //
+                // Since 1 controller clk cycle will have 4 ddr3_clk cycle, and each ddr3_clk cycle is DDR:
+                // CONTROLLER CLK CYCLE 0: [burst0,burst1] [burst2,burst3] [burst4,burst5] [burst6,burst7]
+                // CONTROLLER CLK CYCLE 1: [burst0,burst1] [burst2,burst3] [burst4,burst5] [burst6,burst7]
+                // CONTROLLER CLK CYCLE 2: [burst0,burst1] [burst2,burst3] [burst4,burst5] [burst6,burst7]
+                //
+                // shifting by 1 burst means burst 7 will be sent on next controller clk cycle and EVERY BURST WILL SHIFT:
+                // CONTROLLER CLK CYCLE 0: [xxxxxx,xxxxxx] [burst0,burst1] [burst2,burst3] [burst4,burst5]
+                // CONTROLLER CLK CYCLE 1: [burst6,burst7] [burst0,burst1] [burst2,burst3] [burst4,burst5] 
+                // CONTROLLER CLK CYCLE 2: [burst6,burst7] [burst0,burst1] [burst2,burst3] [burst4,burst5]
+                //
+                // the [burst6,burst7] which has to be stored and delayed until next clk cycle will be handled by unaligned_data
+                {unaligned_data[0], { 
+                stage2_data[0][((64)*7 + 8*0) +: 8], stage2_data[0][((64)*6 + 8*0) +: 8], 
+                stage2_data[0][((64)*5 + 8*0) +: 8], stage2_data[0][((64)*4 + 8*0) +: 8], 
+                stage2_data[0][((64)*3 + 8*0) +: 8], stage2_data[0][((64)*2 + 8*0) +: 8], 
+                stage2_data[0][((64)*1 + 8*0) +: 8], stage2_data[0][((64)*0 + 8*0) +: 8] }} 
+                <= ( {  stage2_data_unaligned[((64)*7 + 8*0) +: 8], stage2_data_unaligned[((64)*6 + 8*0) +: 8],
+                        stage2_data_unaligned[((64)*5 + 8*0) +: 8], stage2_data_unaligned[((64)*4 + 8*0) +: 8], 
+                        stage2_data_unaligned[((64)*3 + 8*0) +: 8], stage2_data_unaligned[((64)*2 + 8*0) +: 8],
+                        stage2_data_unaligned[((64)*1 + 8*0) +: 8], stage2_data_unaligned[((64)*0 + 8*0) +: 8] }
+                        << data_start_index[0]) | unaligned_data[0];
+                */
 
+                // The same alignment logic is done with data mask
                 {unaligned_dm[index], {
                 stage2_dm[0][LANES*7 + index], stage2_dm[0][LANES*6 + index], 
                 stage2_dm[0][LANES*5 + index], stage2_dm[0][LANES*4 + index], 
@@ -873,6 +906,7 @@ module ddr3_controller #(
                         << (data_start_index[index]>>3)) | unaligned_dm[index];
                 /* verilator lint_on WIDTH */
             end
+            // stage2 can have multiple pipelined stages inside it 
             for(index = 0; index < STAGE2_DATA_DEPTH-1; index = index+1) begin
                 stage2_data[index+1] <=  stage2_data[index];              
                 stage2_dm[index+1] <= stage2_dm[index];
@@ -885,11 +919,11 @@ module ddr3_controller #(
             end
         end
     end
-    assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];             
+    assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];  // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
     assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
     /* verilator lint_off WIDTH */
-    assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE;
-    assign calib_addr_plus_anticipate = calib_addr + MARGIN_BEFORE_ANTICIPATE;
+    assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE; // wb_addr_plus_anticipate determines if it is near the end of column by checking if it jumps to next row
+    assign calib_addr_plus_anticipate = calib_addr + MARGIN_BEFORE_ANTICIPATE; // just same as wb_addr_plus_anticipate but while doing calibration
     /* verilator lint_on WIDTH */
     // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
     //
@@ -1548,7 +1582,13 @@ module ddr3_controller #(
                         calib_sel <= {wb_sel_bits{1'b1}};
                         calib_we <= 1; //write-enable
                         calib_addr <= 0;
+                        //                burst_7          burst_6         burst_5         burst_4         burst_3         burst_2         burst_1         burst_0
                         calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
+                        // write to address 0 is a burst of 8 writes, where all lanes has same data written:  64'h9177298cd0ad51c1
+                        // Example for LANES of 2, DQ of 8: the 128 bits (8 bursts * 2 lanes/burst * 8bits/lane) are 8 bursts with 8 bytes each:
+                        // { { {burst7_lane1} , {burst7_lane0} } , { {burst6_lane1} , {burst6_lane0} } , { {burst5_lane1} , {burst5_lane0} } 
+                        // , { {burst4_lane1} , {burst4_lane0} } , { {burst3_lane1} , {burst3_lane0} } , { {burst2_lane1} , {burst2_lane0} } 
+                        // , { {burst1_lane1} , {burst1_lane0} } , { {burst0_lane1} , {burst0_lane0} } }
                         state_calibrate <= ISSUE_WRITE_2;
                        end    
         ISSUE_WRITE_2: begin
@@ -1557,9 +1597,17 @@ module ddr3_controller #(
                         calib_sel <= {wb_sel_bits{1'b1}};
                         calib_we <= 1; //write-enable
                         calib_addr <= 1;
-                        calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} }; 
+                        //                burst_7          burst_6         burst_5         burst_4         burst_3         burst_2         burst_1         burst_0
+                        calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} };
+                        // write to address 1 is also a burst of 8 writes, where all lanes has same data written:  128'h80dbcfd275f12c3d
                         state_calibrate <= ISSUE_READ;
-                       end    
+                       end   
+                // NOTE WHY THERE ARE TWO ISSUE_WRITE
+                // address 0 and 1 is written with a deterministic data, if the DQ trace has long delay then the data will be delayed 
+                // compared to the write command so the data aligned to the write command for address 0 MIGHT START AT MIDDLE OF EXPECTED OUTPUT
+                // DATA (64'h9177298cd0ad51c1) e.g. the data written might be 64'h[2c3d][9177298cd0ad] where the data written starts
+                // at burst 2 (burst 0 and burst 1 are cut-off since each burst uses 1 ddr3_clk cycle)
+                
           ISSUE_READ: begin
                         calib_stb <= 1;//actual request flag
                         calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
@@ -1569,7 +1617,7 @@ module ddr3_controller #(
                       end   
                       
            READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
-                         read_data_store <= o_wb_data;
+                         read_data_store <= o_wb_data; // read data on address 0 
                          calib_stb <= 0;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index[lane] <= 0;
@@ -1583,7 +1631,12 @@ module ddr3_controller #(
                       else if(!o_wb_stall_calib) begin
                             calib_stb <= 0;
                       end
-                 
+                        // extract burst_0-to-burst_7 data for a specified lane then determine which byte in write_pattern does it starts
+                        // NOTE TO ME: all "8" here assume DQ_BITS are 8? parameterize this properly
+                        // data_start_index for a specified lane determine how many bits are off the data from the write command
+                        // so for every 1 ddr3 clk cycle delay of DQ from write command, each lane will be 1 burst off:
+                        // e.g. LANE={burst7, burst6, burst5, burst4, burst3, burst2, burst1, burst0} then with 1 ddr3 cycle delay between DQ and command 
+                        // burst0 will not be written but only starting on burst1
         ANALYZE_DATA: if(write_pattern[data_start_index[lane] +: 64] == {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
                         read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
                         read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] }) begin   
@@ -1598,7 +1651,7 @@ module ddr3_controller #(
                             end
                       end 
                       else begin
-                            data_start_index[lane] <= data_start_index[lane] + 8;
+                          data_start_index[lane] <= data_start_index[lane] + 8; //skip by 8
                             if(data_start_index[lane] == 56) begin //reached the end but no byte in write-pattern matches the data read, issue might be reading at wrong DQS toggle 
                                 data_start_index[lane] <= 0;        //so we need to recalibrate the bitslip
                                 start_index_check <= 0;
