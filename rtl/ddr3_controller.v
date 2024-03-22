@@ -255,8 +255,8 @@ module ddr3_controller #(
             assert(STAGE2_DATA_DEPTH-2 >= 0);
         end
     `endif
-    localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 ));
-    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;
+    localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 )); // how many controller clk cycles to satisfy CL_nCK of ddr3_clk cycles
+    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1; // delays are added due to: IDELAY, ODELAY, IOSERDES (NOTE TO SELF: ELABORATE)
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
                                                                                                       //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
@@ -350,7 +350,6 @@ module ddr3_controller #(
     reg reset_done = 0; //high if reset has already finished
     reg pause_counter = 0;
     wire issue_read_command;
-    wire issue_write_command;
     reg stage2_update = 1;
     reg stage2_stall = 0;
     reg stage1_stall = 0;
@@ -958,16 +957,17 @@ module ddr3_controller #(
             bank_status_d[index] = bank_status_q[index];
             bank_active_row_d[index] = bank_active_row_q[index];
         end
-        //set cmd_0 to reset instruction, the remainings are NOP
-        //delay_counter_is_zero signifies start of new reset instruction (the time when the command must be issued)
+        //set PRECHARGE_SLOT as reset instruction, the remainings are NOP (MSB is high)
+        //delay_counter_is_zero high signifies start of new reset instruction (the time when the command must be issued)
         cmd_d[PRECHARGE_SLOT] = {(!delay_counter_is_zero), instruction[DDR3_CMD_START-1:DDR3_CMD_END], cmd_odt, instruction[CLOCK_EN], instruction[RESET_N], 
                         instruction[MRS_BANK_START:(MRS_BANK_START-BA_BITS+1)], instruction[ROW_BITS-1:0]};
         cmd_d[PRECHARGE_SLOT][10] = instruction[A10_CONTROL];
-        cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  
-        cmd_d[WRITE_SLOT] = {(!issue_write_command),CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; 
-        cmd_d[ACTIVATE_SLOT] = {1'b1,CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; 
+        cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // issued during MPR reads (address does not matter)
+        cmd_d[WRITE_SLOT] = {1'b1, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
+        cmd_d[ACTIVATE_SLOT] = {1'b1, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  // always NOP by default
             
-        // decrement delay counters for every bank
+        // decrement delay counters for every bank , stay to 0 once 0 is reached
+        // every bank will have its own delay counters for precharge, activate, write, and read 
         for(index=0; index< (1<<BA_BITS); index=index+1) begin
             delay_before_precharge_counter_d[index] = (delay_before_precharge_counter_q[index] == 0)? 0: delay_before_precharge_counter_q[index] - 1;
             delay_before_activate_counter_d[index] = (delay_before_activate_counter_q[index] == 0)? 0: delay_before_activate_counter_q[index] - 1;
@@ -975,6 +975,7 @@ module ddr3_controller #(
             delay_before_read_counter_d[index] = (delay_before_read_counter_q[index] == 0)? 0:delay_before_read_counter_q[index] - 1;
         end
         for(index = 1; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+            // shift is rightward where LSB gets MSB
             shift_reg_read_pipe_d[index-1] = shift_reg_read_pipe_q[index];
         end
         shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0;
@@ -993,7 +994,7 @@ module ddr3_controller #(
                     stage2_stall = 0;
                     stage2_update = 1;
                     cmd_odt = 1'b1;
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; 
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; // ack bit is sent to shift_reg
 
                     //write acknowledge will use the same logic pipeline as the read acknowledge. 
                     //This would mean write ack latency will be the same for
@@ -1002,9 +1003,12 @@ module ddr3_controller #(
                     //for write ack as there will be no need to analyze the
                     //contents of the shift_reg_read_pipe just to determine
                     //where best to place the write ack on the pipeline (since
-                    //the order of ack must be maintaned). But this would mean
+                    //the order of ack must be maintained). But this would mean
                     //the latency for write is fixed regardless if there is an 
-                    //outstanding read ack or none on the pipeline 
+                    //outstanding read ack or none on the pipeline. But this is
+                    // acceptable in my opinion since this is a pipelined wishbone
+                    // where the transaction can continue regardless when ack returns
+                    ///////////// CONTINUTE HERE
                     
                     //set-up delay before precharge, read, and write
                     if(delay_before_precharge_counter_q[stage2_bank] <= WRITE_TO_PRECHARGE_DELAY) begin
@@ -1911,7 +1915,6 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
     end      
     assign issue_read_command = (state_calibrate == MPR_READ && delay_before_read_data == 0);
-    assign issue_write_command = 0;
     assign o_phy_odelay_data_cntvaluein = odelay_data_cntvaluein[lane]; 
     assign o_phy_odelay_dqs_cntvaluein = odelay_dqs_cntvaluein[lane];
     assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
