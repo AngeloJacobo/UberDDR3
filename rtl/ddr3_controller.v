@@ -1077,10 +1077,10 @@ module ddr3_controller #(
                 activate_slot_busy = 1'b1;
                 delay_before_precharge_counter_d[stage2_bank] = ACTIVATE_TO_PRECHARGE_DELAY;
                 //set-up delay before read and write
-                if(delay_before_read_counter_q[stage2_bank] <= ACTIVATE_TO_READ_DELAY) begin
+                if(delay_before_read_counter_q[stage2_bank] <= ACTIVATE_TO_READ_DELAY) begin // if current delay is > ACTIVATE_TO_READ_DELAY, then updating it to the lower delay will cause the previous delay to be violated
                     delay_before_read_counter_d[stage2_bank] = ACTIVATE_TO_READ_DELAY;
                 end
-                if(delay_before_write_counter_q[stage2_bank] <= ACTIVATE_TO_WRITE_DELAY) begin
+                if(delay_before_write_counter_q[stage2_bank] <= ACTIVATE_TO_WRITE_DELAY) begin // if current delay is > ACTIVATE_TO_WRITE_DELAY, then updating it to the lower delay will cause the previous delay to be violated
                     delay_before_write_counter_d[stage2_bank] = ACTIVATE_TO_WRITE_DELAY;
                 end
                 //issue activate command
@@ -1103,16 +1103,18 @@ module ddr3_controller #(
 
         //pending request on stage 1
         if(stage1_pending && !((stage1_next_bank == stage2_bank) && stage2_pending)) begin
-            //stage 1 will mainly be for anticipation, but it can also handle
-            //precharge and activate request. This will depend if the request
-            //is on the end of the row and must start the anticipation. For
-            //example, we have 10 rows in a bank:
-            //[R][R][R][R][R][R][R][A][A][A]
+            //stage 1 will mainly be for anticipation (if next requests need to jump to new bank then 
+            //anticipate the precharging and activate of that next bank, BUT it can also handle
+            //precharge and activate of CURRENT wishbone request.
+            //Anticipate will depend if the request is on the end of the row 
+            // and must start the anticipation. For example if we have 10 rows in a bank:
+            //[R][R][R][R][R][R][R][A][A][A] -> [next bank]
             //
             //R = Request, A = Anticipate
             //Unless we are near the third to the last column, stage 1 will
             //issue Activate and Precharge on the CURRENT bank. Else, stage
             //1 will issue Activate and Precharge for the NEXT bank
+            // Thus stage 1 anticipate makes sure smooth burst operation that jumps banks
             if(bank_status_q[stage1_next_bank] &&  bank_active_row_q[stage1_next_bank] != stage1_next_row && delay_before_precharge_counter_q[stage1_next_bank] ==0 && !precharge_slot_busy) begin    
                 //set-up delay before read and write
                  delay_before_activate_counter_d[stage1_next_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
@@ -1124,10 +1126,10 @@ module ddr3_controller #(
             else if(!bank_status_q[stage1_next_bank] && delay_before_activate_counter_q[stage1_next_bank] == 0 && !activate_slot_busy) begin 
                 delay_before_precharge_counter_d[stage1_next_bank] = ACTIVATE_TO_PRECHARGE_DELAY;
                 //set-up delay before read and write
-                if(delay_before_read_counter_d[stage1_next_bank] <= ACTIVATE_TO_READ_DELAY) begin
+                if(delay_before_read_counter_d[stage1_next_bank] <= ACTIVATE_TO_READ_DELAY) begin  // if current delay is > ACTIVATE_TO_READ_DELAY, then updating it to the lower delay will cause the previous delay to be violated
                     delay_before_read_counter_d[stage1_next_bank] = ACTIVATE_TO_READ_DELAY;
                 end
-                if(delay_before_write_counter_d[stage1_next_bank] <= ACTIVATE_TO_WRITE_DELAY) begin
+                if(delay_before_write_counter_d[stage1_next_bank] <= ACTIVATE_TO_WRITE_DELAY) begin  // if current delay is > ACTIVATE_TO_WRITE_DELAY, then updating it to the lower delay will cause the previous delay to be violated
                     delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
                 end
                 cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
@@ -1144,10 +1146,10 @@ module ddr3_controller #(
             if(!bank_status_d[stage1_bank] || (bank_status_d[stage1_bank] && bank_active_row_d[stage1_bank] != stage1_row)) begin 
                 stage1_stall = 1;
             end
-            else if(!stage1_we && delay_before_read_counter_d[stage1_bank] != 0) begin
+            else if(!stage1_we && delay_before_read_counter_d[stage1_bank] != 0) begin // if read request but delay before read is not yet met then stall
                 stage1_stall = 1;
             end
-            else if(stage1_we && delay_before_write_counter_d[stage1_bank] != 0) begin
+            else if(stage1_we && delay_before_write_counter_d[stage1_bank] != 0) begin // if write request but delay before write is not yet met then stall
                 stage1_stall = 1;
             end
             //different request type will need a delay of more than 1 clk cycle so stall the pipeline 
@@ -1161,17 +1163,22 @@ module ddr3_controller #(
             //control stage2 stall in advance
             if(bank_status_d[stage2_bank] &&  bank_active_row_d[stage2_bank] == stage2_row) begin //read/write operation
                 //write request
-                if(stage2_we && delay_before_write_counter_d[stage2_bank] == 0) begin //if counter is 1 now, then next clock it will be zero thus lower stall at next cycle too      
+                if(stage2_we && delay_before_write_counter_d[stage2_bank] == 0) begin // if write request and delay before write is already met then deassert stall
                     stage2_stall = 0; //to low stall next stage, but not yet at this stage
                 end
                 //read request
-                else if(!stage2_we && delay_before_read_counter_d[stage2_bank]==0) begin //if counter is 1 now, then next clock it will be zero thus lower stall at next cycle too      
+                else if(!stage2_we && delay_before_read_counter_d[stage2_bank]==0) begin // if read request and delay before read is already met then deassert stall 
                     stage2_stall = 0;
                 end
             end
         end
 
         // control logic for stall
+        // this small logic is already optimized via listing all possible combinations on excel sheet, investigating the patterns
+        // and passing the formal verification. I recommend to not touch this and just left this as is.
+        // This logic makes sure stall will never go high unless the pipeline is full
+        // What made this complicated is that fact you have to predict the stall for next clock cycle in such 
+        // a way that it will only stall next clock cycle if the pipeline will be full on the next clock cycle.
         if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
         else if( (!i_wb_stb && state_calibrate == DONE_CALIBRATE) || (!calib_stb && state_calibrate != DONE_CALIBRATE) ) o_wb_stall_d = 0; 
         else if(!stage1_pending) o_wb_stall_d = stage2_stall;
