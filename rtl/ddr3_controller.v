@@ -256,7 +256,10 @@ module ddr3_controller #(
         end
     `endif
     localparam READ_DELAY = $rtoi($floor((CL_nCK - (3 - READ_SLOT + 1))/4.0 )); // how many controller clk cycles to satisfy CL_nCK of ddr3_clk cycles
-    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1; // delays are added due to: IDELAY, ODELAY, IOSERDES (NOTE TO SELF: ELABORATE)
+     // READ_ACK_PIPE_WIDTH is the delay between read command issued (starting from the controller) until the data is received by the controller
+     //the delays included the ODELAY and OSERDES when issuing the read command
+     //and the IDELAY and ISERDES when receiving the data  (NOTE TO SELF: ELABORATE ON WHY THOSE MAGIC NUMBERS)
+    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;                           
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
                                                                                                       //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
@@ -427,14 +430,17 @@ module ddr3_controller #(
     reg[15:0] dqs_bitslip_arrangement = 0;
     /* verilator lint_off UNUSEDSIGNAL */
     (* mark_debug = "true" *) reg[3:0] added_read_pipe_max = 0;
-    (* mark_debug = "true" *) reg[3:0] added_read_pipe[LANES - 1:0];
+    (* mark_debug = "true" *) reg[3:0] added_read_pipe[LANES - 1:0]; 
+    //each lane will have added delay relative to when ISERDES should actually return the data
+    //this make sure that we will wait until the lane with longest delay (added_read_pipe_max) is received before
+    //all lanes are sent to wishbone data
     
     //contains the ack shift reg for both read and write
     reg[AUX_WIDTH:0] shift_reg_read_pipe_q[READ_ACK_PIPE_WIDTH-1:0]; 
-    reg[AUX_WIDTH:0] shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1:0]; //1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
-    reg index_read_pipe; //tells which delay_read_pipe will be updated 
+    reg[AUX_WIDTH:0] shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1:0]; //issue ack and AUX value , 1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+    reg index_read_pipe; //tells which delay_read_pipe will be updated (there are two delay_read_pipe)
     reg index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
-    reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data
+    reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data (since different lanes might not be aligned with each other and needs to be retrieved at a different time)
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
     
@@ -975,10 +981,10 @@ module ddr3_controller #(
             delay_before_read_counter_d[index] = (delay_before_read_counter_q[index] == 0)? 0:delay_before_read_counter_q[index] - 1;
         end
         for(index = 1; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
-            // shift is rightward where LSB gets MSB
+            // shift is rightward where LSB gets MSB ([MSB] -> [] -> [] -> .... -> [] -[LSB])
             shift_reg_read_pipe_d[index-1] = shift_reg_read_pipe_q[index];
         end
-        shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0;
+        shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0; //MSB just receives zero when shifted rightward
 
 
         //USE _d in ALL
@@ -1239,13 +1245,18 @@ module ddr3_controller #(
                 shift_reg_read_pipe_q[index] <= shift_reg_read_pipe_d[index];
             end
 
-            for(index = 0; index < 2; index = index + 1) begin
+            for(index = 0; index < 2; index = index + 1) begin 
+                // there are 2 read_pipes, and each read pipes shift rightward
+                // so the bit 1 will be shifted to the right until it reach LSB which means (NOT TO SELF)
                 delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
-            if(shift_reg_read_pipe_q[1][0]) begin //delay is over and data is now starting to release from iserdes BUT NOT YET ALIGNED
-                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 3 pipe to store read data)ss
+            if(shift_reg_read_pipe_q[1][0]) begin 
+                //delay from shift_reg_read_pipe_q is about to be over (ack will be at LSB on next clk cycle)
+                //and data is now starting to be release from ISERDES from phy BUT NOT YET ALIGNED
+                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 2 read_pipes to store read data)
                 delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
             end
+            // CONTINUE HERE: WHATS THE MAGIC HERE???
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
                 if(delay_read_pipe[0][added_read_pipe_max != added_read_pipe[index]]) begin //same lane
@@ -1438,6 +1449,7 @@ module ddr3_controller #(
                         another Bitslip command. If the ISERDESE2 is reset, the Bitslip logic is also reset
                         and returns back to its initial state.
                         */
+                        // bitslip basically is changing the arrangement of bytes on IOSERDES
                         if(i_phy_iserdes_bitslip_reference[lane*serdes_ratio*2 +: 8] == 8'b0111_1000) begin //initial arrangement
                             state_calibrate <= MPR_READ;
                             initial_dqs <= 1;
@@ -1459,7 +1471,10 @@ module ddr3_controller #(
                              dqs_count_repeat <= 0;
                       end    
                       
-        COLLECT_DQS: if(delay_before_read_data == 0) begin
+        COLLECT_DQS: if(delay_before_read_data == 0) begin // data from MPR read is received by controller
+                        // dqs from ISERDES is received and stored
+                        // DQS received from ISERDES: { {LANE_1_burst_7, LANE_1_burst_6, ... , LANE_1_burst_0} , {LANE_0_burst_7, LANE_0_burst_6, ... , LANE_0_burst_0}}
+                        // NOTE TO SELF: WHY DQS IS DIVIDED PER LANE BUT DQ IS PER BURST ???? CONTINUE HERE
                         dqs_store <= {i_phy_iserdes_dqs[serdes_ratio*2*lane +: 8], dqs_store[(STORED_DQS_SIZE*8-1):8]}; 
                         dqs_count_repeat <= dqs_count_repeat + 1;
                         if(dqs_count_repeat == STORED_DQS_SIZE - 1) begin
@@ -1593,6 +1608,7 @@ module ddr3_controller #(
                         calib_data <= { {LANES{8'h91}}, {LANES{8'h77}}, {LANES{8'h29}}, {LANES{8'h8c}}, {LANES{8'hd0}}, {LANES{8'had}}, {LANES{8'h51}}, {LANES{8'hc1}} }; 
                         // write to address 0 is a burst of 8 writes, where all lanes has same data written:  64'h9177298cd0ad51c1
                         // Example for LANES of 2, DQ of 8: the 128 bits (8 bursts * 2 lanes/burst * 8bits/lane) are 8 bursts with 8 bytes each:
+                        // { burst_7, burst_6, burst_5, burst_4, burst_3, burst_2, burst_1, burst_0 } OR:
                         // { { {burst7_lane1} , {burst7_lane0} } , { {burst6_lane1} , {burst6_lane0} } , { {burst5_lane1} , {burst5_lane0} } 
                         // , { {burst4_lane1} , {burst4_lane0} } , { {burst3_lane1} , {burst3_lane0} } , { {burst2_lane1} , {burst2_lane0} } 
                         // , { {burst1_lane1} , {burst1_lane0} } , { {burst0_lane1} , {burst0_lane0} } }
@@ -1922,7 +1938,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     assign o_phy_odelay_dqs_cntvaluein = odelay_dqs_cntvaluein[lane];
     assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
-    assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1;
+    assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
     reg[31:0] wb_data_to_wb2 = 0;
     always @(posedge i_controller_clk) begin
         if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
