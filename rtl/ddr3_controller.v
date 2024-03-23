@@ -17,8 +17,8 @@
 // Engineer: Angelo C. Jacobo
 //
 ////////////////////////////////////////////////////////////////////////////////
-
-
+// NOTE TO SELF are questions which I still need to answer
+// Comments are continuously added on this RTL for better readability
 
 //`define FORMAL_COVER //skip reset sequence to fit in cover depth
 `default_nettype none
@@ -994,7 +994,7 @@ module ddr3_controller #(
                     stage2_stall = 0;
                     stage2_update = 1;
                     cmd_odt = 1'b1;
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; // ack bit is sent to shift_reg
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; // ack is sent to shift_reg which will be shifted until the wb ack output
 
                     //write acknowledge will use the same logic pipeline as the read acknowledge. 
                     //This would mean write ack latency will be the same for
@@ -1008,7 +1008,6 @@ module ddr3_controller #(
                     //outstanding read ack or none on the pipeline. But this is
                     // acceptable in my opinion since this is a pipelined wishbone
                     // where the transaction can continue regardless when ack returns
-                    ///////////// CONTINUTE HERE
                     
                     //set-up delay before precharge, read, and write
                     if(delay_before_precharge_counter_q[stage2_bank] <= WRITE_TO_PRECHARGE_DELAY) begin
@@ -1022,7 +1021,7 @@ module ddr3_controller #(
                         delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
                     end
                     for(index=0; index < (1<<BA_BITS); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
-                        delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY + 1;
+                        delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY + 1; //NOTE TO SELF: why plus 1?
                     end
                     delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY + 1;     
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
@@ -1030,9 +1029,8 @@ module ddr3_controller #(
                     if(COL_BITS <= 10) begin
                         cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
-                    else begin
-                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd12}{1'b0}} , 
-                            stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                    else begin // COL_BITS > 10 has different format from <= 10
+                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //turn on odt at same time as write cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -1041,7 +1039,6 @@ module ddr3_controller #(
                     cmd_d[3][CMD_ODT] = cmd_odt;
                     write_dqs_d=1;
                     write_dq_d=1;
-                   // write_data = 1;
                 end
                 
                 //read request
@@ -1054,19 +1051,18 @@ module ddr3_controller #(
                         delay_before_precharge_counter_d[stage2_bank] = READ_TO_PRECHARGE_DELAY;
                     end
                     delay_before_read_counter_d[stage2_bank] = READ_TO_READ_DELAY;     
-                    delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY + 1; //temporary solution since its possible odt to go hig already while reading previously
-                    for(index=0; index < (1<<BA_BITS); index=index+1) begin //the read to write delay applies to all banks (odt must be turned on properly before writing)
-                        delay_before_write_counter_d[index] = READ_TO_WRITE_DELAY + 1;
+                    delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY + 1; //temporary solution since its possible odt to go high already while reading previously
+                    for(index=0; index < (1<<BA_BITS); index=index+1) begin //the read to write delay applies to all banks (odt must be turned on properly before writing and this delay is for ODT to settle)
+                        delay_before_write_counter_d[index] = READ_TO_WRITE_DELAY + 1; // NOTE TO SELF: why plus 1?
                     end
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; 
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; // ack is sent to shift_reg which will be shifted until the wb ack output
 
                     //issue read command
                     if(COL_BITS <= 10) begin
                         cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
                     end
-                    else begin
-                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd12}{1'b0}} , 
-                            stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                    else begin // COL_BITS > 10 has different format from <= 10
+                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
                     end
                     //turn off odt at same time as read cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -1606,7 +1602,7 @@ module ddr3_controller #(
                         // write to address 1 is also a burst of 8 writes, where all lanes has same data written:  128'h80dbcfd275f12c3d
                         state_calibrate <= ISSUE_READ;
                        end   
-                // NOTE WHY THERE ARE TWO ISSUE_WRITE
+                // NOTE: WHY THERE ARE TWO ISSUE_WRITE
                 // address 0 and 1 is written with a deterministic data, if the DQ trace has long delay then the data will be delayed 
                 // compared to the write command so the data aligned to the write command for address 0 MIGHT START AT MIDDLE OF EXPECTED OUTPUT
                 // DATA (64'h9177298cd0ad51c1) e.g. the data written might be 64'h[2c3d][9177298cd0ad] where the data written starts
@@ -1636,7 +1632,7 @@ module ddr3_controller #(
                             calib_stb <= 0;
                       end
                         // extract burst_0-to-burst_7 data for a specified lane then determine which byte in write_pattern does it starts
-                        // NOTE TO ME: all "8" here assume DQ_BITS are 8? parameterize this properly
+                        // NOTE TO SELF: all "8" here assume DQ_BITS are 8? parameterize this properly
                         // data_start_index for a specified lane determine how many bits are off the data from the write command
                         // so for every 1 ddr3 clk cycle delay of DQ from write command, each lane will be 1 burst off:
                         // e.g. LANE={burst7, burst6, burst5, burst4, burst3, burst2, burst1, burst0} then with 1 ddr3 cycle delay between DQ and command 
