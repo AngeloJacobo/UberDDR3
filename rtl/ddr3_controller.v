@@ -1412,6 +1412,10 @@ module ddr3_controller #(
                 idelay_data_cntvaluein[lane] <= o_phy_idelay_data_ld[lane]? idelay_data_cntvaluein[lane] + 1: idelay_data_cntvaluein[lane];
                 idelay_dqs_cntvaluein[lane] <= o_phy_idelay_dqs_ld[lane]? idelay_dqs_cntvaluein[lane] + 1: idelay_dqs_cntvaluein[lane];
             end
+            // high initial_dqs is the time when the IDELAY of dqs and dq is not yet calibrated 
+            // dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
+            // so dqs_target_index_value is basically the next odd number of dqs_start_index_stored (original starting bit when dqs starts).
+            // The next odd number ensure that the DQS is being sampled on the edge (and thus on the center of data eye for the dq since edge is 90 degree relative to dqs)
             if(initial_dqs) begin
                 dqs_target_index <= dqs_target_index_value;
                 dq_target_index[lane] <= {1'b0, dqs_target_index_value};
@@ -1474,22 +1478,33 @@ module ddr3_controller #(
         COLLECT_DQS: if(delay_before_read_data == 0) begin // data from MPR read is received by controller
                         // dqs from ISERDES is received and stored
                         // DQS received from ISERDES: { {LANE_1_burst_7, LANE_1_burst_6, ... , LANE_1_burst_0} , {LANE_0_burst_7, LANE_0_burst_6, ... , LANE_0_burst_0}}
-                        // NOTE TO SELF: WHY DQS IS DIVIDED PER LANE BUT DQ IS PER BURST ???? CONTINUE HERE
+                        // NOTE TO SELF: WHY DQS IS DIVIDED PER LANE BUT DQ IS PER BURST ???? 
+                        // dqs_store stores the 8 DQS (8 bursts) for a given lane but since the DQS might be shifted later (due to trace delays), we must store the
+                        // 8 DQS multiple times (dictated by STORED_DQS_SIZE)
                         dqs_store <= {i_phy_iserdes_dqs[serdes_ratio*2*lane +: 8], dqs_store[(STORED_DQS_SIZE*8-1):8]}; 
                         dqs_count_repeat <= dqs_count_repeat + 1;
                         if(dqs_count_repeat == STORED_DQS_SIZE - 1) begin
                             state_calibrate <= ANALYZE_DQS;
-                            dqs_start_index_stored <= dqs_start_index;
-                            dqs_start_index <= 0;
+                            // store the previous value of dqs_start_index, if the ANALYZE_DQS is repeated then the dqs_start_index
+                            // should be the same as the previous value, else the previous (or current one) has a glitch causing 
+                            // a different dqs_start_index 
+                            dqs_start_index_stored <= dqs_start_index; 
+                            // start the index from zero since this will be incremented until we pinpoint the real 
+                            // starting bit of dqs_store (dictated by the pattern 10'b01_01_01_01_00)
+                            dqs_start_index <= 0;                             
                         end
                       end
-                      
+                        // find the bit where the DQS starts to be issued (by finding when the pattern 10'b01_01_01_01_00 starts)
          ANALYZE_DQS: if(dqs_store[dqs_start_index +: 10] == 10'b01_01_01_01_00) begin
-                        dqs_start_index_repeat <= (dqs_start_index == dqs_start_index_stored)? dqs_start_index_repeat + 1: 0; //increase dqs_start_index_repeat when index is the same as before      
-                         if(dqs_start_index_repeat == REPEAT_DQS_ANALYZE) begin //the same index appeared  REPEAT_DQS_ANALYZE times in a row, thus can proceed to CALIBRATE_DQS 
-                            initial_dqs <= 0;
+                         //increase dqs_start_index_repeat when index is the same as before   
+                        dqs_start_index_repeat <= (dqs_start_index == dqs_start_index_stored)? dqs_start_index_repeat + 1: 0;   
+                         //the same dqs_start_index_repeat appeared REPEAT_DQS_ANALYZE times in a row, thus we can trust the value we got is accurate and not affected by glitch
+                         if(dqs_start_index_repeat == REPEAT_DQS_ANALYZE) begin
+                             // since we already know the starting bit when the dqs (and dq since they are aligend) will come,
+                             // we will now start calibrating the IDELAY for dqs and dq (via CALIBRATE_DQS). 
+                             // high initial_dqs is the time when the IDELAY of dqs and dq is not yet calibrated so we zero this starting now
+                            initial_dqs <= 0; 
                             dqs_start_index_repeat <= 0;
-
                             state_calibrate <= CALIBRATE_DQS;
                          end
                         else begin
@@ -1507,7 +1522,7 @@ module ddr3_controller #(
                             dqs_start_index <= dqs_start_index + 1;
                         end
                       end
-
+                        // check if the index when the dqs starts is the same as ....
         CALIBRATE_DQS: if(dqs_start_index_stored == dqs_target_index) begin
                             added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
                                                         + { 3'b0 , (dq_target_index[lane][3:0] >= (5+8)) };
