@@ -157,7 +157,7 @@ module ddr3_controller #(
     // delayed and center-aligned to the center eye of data)
     localparam DATA_INITIAL_ODELAY_TAP = 0; 
 
-    //DQS needs to be edge-aligned to the center eye of the data. 
+    //Posedge of DQS needs to be aligned to the center eye of the data. 
     //This means DQS needs to be delayed by a quarter of the ddr3
     //clk period relative to the data. Subtract by 600ps to include
     //the IODELAY insertion delay. Divide by a delay resolution of 
@@ -1415,16 +1415,17 @@ module ddr3_controller #(
             // high initial_dqs is the time when the IDELAY of dqs and dq is not yet calibrated 
             // dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
             // so dqs_target_index_value is basically the next odd number of dqs_start_index_stored (original starting bit when dqs starts).
-            // The next odd number ensure that the DQS is being sampled on the edge (and thus on the center of data eye for the dq since edge is 90 degree relative to dqs)
+            // The next odd number ensure that the DQS is edge-aligned to the ddr3_clk (and thus DQ is center aligned to ddr3_clk
+            // since dq is 90 degree relative to dqs (such that dqs is sampling the dq at center of data eye))
             if(initial_dqs) begin
-                dqs_target_index <= dqs_target_index_value;
-                dq_target_index[lane] <= {1'b0, dqs_target_index_value};
-                dqs_target_index_orig <= dqs_target_index_value;
+                dqs_target_index <= dqs_target_index_value; // target index for DQS to make sure the DQS is edge-aligned with ddr3_clk
+                dq_target_index[lane] <= {1'b0, dqs_target_index_value}; // target index for DQ (just same as DQS)
+                dqs_target_index_orig <= dqs_target_index_value; // this will remain the same until we finish calibrating this whole lane
             end
-            if(idelay_dqs_cntvaluein[lane] == 0) begin //go back to previous odd
+            if(idelay_dqs_cntvaluein[lane] == 0) begin //the DQS got past cntvalue of 31 (and goes back to zero) THUS the target index should also go back (to previous odd)
                 dqs_target_index <= dqs_target_index_orig - 2;
             end
-            if(idelay_data_cntvaluein[lane] == 0 && idelay_data_cntvaluein_prev == 31) begin
+            if(idelay_data_cntvaluein[lane] == 0 && idelay_data_cntvaluein_prev == 31) begin //the DQ got past cntvalue of 31 (and goes back to zero) thus the target index should also go back (to previous odd)
                 dq_target_index[lane] <= dqs_target_index_orig - 2;
             end
             
@@ -1469,17 +1470,17 @@ module ddr3_controller #(
             MPR_READ: if(delay_before_read_data == 0) begin //align the incoming DQS during reads to the controller clock 
                              //issue_read_command = 1;
                              /* verilator lint_off WIDTH */
-                             delay_before_read_data <= READ_DELAY + 1 + 2 + 1 - 1; ///1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+                             delay_before_read_data <= READ_DELAY + 1 + 2 + 1 - 1; ///NOTE TO SELF: why these numbers? 1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
                              /* verilator lint_on WIDTH */
                              state_calibrate <= COLLECT_DQS;
                              dqs_count_repeat <= 0;
                       end    
                       
-        COLLECT_DQS: if(delay_before_read_data == 0) begin // data from MPR read is received by controller
+                COLLECT_DQS: if(delay_before_read_data == 0) begin // data from MPR read is now received by controller
                         // dqs from ISERDES is received and stored
                         // DQS received from ISERDES: { {LANE_1_burst_7, LANE_1_burst_6, ... , LANE_1_burst_0} , {LANE_0_burst_7, LANE_0_burst_6, ... , LANE_0_burst_0}}
                         // NOTE TO SELF: WHY DQS IS DIVIDED PER LANE BUT DQ IS PER BURST ???? 
-                        // dqs_store stores the 8 DQS (8 bursts) for a given lane but since the DQS might be shifted later (due to trace delays), we must store the
+                        // dqs_store stores the 8 DQS (8 bursts) for a given lane but since the DQS might be shifted at next ddr3 clk cycles (due to trace delays), we must store the
                         // 8 DQS multiple times (dictated by STORED_DQS_SIZE)
                         dqs_store <= {i_phy_iserdes_dqs[serdes_ratio*2*lane +: 8], dqs_store[(STORED_DQS_SIZE*8-1):8]}; 
                         dqs_count_repeat <= dqs_count_repeat + 1;
@@ -1522,14 +1523,25 @@ module ddr3_controller #(
                             dqs_start_index <= dqs_start_index + 1;
                         end
                       end
-                        // check if the index when the dqs starts is the same as ....
+                        // check if the index when the dqs starts is the same as the target index which is aligned to the ddr3_clk
+                        // dqs_target_index is the next odd number to dqs_start_index BEFORE IDELAY CALIBRATION. We will increase the IDELAY
+                        // until the dqs_start_index_stored (current value of dqs_start_index) matches the target index which is aligned to ddr3_clk
         CALIBRATE_DQS: if(dqs_start_index_stored == dqs_target_index) begin
+                            // dq_target_index still stores the original dqs_target_index_value. The bit size of dq_target_index is just enough
+                            // to count the bits in dqs_store (the received 8 DQS stored STORED_DQS_SIZE times)
                             added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
                                                         + { 3'b0 , (dq_target_index[lane][3:0] >= (5+8)) };
+                            // if target_index is > 13, then a 1 CONTROLLLER_CLK cycle delay (4 ddr3_clk cycles) is added on that particular lane (due to trace delay)
+                            // added_read_pipe[lane] <= dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1 : (4)]  +  ( dq_target_index[lane][3:0] >= 13 ) ;
+                            // CONTINUE HERE
                             dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[lane][2:0];
                             state_calibrate <= BITSLIP_DQS_TRAIN_2;
                        end
                        else begin
+                            // if we have not yet reached the target index then increment IDELAY
+                            // we will keep incrementing the IDELAY until the next odd index is reached (which is
+                            // the time we are sure the DQS is edge aligned with ddr3_clk and thus ddr3_clk posedge
+                            // is hitting the center of DQ eye
                             o_phy_idelay_data_ld[lane] <= 1;
                             o_phy_idelay_dqs_ld[lane] <= 1;
                             state_calibrate <= MPR_READ;
