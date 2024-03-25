@@ -1196,7 +1196,7 @@ module ddr3_controller #(
     assign o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
     /*********************************************************************************************************************************************/
 
-
+    // CONTINUE HERE
     /******************************************************* Align Read Data from ISERDES *******************************************************/
     always @(posedge i_controller_clk) begin
         if(sync_rst_controller) begin
@@ -1535,7 +1535,6 @@ module ddr3_controller #(
                                                         + { 3'b0 , (dq_target_index[lane][3:0] >= (5+8)) };
                             // if target_index is > 13, then a 1 CONTROLLLER_CLK cycle delay (4 ddr3_clk cycles) is added on that particular lane (due to trace delay)
                             // added_read_pipe[lane] <= dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1 : (4)]  +  ( dq_target_index[lane][3:0] >= 13 ) ;
-                            // CONTINUE HERE
                             dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[lane][2:0];
                             // the dqs is delayed (to move starting bit to next odd number) so this means the original
                             // expected bitslip arrangement of  8'b0111_1000 will not be followed anymore, so here we form the bitslip
@@ -1557,9 +1556,9 @@ module ddr3_controller #(
                         // expected bitslip arrangement of  8'b0111_1000 will not be followed anymore, so here the bitslip
                         // is re-arranged
   BITSLIP_DQS_TRAIN_2: if(train_delay == 0) begin //train again the ISERDES to capture the DQ correctly
-                            // CONTINUE HERE
                             if(i_phy_iserdes_bitslip_reference[lane*serdes_ratio*2 +: 8] == dqs_bitslip_arrangement[7:0]) begin
                                 /* verilator lint_off WIDTH */
+                                // this is the end of training and calibration for a single lane, so proceed to next lane
                                 if(lane == LANES - 1) begin
                                 /* verilator lint_on WIDTH */
                                     pause_counter <= 0; //read calibration now complete so continue the reset instruction sequence
@@ -1573,8 +1572,11 @@ module ddr3_controller #(
                                  end
                                  else begin
                                      lane <= lane + 1;
-                                     state_calibrate <= BITSLIP_DQS_TRAIN_1;
+                                     state_calibrate <= BITSLIP_DQS_TRAIN_1;// current lane is done so go back to BITSLIP_DQS_TRAIN_1 to train next lane
                                  end
+                                // stores the highest value of added_read_pipe among the lanes since all lanes (except the lane with highest 
+                                // added_read_pipe) will be delayed to align with the lane with highest added_read_pipe. This alignment 
+                                // is required to make sure the received DQ will be aligned and can form the 512 bit data (for 8 lanes) arranged properly.
                                  added_read_pipe_max <= added_read_pipe_max > added_read_pipe[lane]? added_read_pipe_max:added_read_pipe[lane];
                             end
                             else begin
@@ -1582,7 +1584,7 @@ module ddr3_controller #(
                                 train_delay <= 3;
                             end
                        end
-                      
+                // CONTINUE COMMENT HERE  (once blog is done)                
     START_WRITE_LEVEL: if(!ODELAY_SUPPORTED) begin //skip write levelling if ODELAY is not supported
                             pause_counter <= 0;
                             lane <= 0;
