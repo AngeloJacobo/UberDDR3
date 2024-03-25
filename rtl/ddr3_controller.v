@@ -1417,6 +1417,8 @@ module ddr3_controller #(
             // so dqs_target_index_value is basically the next odd number of dqs_start_index_stored (original starting bit when dqs starts).
             // The next odd number ensure that the DQS is edge-aligned to the ddr3_clk (and thus DQ is center aligned to ddr3_clk
             // since dq is 90 degree relative to dqs (such that dqs is sampling the dq at center of data eye))
+            // To show why next odd number is needed: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
+            
             if(initial_dqs) begin
                 dqs_target_index <= dqs_target_index_value; // target index for DQS to make sure the DQS is edge-aligned with ddr3_clk
                 dq_target_index[lane] <= {1'b0, dqs_target_index_value}; // target index for DQ (just same as DQS)
@@ -1535,6 +1537,9 @@ module ddr3_controller #(
                             // added_read_pipe[lane] <= dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1 : (4)]  +  ( dq_target_index[lane][3:0] >= 13 ) ;
                             // CONTINUE HERE
                             dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[lane][2:0];
+                            // the dqs is delayed (to move starting bit to next odd number) so this means the original
+                            // expected bitslip arrangement of  8'b0111_1000 will not be followed anymore, so here we form the bitslip
+                            // arrangement pattern so incoming dqs (and thus DQ) is arranged in the proper way (first bute firs, last byte last)
                             state_calibrate <= BITSLIP_DQS_TRAIN_2;
                        end
                        else begin
@@ -1542,13 +1547,17 @@ module ddr3_controller #(
                             // we will keep incrementing the IDELAY until the next odd index is reached (which is
                             // the time we are sure the DQS is edge aligned with ddr3_clk and thus ddr3_clk posedge
                             // is hitting the center of DQ eye
+                            // To show why next odd number is needed: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
                             o_phy_idelay_data_ld[lane] <= 1;
                             o_phy_idelay_dqs_ld[lane] <= 1;
                             state_calibrate <= MPR_READ;
                             delay_before_read_data <= 10; //wait for sometime to make sure idelay load settles
                        end
-                       
+                        //the dqs is delayed (to move starting bit to next odd number) so this means the original
+                        // expected bitslip arrangement of  8'b0111_1000 will not be followed anymore, so here the bitslip
+                        // is re-arranged
   BITSLIP_DQS_TRAIN_2: if(train_delay == 0) begin //train again the ISERDES to capture the DQ correctly
+                            // CONTINUE HERE
                             if(i_phy_iserdes_bitslip_reference[lane*serdes_ratio*2 +: 8] == dqs_bitslip_arrangement[7:0]) begin
                                 /* verilator lint_off WIDTH */
                                 if(lane == LANES - 1) begin
@@ -1966,6 +1975,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     assign o_phy_idelay_data_cntvaluein = idelay_data_cntvaluein[lane];
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
     assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
+     // To show why next odd number is needed: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
     reg[31:0] wb_data_to_wb2 = 0;
     always @(posedge i_controller_clk) begin
         if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
