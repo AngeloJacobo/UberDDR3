@@ -1242,21 +1242,31 @@ module ddr3_controller #(
                 write_dq[index+1] <= write_dq[index]; 
             end 
             for(index = 0; index < READ_ACK_PIPE_WIDTH; index = index + 1) begin
+                // shifted rightward where LSB gets MSB ([MSB] -> [] -> [] -> .... -> [] -[LSB])
                 shift_reg_read_pipe_q[index] <= shift_reg_read_pipe_d[index];
             end
 
             for(index = 0; index < 2; index = index + 1) begin 
-                // there are 2 read_pipes, and each read pipes shift rightward
-                // so the bit 1 will be shifted to the right until it reach LSB which means (NOT TO SELF)
+                // there are 2 read_pipes (each with 16 space for shifting), and each read pipes shift rightward
+                // so the bit 1 will be shifted to the right until it reach LSB which means ....(NOTE TO SELF)
                 delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
             if(shift_reg_read_pipe_q[1][0]) begin 
-                //delay from shift_reg_read_pipe_q is about to be over (ack will be at LSB on next clk cycle)
-                //and data is now starting to be release from ISERDES from phy BUT NOT YET ALIGNED
-                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 2 read_pipes to store read data)
+                //delay from shift_reg_read_pipe_q is about to be over (ack, which is the last bit, will be at LSB on next clk cycle)
+                //and data is now starting to be released from ISERDES from phy BUT NOT YET ALIGNED
+                index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 2 read_pipes to store read data,use the read_pipe alternatingly)
                 delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
+                // delay_read_pipe will get the ack bit from shift_reg_read_pipe_q[1] at the bit equal to 
+                // added_read_pipe_max. added_read_pipe_max is the max number of added controller clk cycles among all lanes
+                // So basically, the delay_read_pipe is the delay to make sure the "added_read_pipe_max" controller clk cycles
+                // will be met.
+                // Example:
+                // So for request #1 (e.g. write request, added_read_pipe_max=2), wait until the shift_reg_read_pipe_q[1] goes 
+                // high (READ_ACK_PIPE_WIDTH of delay is met which means the data from ISERDES PHY is now available). The 
+                // delay_read_pipe[0][2] will then be high. This high bit on read_pipe #0 will get shifted to LSB. [1] -> [] -> [LSB] 
+                // Meanwhile when request #2 comes (e.g. read request, added_read_pipe_max=2)
             end
-            // CONTINUE HERE: WHATS THE MAGIC HERE???
+            // CONTINUE HERE: 
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
                 if(delay_read_pipe[0][added_read_pipe_max != added_read_pipe[index]]) begin //same lane
