@@ -1256,31 +1256,48 @@ module ddr3_controller #(
                 //and data is now starting to be released from ISERDES from phy BUT NOT YET ALIGNED
                 index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 2 read_pipes to store read data,use the read_pipe alternatingly)
                 delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
+                // NOTE: added_read_pipe_max can either be 0 or 1 (NOTE TO SELF: optimize by lowering the bit size of delay_read_pipe)
                 // delay_read_pipe will get the ack bit from shift_reg_read_pipe_q[1] at the bit equal to 
-                // added_read_pipe_max. added_read_pipe_max is the max number of added controller clk cycles among all lanes
+                // added_read_pipe_max (0th or 1st bit). added_read_pipe_max is the max number of added controller clk cycles among all lanes
                 // So basically, the delay_read_pipe is the delay to make sure the "added_read_pipe_max" controller clk cycles
                 // will be met.
                 // Example:
                 // So for request #1 (e.g. write request, added_read_pipe_max=2), wait until the shift_reg_read_pipe_q[1] goes 
                 // high (READ_ACK_PIPE_WIDTH of delay is met which means the data from ISERDES PHY is now available). The 
                 // delay_read_pipe[0][2] will then be high. This high bit on read_pipe #0 will get shifted to LSB. [1] -> [] -> [LSB] 
-                // Meanwhile when request #2 comes (e.g. read request, added_read_pipe_max=2)
+                // Meanwhile when request #2 comes (e.g. read request, added_read_pipe_max=2), again wait until the shift_reg_read_pipe_q[1] goes 
+                // high. The delay_read_pipe[1][2] will then be high. This high bit on read_pipe #1 will get shifted to LSB. [1] -> [] -> [LSB]
             end
             // CONTINUE HERE: 
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
-                if(delay_read_pipe[0][added_read_pipe_max != added_read_pipe[index]]) begin //same lane
+                // read_pipe #0
+                // NOTE: added_read_pipe_max and added_read_pipe can either be just 0 or 1 (NOTE TO SELF: optimize by lowering the bit size of this)
+                // If the added_read_pipe (added number of controller clk cycles of delay to a lane due to pcb trace) is equal to the 
+                // max delay (added_read_pipe_max, e.g. 0-0 or 1-1) for this lane, THEN we need to wait until the bit 1 reaches the LSB[0] of delay_read_pipe
+                // before retrieving the value from PHY. But if not the same (added_read_pipe is 0 while added_read_pipe_max is 1), then wait until
+                // the bit 1 reaches the one before LSB [1] before retrieving the value from PHY, so this means this lane with 0 delay will FIRST BE RETRIEVED
+                // while the lane with added_read_pipe_max of delay (delay of 1) will be retrieved SECOND
+                if(delay_read_pipe[0][added_read_pipe_max != added_read_pipe[index]]) begin 
                 /* verilator lint_on WIDTH */
-                    o_wb_data_q[0][((DQ_BITS*LANES)*0 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*0 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*1 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*1 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*2 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*2 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*3 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*3 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*4 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*4 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*5 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*5 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*6 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*6 + 8*index) +: 8]; //update each lane of the burst
-                    o_wb_data_q[0][((DQ_BITS*LANES)*7 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*7 + 8*index) +: 8]; //update each lane of the burst
+                    o_wb_data_q[0][((DQ_BITS*LANES)*0 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*0 + 8*index) +: 8]; //update lane for burst 0
+                    o_wb_data_q[0][((DQ_BITS*LANES)*1 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*1 + 8*index) +: 8]; //update lane for burst 1
+                    o_wb_data_q[0][((DQ_BITS*LANES)*2 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*2 + 8*index) +: 8]; //update lane for burst 2
+                    o_wb_data_q[0][((DQ_BITS*LANES)*3 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*3 + 8*index) +: 8]; //update lane for burst 3
+                    o_wb_data_q[0][((DQ_BITS*LANES)*4 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*4 + 8*index) +: 8]; //update lane for burst 4
+                    o_wb_data_q[0][((DQ_BITS*LANES)*5 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*5 + 8*index) +: 8]; //update lane for burst 5
+                    o_wb_data_q[0][((DQ_BITS*LANES)*6 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*6 + 8*index) +: 8]; //update lane for burst 6
+                    o_wb_data_q[0][((DQ_BITS*LANES)*7 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*7 + 8*index) +: 8]; //update lane for burst 7
                 end
                 /* verilator lint_off WIDTH */
+                // read_pipe #1
+                // NOTE: added_read_pipe_max and added_read_pipe can either be just 0 or 1 (NOTE TO SELF: optimize by lowering the bit size of this)
+                // If the added_read_pipe (added number of controller clk cycles of delay to a lane due to pcb trace) is equal to the 
+                // max delay (added_read_pipe_max, e.g. 0-0 or 1-1) for this lane, THEN we need to wait until the bit 1 reaches the LSB[0] of delay_read_pipe
+                // before retrieving the value from PHY. But if not the same (added_read_pipe is 0 while added_read_pipe_max is 1), then wait until
+                // the bit 1 reaches the one before LSB [1] (which goes high already since bit 1 of delay_read_pipe is the first to go high once shift_reg_read_pipe_q
+                // bit 1 goes high) before retrieving the value from PHY. So this means this lane with 0 delay will FIRST BE RETRIEVED
+                // while the lane with added_read_pipe_max of delay (delay of 1) will be retrieved SECOND
                 if(delay_read_pipe[1][added_read_pipe_max != added_read_pipe[index]]) begin
                 /* verilator lint_on WIDTH */
                     o_wb_data_q[1][((DQ_BITS*LANES)*0 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*0 + 8*index) +: 8]; //update each lane of the burst
@@ -1292,9 +1309,11 @@ module ddr3_controller #(
                     o_wb_data_q[1][((DQ_BITS*LANES)*6 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*6 + 8*index) +: 8]; //update each lane of the burst
                     o_wb_data_q[1][((DQ_BITS*LANES)*7 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*7 + 8*index) +: 8]; //update each lane of the burst
                 end
+                // why are we alternatingly use the read_pipes?
+                //
             end
             if(o_wb_ack_read_q[0][0]) begin 
-                index_wb_data <= !index_wb_data;
+                index_wb_data <= !index_wb_data; //alternatingly uses the o_wb_data_q (either 0 or 1)
             end
             for(index = 1; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
                 o_wb_ack_read_q[index-1] <= o_wb_ack_read_q[index];
