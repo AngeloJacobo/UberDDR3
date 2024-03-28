@@ -1187,6 +1187,7 @@ module ddr3_controller #(
         // This logic makes sure stall will never go high unless the pipeline is full
         // What made this complicated is that fact you have to predict the stall for next clock cycle in such 
         // a way that it will only stall next clock cycle if the pipeline will be full on the next clock cycle.
+        // Excel sheet: https://1drv.ms/x/s!AhWdq9CipeVagSqQXPwRmXhDgttL?e=vVYIxE&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0
         if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
         else if( (!i_wb_stb && state_calibrate == DONE_CALIBRATE) || (!calib_stb && state_calibrate != DONE_CALIBRATE) ) o_wb_stall_d = 0; 
         else if(!stage1_pending) o_wb_stall_d = stage2_stall;
@@ -1198,7 +1199,6 @@ module ddr3_controller #(
     assign o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
     /*********************************************************************************************************************************************/
 
-    // CONTINUE HERE
     /******************************************************* Align Read Data from ISERDES *******************************************************/
     always @(posedge i_controller_clk) begin
         if(sync_rst_controller) begin
@@ -1250,7 +1250,7 @@ module ddr3_controller #(
 
             for(index = 0; index < 2; index = index + 1) begin 
                 // there are 2 read_pipes (each with 16 space for shifting), and each read pipes shift rightward
-                // so the bit 1 will be shifted to the right until it reach LSB which means ....(NOTE TO SELF)
+                // so the bit 1 will be shifted to the right until it reach LSB which means data is already on ISERDES output of PHY
                 delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
             if(shift_reg_read_pipe_q[1][0]) begin 
@@ -1264,13 +1264,13 @@ module ddr3_controller #(
                 // So basically, the delay_read_pipe is the delay to make sure the "added_read_pipe_max" controller clk cycles
                 // will be met.
                 // Example:
-                // So for request #1 (e.g. write request, added_read_pipe_max=2), wait until the shift_reg_read_pipe_q[1] goes 
+                // So for request #1 (e.g. write request, added_read_pipe_max=1), wait until the shift_reg_read_pipe_q[1] goes 
                 // high (READ_ACK_PIPE_WIDTH of delay is met which means the data from ISERDES PHY is now available). The 
-                // delay_read_pipe[0][2] will then be high. This high bit on read_pipe #0 will get shifted to LSB. [1] -> [] -> [LSB] 
-                // Meanwhile when request #2 comes (e.g. read request, added_read_pipe_max=2), again wait until the shift_reg_read_pipe_q[1] goes 
-                // high. The delay_read_pipe[1][2] will then be high. This high bit on read_pipe #1 will get shifted to LSB. [1] -> [] -> [LSB]
+                // delay_read_pipe[0][1] will then be high. This high bit on read_pipe #0 will get shifted to LSB. [1] -> [] -> [LSB]
+                // Meanwhile when request #2 comes (e.g. read request, added_read_pipe_max=1), again wait until the shift_reg_read_pipe_q[1] goes 
+                // high. The delay_read_pipe[1][1] will then be high. This high bit on read_pipe #1 will get shifted to LSB. [1] -> [] -> [LSB]
             end
-            // CONTINUE HERE: 
+            
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
                 // read_pipe #0
@@ -1321,6 +1321,7 @@ module ddr3_controller #(
                 // (lane with added_read_pipe 0 is retrieved from ISERDES at time 1, lane with added_read_pipe 1 is retrieved from ISERDES at time 2)
                 // At time 2, request #2 is accepted by pipe[0] (since pipe[1] is still busy on request #1), then wait until time 3 to retrieve 
                 // the lane with longest added_read_pipe
+                // Thus pipe 0 and 1 is alternating to make sure that even if 0 is busy, 1 will retrieve the data. And then when 1 is busy, 0 will retrieve the data
                 // NOTE TO SELF: longest delay for a lane relative to others is 1 controller clk cycle, if more than 1 then it will not be retrievd 
                 // and aligned properly. Thus try to optimize this logic since delay is at max 1 controller clk only.
             end
@@ -1475,9 +1476,9 @@ module ddr3_controller #(
             // high initial_dqs is the time when the IDELAY of dqs and dq is not yet calibrated 
             // dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
             // so dqs_target_index_value is basically the next odd number of dqs_start_index_stored (original starting bit when dqs starts).
-            // The next odd number ensure that the DQS is edge-aligned to the ddr3_clk (and thus DQ is center aligned to ddr3_clk
-            // since dq is 90 degree relative to dqs (such that dqs is sampling the dq at center of data eye))
-            // To show why next odd number is needed: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
+            // The next odd number ensure that the DQS edge is aligned to edge of ddr3_clk (and thus DQ data eye is aligned to edges of of ddr3_clk
+            // since dq is 90 degree relative to dqs
+            // Some images to show why next odd number is used: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
             
             if(initial_dqs) begin
                 dqs_target_index <= dqs_target_index_value; // target index for DQS to make sure the DQS is edge-aligned with ddr3_clk
@@ -1563,7 +1564,7 @@ module ddr3_controller #(
                         dqs_start_index_repeat <= (dqs_start_index == dqs_start_index_stored)? dqs_start_index_repeat + 1: 0;   
                          //the same dqs_start_index_repeat appeared REPEAT_DQS_ANALYZE times in a row, thus we can trust the value we got is accurate and not affected by glitch
                          if(dqs_start_index_repeat == REPEAT_DQS_ANALYZE) begin
-                             // since we already know the starting bit when the dqs (and dq since they are aligend) will come,
+                             // since we already know the starting bit when the dqs (and dq since they are aligned) will come,
                              // we will now start calibrating the IDELAY for dqs and dq (via CALIBRATE_DQS). 
                              // high initial_dqs is the time when the IDELAY of dqs and dq is not yet calibrated so we zero this starting now
                             initial_dqs <= 0; 
@@ -1724,10 +1725,11 @@ module ddr3_controller #(
                         state_calibrate <= ISSUE_READ;
                        end   
                 // NOTE: WHY THERE ARE TWO ISSUE_WRITE
-                // address 0 and 1 is written with a deterministic data, if the DQ trace has long delay then the data will be delayed 
-                // compared to the write command so the data aligned to the write command for address 0 MIGHT START AT MIDDLE OF EXPECTED OUTPUT
+                // address 0 and 1 is written with a deterministic data, if the DQ trace has long delay (relative to command line) then the data will be delayed 
+                // compared to the write command. Thus the data aligned to the write command for address 0 MIGHT START AT MIDDLE OF EXPECTED OUTPUT
                 // DATA (64'h9177298cd0ad51c1) e.g. the data written might be 64'h[2c3d][9177298cd0ad] where the data written starts
                 // at burst 2 (burst 0 and burst 1 are cut-off since each burst uses 1 ddr3_clk cycle)
+                // Note here that if DQ and DQS sa same delay, then we know the DQS will always be aligned with DQ data 
                 
           ISSUE_READ: begin
                         calib_stb <= 1;//actual request flag
