@@ -913,7 +913,7 @@ module ddr3_controller #(
                         << (data_start_index[index]>>3)) | unaligned_dm[index];
                 /* verilator lint_on WIDTH */
             end
-            // stage2 can have multiple pipelined stages inside it 
+            // stage2 can have multiple pipelined stages inside it which acts as delay before issuing the write data (after issuing write command)
             for(index = 0; index < STAGE2_DATA_DEPTH-1; index = index+1) begin
                 stage2_data[index+1] <=  stage2_data[index];              
                 stage2_dm[index+1] <= stage2_dm[index];
