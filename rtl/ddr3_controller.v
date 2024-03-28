@@ -247,6 +247,8 @@ module ddr3_controller #(
     //Also, worscase is when the anticipated bank still has the leftover of the 
     //WRITE_TO_PRECHARGE_DELAY thus consider also this.
     localparam MARGIN_BEFORE_ANTICIPATE = PRECHARGE_TO_ACTIVATE_DELAY + ACTIVATE_TO_WRITE_DELAY + WRITE_TO_PRECHARGE_DELAY;
+    // STAGE2_DATA_DEPTH is the number of controller clk cycles of delay before issuing the data after the write command
+    // depends on the CWL_nCK
     localparam STAGE2_DATA_DEPTH = (CWL_nCK - (3 - WRITE_SLOT + 1))/4 + 1; //this is always >= 1 (5 - (3 - 3 + 1))/4.0 -> floor(1) + 1 = floor(4
     `ifdef FORMAL
         wire stage2_data_depth;
