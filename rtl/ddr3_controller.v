@@ -1310,18 +1310,47 @@ module ddr3_controller #(
                     o_wb_data_q[1][((DQ_BITS*LANES)*7 + 8*index) +: 8] <= i_phy_iserdes_data[((DQ_BITS*LANES)*7 + 8*index) +: 8]; //update each lane of the burst
                 end
                 // why are we alternatingly use the read_pipes?
+                //               time |   0    |   1     |   2     |   3     |
+                //    index_read_pipe |   1    |   0     |   1     |   0     |
+                // delay_read_pipe[1] | [0][0] | <[1][0] | [0][1]> | [1][0]  |   
+                // delay_read_pipe[0] | [0][0] | [0][0]  | <[1][0] | [0][1]> |  
                 //
+                // At time 1, request #1 is accepted by pipe[1], then wait until time 2 to retrieve the lane with longest added_read_pipe 
+                // (lane with added_read_pipe 0 is retrieved from ISERDES at time 1, lane with added_read_pipe 1 is retrieved from ISERDES at time 2)
+                // At time 2, request #2 is accepted by pipe[0] (since pipe[1] is still busy on request #1), then wait until time 3 to retrieve 
+                // the lane with longest added_read_pipe
+                // NOTE TO SELF: longest delay for a lane relative to others is 1 controller clk cycle, if more than 1 then it will not be retrievd 
+                // and aligned properly. Thus try to optimize this logic since delay is at max 1 controller clk only.
             end
+            // o_wb_ack_read_q[0][0] is also the wishbone ack (aligned with ack is the wishbone data) thus
+            // after sending the wishbone data on a particular index, invert it for the next ack
             if(o_wb_ack_read_q[0][0]) begin 
                 index_wb_data <= !index_wb_data; //alternatingly uses the o_wb_data_q (either 0 or 1)
             end
             for(index = 1; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
-                o_wb_ack_read_q[index-1] <= o_wb_ack_read_q[index];
+                o_wb_ack_read_q[index-1] <= o_wb_ack_read_q[index]; // shift rightward [ack] -> [] -> [LSB]
             end
-            o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1] <= 0;
+            o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1] <= 0; // MSB always gets zero and is shifted rightwards
             o_wb_ack_read_q[added_read_pipe_max] <= shift_reg_read_pipe_q[0];
+            // o_wb_ack_read_q[0] is the wishbone ack
+            // so once data is available from ISERDES (shift_reg_read_pipe_q[0] high) then need to wait added_read_pipe_max
+            // before the data is properly stored to o_wb_data_q and can be sent outside as wishbone data
 
-            //abort any outgoing ack when cyc is low
+            // BASICALLY:
+            // shift_reg_read_pipe_q is the delay from when the read command is issued from controller until the 
+            // data is received by the PHY ISERDES (total delay of READ_ACK_PIPE_WIDTH). The shift_reg_read_pipe_q[1]
+            // is then connected to delay_read_pipe[added_read_pipe_max (0 or 1)] which is the delay to align the lanes.
+            // The shift_reg_read_pipe_q[0] is then connected to o_wb_ack_read_q[added_read_pipe_max (0 or 1)] which
+            // is the delay until the wishbone data and ack will be sent outside
+            // NOTE TO SELF: Optimize by removing o_wb_ack_read_q and just connect the woshbone ack and data to delay_read_pipe[0].
+            // Visualization:
+            // shift_reg_read_pipe_q  [ ] -> [1] -> [ ]         [ ] -> [ ] -> [1]         [ ] -> [ ] -> [ ]          [ ] -> [ ] -> [ ]
+            //       delay_read_pipe  [ ] -> [ ] -> [ ]   --->  [ ] -> [1] -> [ ]   --->  [ ] -> [ ] -> [1]   --->   [ ] -> [ ] -> [ ]
+            //       o_wb_ack_read_q  [ ] -> [ ] -> [ ]         [ ] -> [ ] -> [ ]         [ ] -> [1] -> [ ]          [ ] -> [ ] -> [1]
+            //                   request is now on [1]            request passed              request passed        o_wb_ack_read_q[0]
+            //                of shift_reg_read_pipe_q        to delay_read_pipe          to o_wb_ack_read_q        high thus ready for wishbone ack
+            
+            // abort any outgoing ack when cyc is low
             if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
                 for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
                     o_wb_ack_read_q[index] <= 0;
@@ -1333,7 +1362,7 @@ module ddr3_controller #(
        end
     end
     assign o_wb_ack = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
-    //o_wb_ack_read_q[0][0] is needed internally for write calibration but it must not go outside (since it is not an actual user wb request unless we are in DONE_CALIBRATE) 
+    //o_wb_ack_read_q[0][0] is needed internally to ack during write calibration but it must not go outside (since it is not an actual user wb request unless we are in DONE_CALIBRATE) 
     assign o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; 
     assign o_wb_data = o_wb_data_q[index_wb_data];
     assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH];
