@@ -980,12 +980,12 @@ module ddr3_controller #(
         end
         //set PRECHARGE_SLOT as reset instruction, the remainings are NOP (MSB is high)
         //delay_counter_is_zero high signifies start of new reset instruction (the time when the command must be issued)
-        cmd_d[PRECHARGE_SLOT] = {(!delay_counter_is_zero), instruction[DDR3_CMD_START-1:DDR3_CMD_END], cmd_odt, instruction[CLOCK_EN], instruction[RESET_N], 
+        cmd_d[PRECHARGE_SLOT] = {(!delay_counter_is_zero), instruction[DDR3_CMD_START-1:DDR3_CMD_END] | {3{(!delay_counter_is_zero)}} , cmd_odt, instruction[CLOCK_EN], instruction[RESET_N], 
                         instruction[MRS_BANK_START:(MRS_BANK_START-BA_BITS+1)], instruction[ROW_BITS-1:0]};
         cmd_d[PRECHARGE_SLOT][10] = instruction[A10_CONTROL];
-        cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // issued during MPR reads (address does not matter)
-        cmd_d[WRITE_SLOT] = {1'b1, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
-        cmd_d[ACTIVATE_SLOT] = {1'b1, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  // always NOP by default
+        cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0] | {3{(!issue_read_command)}}, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // issued during MPR reads (address does not matter)
+        cmd_d[WRITE_SLOT] = {1'b0, 3'b111, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
+        cmd_d[ACTIVATE_SLOT] = {1'b0, 3'b111 , cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  // always NOP by default
             
         // decrement delay counters for every bank , stay to 0 once 0 is reached
         // every bank will have its own delay counters for precharge, activate, write, and read 
