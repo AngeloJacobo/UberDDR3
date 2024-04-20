@@ -20,7 +20,7 @@
 // NOTE TO SELF are questions which I still need to answer
 // Comments are continuously added on this RTL for better readability
 
-//`define FORMAL_COVER //skip reset sequence to fit in cover depth
+//`define FORMAL_COVER //skip reset sequence during formal verification to fit in cover depth
 `default_nettype none
 `timescale 1ps / 1ps
 //
@@ -52,7 +52,7 @@ module ddr3_controller #(
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
-                serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
+                serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
                 wb_sel_bits = wb_data_bits / 8,
@@ -179,17 +179,30 @@ module ddr3_controller #(
         localparam tRCD     =       13_750; // ps Active to Read/Write command time
         localparam tRP      =      13_750; // ps Precharge command period
         localparam tRAS     =      35_000; // ps ACT to PRE command period
+    `elsif DDR3_1333_9_9_9 //DDR3-1333 (9-9-9) speed bin
+        localparam tRCD     =       13_500; // ps Active to Read/Write command time
+        localparam tRP      =      13_500; // ps Precharge command period
+        localparam tRAS     =      36_000; // ps ACT to PRE command period
+    `elsif DDR3_1066_7_7_7 //DDR3-1066 (7-7-7) speed bin
+        localparam tRCD     =       13_125; // ps Active to Read/Write command time
+        localparam tRP      =      13_125; // ps Precharge command period
+        localparam tRAS     =      37_500; // ps ACT to PRE command period
+    `else
+        "Throw an error here if speed bin is not recognized (or not defined)"
     `endif
-
+    
     `ifdef RAM_1Gb
         localparam tRFC         =           110_000;      // ps Refresh command  to ACT or REF 
     `elsif RAM_2Gb
         localparam tRFC         =           160_000;      // ps Refresh command  to ACT or REF 
     `elsif RAM_4Gb
         localparam tRFC         =           300_000;      // ps Refresh command  to ACT or REF 
-    `else
+    `elsif RAM_8Gb
         localparam tRFC             =       350_000;      // ps Refresh command  to ACT or REF 
+    `else
+        "Throw an error here if capacity is not recognized (or not defined)"
     `endif
+    
     localparam tREFI = 7_800_000; //ps Average periodic refresh interval
     localparam tXPR = max(5*DDR3_CLK_PERIOD, tRFC+10_000); // ps Exit Reset from CKE HIGH to a valid command
     localparam tWR = 15_000; // ps Write Recovery Time
@@ -2369,7 +2382,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             // find anticipate activate command slot number
             if(CL_nCK > CWL_nCK) slot_number = read_slot;
             else slot_number = write_slot;
-                delay = ps_to_nCK($rtoi(tRCD)); 
+                delay = ps_to_nCK(tRCD); 
             for(slot_number = slot_number;  delay != 0; delay = delay - 1) begin
                     slot_number = slot_number - 1'b1;
             end 
