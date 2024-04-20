@@ -1,6 +1,6 @@
 `default_nettype none
 `timescale 1ps / 1ps
-//`define DEBUG_DQS
+//`define DEBUG_DQS // uncomment to route the raw DQS to output port for debugging
 
 module ddr3_phy #(
     parameter     CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
@@ -12,7 +12,7 @@ module ddr3_phy #(
     parameter[0:0] ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    USE_IO_TERMINATION = 0, //use IOBUF_DCIEN and IOBUFDS_DCIEN when 1
               // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
-    parameter serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
+    parameter serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
               wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
               wb_sel_bits = wb_data_bits / 8,
               //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits

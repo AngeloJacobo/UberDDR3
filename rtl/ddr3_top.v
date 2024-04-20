@@ -20,7 +20,7 @@ module ddr3_top #(
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
-                serdes_ratio = $rtoi(CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD),
+                serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
                 wb_sel_bits = wb_data_bits / 8,
