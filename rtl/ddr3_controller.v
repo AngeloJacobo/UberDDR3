@@ -1899,7 +1899,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                                     //if(write_test_address_counter[wb_addr_bits-1:0] == 500) begin //inject error at middle
                                     //    calib_data <= 1;
                                     //end 
-                                    if(write_test_address_counter[wb_addr_bits-1:0] == 999 ) begin //MUST END AT ODD NUMBER
+                                    if(write_test_address_counter[wb_addr_bits-1:0] == 99 ) begin //MUST END AT ODD NUMBER
                                         state_calibrate <= BURST_READ;
                                     end 
                                 end
@@ -1922,7 +1922,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                             calib_addr <= read_test_address_counter;
                             read_test_address_counter <= read_test_address_counter + 1;
                             if(MICRON_SIM) begin
-                                if(read_test_address_counter == 999) begin //MUST END AT ODD NUMBER
+                                if(read_test_address_counter == 99) begin //MUST END AT ODD NUMBER
                                         state_calibrate <= RANDOM_WRITE;  
                                 end
                             end
@@ -1948,7 +1948,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                                 //if(write_test_address_counter[wb_addr_bits-1:0] == 1500) begin //inject error
                                 //    calib_data <= 1;
                                 //end
-                                if(write_test_address_counter[wb_addr_bits-1:0] == 1999) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                                if(write_test_address_counter[wb_addr_bits-1:0] == 199) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
                                     state_calibrate <= RANDOM_READ;
                                 end
                             end
@@ -1973,7 +1973,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                                        <= read_test_address_counter[wb_addr_bits-1:ROW_BITS];
                         read_test_address_counter <= read_test_address_counter + 1;
                         if(MICRON_SIM) begin
-                            if(read_test_address_counter == 1999) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                            if(read_test_address_counter == 199) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
                                 state_calibrate <= ALTERNATE_WRITE_READ;
                             end
                         end
@@ -1992,7 +1992,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         calib_addr <= {1'b0, write_test_address_counter[wb_addr_bits-1:1]}; //same address to be used for write and read ( so basically write then read instantly)
                         calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
                         if(MICRON_SIM) begin
-                            if(write_test_address_counter == 4999) begin
+                            if(write_test_address_counter == 499) begin
                                 train_delay <= 15;
                                 state_calibrate <= FINISH_READ;
                             end
