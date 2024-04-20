@@ -53,8 +53,8 @@ module ddr3_dimm_micron_sim;
 `endif
 
 
- localparam CONTROLLER_CLK_PERIOD = 10, //ns, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 2.5, //ns, period of clock input to DDR3 RAM device 
+ localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
+            DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
             OPT_BUS_ABORT = 1;
@@ -126,13 +126,13 @@ module ddr3_dimm_micron_sim;
        
    `else
         assign clk_locked = 1;
-        always #(CONTROLLER_CLK_PERIOD*1000/2) i_controller_clk = !i_controller_clk;
-        always #(DDR3_CLK_PERIOD*1000/2) i_ddr3_clk = !i_ddr3_clk;
+        always #(CONTROLLER_CLK_PERIOD/2) i_controller_clk = !i_controller_clk;
+        always #(DDR3_CLK_PERIOD/2) i_ddr3_clk = !i_ddr3_clk;
         always #2500 i_ref_clk = !i_ref_clk;
         initial begin //90 degree phase shifted ddr3_clk
-            #(DDR3_CLK_PERIOD*1000/4);
+            #(DDR3_CLK_PERIOD/4);
             while(1) begin
-                #(DDR3_CLK_PERIOD*1000/2) i_ddr3_clk_90 = !i_ddr3_clk_90;
+                #(DDR3_CLK_PERIOD/2) i_ddr3_clk_90 = !i_ddr3_clk_90;
             end
         end
         initial begin
