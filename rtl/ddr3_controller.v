@@ -1869,7 +1869,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                                     //    calib_data <= 1;
                                     //end
                                     if(write_by_byte_counter == {$clog2(wb_sel_bits){1'b1}}) begin
-                                        if(write_test_address_counter[wb_addr_bits-1:0] == 999 ) begin //MUST END AT ODD NUMBER
+                                        if(write_test_address_counter[wb_addr_bits-1:0] == 99 ) begin //MUST END AT ODD NUMBER
                                             state_calibrate <= BURST_READ;
                                         end 
                                         write_test_address_counter <= write_test_address_counter + 1;
