@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="4.119098 us"></ZoomStartTime>
-      <ZoomEndTime time="43.181699 us"></ZoomEndTime>
-      <Cursor1Time time="11.220000 us"></Cursor1Time>
+      <ZoomStartTime time="64,090.179 ns"></ZoomStartTime>
+      <ZoomEndTime time="64,220.813 ns"></ZoomEndTime>
+      <Cursor1Time time="64,130.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="273"></NameColumnWidth>
-      <ValueColumnWidth column_width="69"></ValueColumnWidth>
+      <NameColumnWidth column_width="268"></NameColumnWidth>
+      <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="40" />
+   <WVObjectSize size="44" />
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Clocks and Reset</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -45,8 +45,13 @@
       <obj_property name="ObjectShortName">i_ref_clk</obj_property>
    </wvobject>
    <wvobject fp_name="divider869" type="divider">
-      <obj_property name="label">Internal Logic</obj_property>
+      <obj_property name="label">Calibration</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/calibration_state">
+      <obj_property name="ElementShortName">calibration_state[319:0]</obj_property>
+      <obj_property name="ObjectShortName">calibration_state[319:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/command_used">
       <obj_property name="ElementShortName">command_used[23:0]</obj_property>
@@ -55,19 +60,32 @@
       <obj_property name="CustomSignalColor">#FFD700</obj_property>
       <obj_property name="UseCustomSignalColor">true</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
-      <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
-      <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_ddr3_clk">
+      <obj_property name="ElementShortName">i_ddr3_clk</obj_property>
+      <obj_property name="ObjectShortName">i_ddr3_clk</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
-      <obj_property name="ElementShortName">state_calibrate[5:0]</obj_property>
-      <obj_property name="ObjectShortName">state_calibrate[5:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dq">
+      <obj_property name="ElementShortName">io_ddr3_dq[15:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dq[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs">
+      <obj_property name="ElementShortName">io_ddr3_dqs[1:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dqs[1:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/idelay_dqs">
+      <obj_property name="ElementShortName">idelay_dqs[1:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_dqs[1:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/lane">
       <obj_property name="ElementShortName">lane[0:0]</obj_property>
       <obj_property name="ObjectShortName">lane[0:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
+      <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
+      <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_test_address_counter">
@@ -93,6 +111,15 @@
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">WIshbone Interface</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
+      <obj_property name="ElementShortName">i_controller_clk</obj_property>
+      <obj_property name="ObjectShortName">i_controller_clk</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/calibration_state">
+      <obj_property name="ElementShortName">calibration_state[319:0]</obj_property>
+      <obj_property name="ObjectShortName">calibration_state[319:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/i_wb_cyc">
       <obj_property name="ElementShortName">i_wb_cyc</obj_property>
@@ -181,13 +208,5 @@
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_odt">
       <obj_property name="ElementShortName">o_ddr3_odt</obj_property>
       <obj_property name="ObjectShortName">o_ddr3_odt</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_debug_read_dqs_p">
-      <obj_property name="ElementShortName">o_ddr3_debug_read_dqs_p[1:0]</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_debug_read_dqs_p[1:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_debug_read_dqs_n">
-      <obj_property name="ElementShortName">o_ddr3_debug_read_dqs_n[1:0]</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_debug_read_dqs_n[1:0]</obj_property>
    </wvobject>
 </wave_config>
