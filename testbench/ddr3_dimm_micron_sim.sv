@@ -44,7 +44,7 @@ module ddr3_dimm_micron_sim;
 
 `ifdef TWO_LANES_x8
     localparam LANES = 2,
-                ODELAY_SUPPORTED = 1;
+                ODELAY_SUPPORTED = 0;
 `endif 
 
 `ifdef EIGHT_LANES_x8
@@ -777,6 +777,7 @@ ddr3_top #(
 
     end
 
+    reg[8*40-1:0] calibration_state; //store command in ASCII
     reg[8*3-1:0] command_used; //store command in ASCII
     reg[3*8*2-1:0] prev_cmd; //stores previous 2 commands
     reg[32*2-1:0] prev_time;
@@ -797,6 +798,32 @@ ddr3_top #(
                  4'b0110: command_used = "ZQC";
                  default: command_used = "???";
             endcase
+            
+            case(ddr3_top.ddr3_controller_inst.state_calibrate)
+                 0 : calibration_state = "                  IDLE                  ";
+                 1,6 : calibration_state = "            BITSLIP TRAINING           ";
+                 2,3,4,5 : calibration_state = "            READ CALIBRATION          ";
+                 7,8 : calibration_state = "           WRITE CALIBRATION           ";
+                 9,10,11,12,13,14,15 : calibration_state = "            WRITE ALIGNMENT          ";
+                 16,17,18: calibration_state = "             Test: BURST              ";
+                 19,20: calibration_state = "             Test: RANDOM              ";
+                 21: calibration_state = "          Test: ALTERNATING            ";
+                 22,23: calibration_state = "           DONE CALIBRATION           ";
+                 default: calibration_state = "                  ???                  ";
+            endcase
+
+
+            
+//            //WRITE_ZERO = 16,
+//            BURST_WRITE = 17,
+//            BURST_READ = 18,
+//            RANDOM_WRITE = 19,
+//            RANDOM_READ = 20,
+//            ALTERNATE_WRITE_READ = 21,
+//            FINISH_READ = 22,
+//            DONE_CALIBRATE = 23;
+                
+                
             time_now = $time;
             if(command_used == " WR" || command_used == " RD") begin
                 $write("[%5d ps] %s @ (%0d, %5d) -> ",(time_now-prev_time[0 +: 32]), command_used, ba_addr, addr); //show bank and column address of being read/write
