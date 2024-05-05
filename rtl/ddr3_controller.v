@@ -150,7 +150,8 @@ module ddr3_controller #(
     localparam READ_SLOT = get_slot(CMD_RD),
                 WRITE_SLOT = get_slot(CMD_WR),
                 ACTIVATE_SLOT = get_slot(CMD_ACT),
-                PRECHARGE_SLOT = get_slot(CMD_PRE);
+                PRECHARGE_SLOT = get_slot(CMD_PRE),
+                REMAINING_SLOT = get_slot(0);
                 
     // Data does not have to be delayed (DQS is the on that has to be
     // delayed and center-aligned to the center eye of data)
@@ -981,9 +982,18 @@ module ddr3_controller #(
                         instruction[MRS_BANK_START:(MRS_BANK_START-BA_BITS+1)], instruction[ROW_BITS-1:0]};
         cmd_d[PRECHARGE_SLOT][10] = instruction[A10_CONTROL];
         cmd_d[READ_SLOT] = {(!issue_read_command), CMD_RD[2:0] | {3{(!issue_read_command)}}, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // issued during MPR reads (address does not matter)
-        cmd_d[WRITE_SLOT] = {1'b0, 3'b111, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
         cmd_d[ACTIVATE_SLOT] = {1'b0, 3'b111 , cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  // always NOP by default
-            
+        // extra slot is created when READ and WRITE slots are the same
+        // this remaining slot should be NOP by default
+        if(WRITE_SLOT == READ_SLOT) begin
+            cmd_d[REMAINING_SLOT] = {1'b0, 3'b111 , cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  // always NOP by default
+        end
+        // if read and write slot is not shared, the write slot should be NOP by default
+        else begin
+            cmd_d[WRITE_SLOT] = {1'b0, 3'b111, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
+        end
+        
+
         // decrement delay counters for every bank , stay to 0 once 0 is reached
         // every bank will have its own delay counters for precharge, activate, write, and read 
         for(index=0; index< (1<<BA_BITS); index=index+1) begin
@@ -2381,6 +2391,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     function[1:0] get_slot (input[3:0] cmd); //cmd can either be CMD_PRE,CMD_ACT, CMD_WR, CMD_RD
         integer delay;
         reg[1:0] slot_number, read_slot, write_slot, anticipate_activate_slot, anticipate_precharge_slot;
+        reg[2:0] remaining_slot;
         begin
             // find read command slot number
             delay = CL_nCK;
@@ -2409,16 +2420,24 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 anticipate_activate_slot = anticipate_activate_slot - 1'b1;
             end
             
-            //the remaining slot will be for precharge command
+             //the remaining slot will be for precharge command
             anticipate_precharge_slot = 0;
             while(anticipate_precharge_slot == write_slot || anticipate_precharge_slot == read_slot || anticipate_precharge_slot == anticipate_activate_slot) begin
                 anticipate_precharge_slot = anticipate_precharge_slot  - 1'b1;
             end
+
+            //the remaining slot will be for precharge command
+            remaining_slot = 0;
+            while(remaining_slot == write_slot || remaining_slot == read_slot || remaining_slot == anticipate_activate_slot || remaining_slot == anticipate_precharge_slot) begin
+                remaining_slot = remaining_slot + 1'b1;
+            end
+
             case(cmd)
                 CMD_RD: get_slot = read_slot;
                 CMD_WR: get_slot = write_slot;
                 CMD_ACT: get_slot = anticipate_activate_slot;
                 CMD_PRE: get_slot = anticipate_precharge_slot;
+                0: get_slot = remaining_slot;
                 default: begin
                             `ifdef FORMAL
                                 assert(0); //force FORMAL to fail if this is ever reached
@@ -2511,6 +2530,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
         $display("ACTIVATE_SLOT = %0d", ACTIVATE_SLOT);
         $display("PRECHARGE_SLOT = %0d", PRECHARGE_SLOT);
+        $display("REMAINING_SLOT = %0d", REMAINING_SLOT);
         
         $display("\n\nDELAYS:");
         $display("\tps_to_nCK(tRCD): %0d", ps_to_nCK(tRCD));
