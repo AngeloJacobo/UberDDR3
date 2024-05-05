@@ -26,6 +26,8 @@
 //
 // speed bin
 `define DDR3_1600_11_11_11 
+//`define DDR3_1333_9_9_9 
+//`define DDR3_1066_7_7_7 
 //
 //DDR3 Capacity
 `define RAM_8Gb
@@ -45,10 +47,7 @@ module ddr3_controller #(
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
     /* verilator lint_off UNUSEDPARAM */
-    parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
-                   OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-   /* verilator lint_on UNUSEDPARAM */
-                   MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+    parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
@@ -334,7 +333,7 @@ module ddr3_controller #(
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
-    localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control (IS THIS THE SAME WITH RTT_NOM???????????? Search later)
+    localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control 
     localparam[2:0] RTT_NOM = 3'b011; //RTT Nominal: 40ohms (RQZ/6) is the impedance of the PCB trace
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
