@@ -43,21 +43,19 @@ module ddr3_dimm_micron_sim;
 `endif
 
 `ifdef TWO_LANES_x8
-    localparam LANES = 2,
+    localparam BYTE_LANES = 2,
                 ODELAY_SUPPORTED = 0;
 `endif 
 
 `ifdef EIGHT_LANES_x8
-    localparam LANES = 8,
+    localparam BYTE_LANES = 8,
                 ODELAY_SUPPORTED = 1;;
 `endif
 
 
  localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
             DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
-            AUX_WIDTH = 16, // AUX lines
-            OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
-            OPT_BUS_ABORT = 1;
+            AUX_WIDTH = 16; // AUX lines
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -145,18 +143,16 @@ module ddr3_dimm_micron_sim;
    
 // DDR3 Controller 
 ddr3_top #(
-    .ROW_BITS(ROW_BITS),   //width of row address
+    .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, clock period of the controller interface
+    .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+    .ROW_BITS(ROW_BITS), //width of row address
     .COL_BITS(COL_BITS), //width of column address
     .BA_BITS(BA_BITS), //width of bank address
-    .DQ_BITS(8),  //width of DQ
-    .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ns, period of clock input to this DDR3 controller module
-    .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ns, period of clock input to DDR3 RAM device 
-    .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 when ODELAYE2 is supported
-    .LANES(LANES), //8 lanes of DQ
-    .AUX_WIDTH(AUX_WIDTH),
-    .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
-    .OPT_BUS_ABORT(OPT_BUS_ABORT),  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-    .MICRON_SIM(1)
+    .BYTE_LANES(BYTE_LANES), //number of byte lanes of DDR3 RAM
+    .AUX_WIDTH(AUX_WIDTH), //width of aux line (must be >= 4) 
+    .MICRON_SIM(1), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+    .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 if ODELAYE2 is supported
+    .SECOND_WISHBONE(0) //set to 1 if 2nd wishbone for debugging is needed 
     ) ddr3_top
     (
         //clock and reset

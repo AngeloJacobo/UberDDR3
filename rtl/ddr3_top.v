@@ -2,27 +2,24 @@
 `timescale 1ps / 1ps
 
 module ddr3_top #(
-    parameter      CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
-                   DDR3_CLK_PERIOD = 2_500, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+    parameter      CONTROLLER_CLK_PERIOD = 12_000, //ps, clock period of the controller interface
+                   DDR3_CLK_PERIOD = 3_000, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
                    ROW_BITS = 14,   //width of row address
                    COL_BITS = 10, //width of column address
                    BA_BITS = 3, //width of bank address
-                   DQ_BITS = 8,  //device width
-                   LANES = 8, //number of DDR3 device to be controlled
+                   BYTE_LANES = 2, //number of byte lanes of DDR3 RAM
                    AUX_WIDTH = 4, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
-                   WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
-    /* verilator lint_off UNUSEDPARAM */
-    parameter[0:0] OPT_LOWPOWER = 1, //1 = low power, 0 = low logic
-                   OPT_BUS_ABORT = 1,  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-   /* verilator lint_on UNUSEDPARAM */
-                   MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-                   ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
-                   SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
+                   WB2_DATA_BITS = 32, //width of 2nd wishbone data bus 
+    /* verilator lint_off UNUSEDPARAM */ 
+    parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+                   ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
+                   SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
+                DQ_BITS = 8,  //device width (fixed to 8, if DDR3 is x16 then BYTE_LANES will be 2 while )
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
                 wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
-                wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
+                wb_data_bits = DQ_BITS*BYTE_LANES*serdes_ratio*2,
                 wb_sel_bits = wb_data_bits / 8,
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
@@ -69,98 +66,95 @@ module ddr3_top #(
         output wire o_ddr3_we_n, // WE#
         output wire[ROW_BITS-1:0] o_ddr3_addr,
         output wire[BA_BITS-1:0] o_ddr3_ba_addr,
-        inout wire[(DQ_BITS*LANES)-1:0] io_ddr3_dq,
-        inout wire[(DQ_BITS*LANES)/8-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
-        output wire[LANES-1:0] o_ddr3_dm,
+        inout wire[(DQ_BITS*BYTE_LANES)-1:0] io_ddr3_dq,
+        inout wire[BYTE_LANES-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
+        output wire[BYTE_LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt, // on-die termination
         //
         // Debug outputs
         output wire[31:0] o_debug1,
         output wire[31:0] o_debug2,
         output wire[31:0] o_debug3,
-        output wire[(DQ_BITS*LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
-        output wire[(DQ_BITS*LANES)/8-1:0] o_ddr3_debug_read_dqs_n
+        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
+        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
     );
     
-    // Instantiation Template
-    /*
-    // DDR3 Controller 
-    ddr3_top #(
-        .CONTROLLER_CLK_PERIOD(10_000), //ps, clock period of the controller interface
-        .DDR3_CLK_PERIOD(2_500), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
-        .ROW_BITS(14), //width of row address
-        .COL_BITS(10), //width of column address
-        .BA_BITS(3), //width of bank address
-        .DQ_BITS(8),  //device width
-        .LANES(2), //number of DDR3 device to be controlled
-        .AUX_WIDTH(4), //width of aux line (must be >= 4) 
-        .WB2_ADDR_BITS(32), //width of 2nd wishbone address bus 
-        .WB2_DATA_BITS(32), //width of 2nd wishbone data bus
-        .OPT_LOWPOWER(1), //1 = low power, 0 = low logic
-        .OPT_BUS_ABORT(1),  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
-        .MICRON_SIM(0), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-        .ODELAY_SUPPORTED(0), //set to 1 when ODELAYE2 is supported
-        .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone is needed 
-        ) ddr3_top
-        (
-            //clock and reset
-            .i_controller_clk(i_controller_clk),
-            .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
-            .i_ref_clk(i_ref_clk),
-            .i_ddr3_clk_90(i_ddr3_clk_90),
-            .i_rst_n(!i_rst && clk_locked), 
-            //
-            // Wishbone inputs
-            .i_wb_cyc(1), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-            .i_wb_stb(i_wb_stb), //request a transfer
-            .i_wb_we(i_wb_we), //write-enable (1 = write, 0 = read)
-            .i_wb_addr(i_wb_addr), //burst-addressable {row,bank,col} 
-            .i_wb_data(i_wb_data), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
-            .i_wb_sel(16'hffff), //byte strobe for write (1 = write the byte)
-            .i_aux(i_wb_we), //for AXI-interface compatibility (given upon strobe)
-            // Wishbone outputs
-            .o_wb_stall(o_wb_stall), //1 = busy, cannot accept requests
-            .o_wb_ack(o_wb_ack), //1 = read/write request has completed
-            .o_wb_data(o_wb_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-            .o_aux(o_aux),
-            //
-            // Wishbone 2 (PHY) inputs
-            .i_wb2_cyc(), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-            .i_wb2_stb(), //request a transfer
-            .i_wb2_we(), //write-enable (1 = write, 0 = read)
-            .i_wb2_addr(), //burst-addressable {row,bank,col} 
-            .i_wb2_data(), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
-            .i_wb2_sel(), //byte strobe for write (1 = write the byte)
-            // Wishbone 2 (Controller) outputs
-            .o_wb2_stall(), //1 = busy, cannot accept requests
-            .o_wb2_ack(), //1 = read/write request has completed
-            .o_wb2_data(), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-            //
-            // DDR3 I/O Interface
-            .o_ddr3_clk_p(ddr3_clk_p),
-            .o_ddr3_clk_n(ddr3_clk_n),
-            .o_ddr3_reset_n(ddr3_reset_n),
-            .o_ddr3_cke(ddr3_cke), // CKE
-            .o_ddr3_cs_n(ddr3_cs_n), // chip select signal (controls rank 1 only)
-            .o_ddr3_ras_n(ddr3_ras_n), // RAS#
-            .o_ddr3_cas_n(ddr3_cas_n), // CAS#
-            .o_ddr3_we_n(ddr3_we_n), // WE#
-            .o_ddr3_addr(ddr3_addr),
-            .o_ddr3_ba_addr(ddr3_ba),
-            .io_ddr3_dq(ddr3_dq),
-            .io_ddr3_dqs(ddr3_dqs_p),
-            .io_ddr3_dqs_n(ddr3_dqs_n),
-            .o_ddr3_dm(ddr3_dm),
-            .o_ddr3_odt(ddr3_odt), // on-die termination
-            // Debug outputs
-            .o_debug1(o_debug1),
-            .o_debug2(o_debug2),
-            .o_debug3(o_debug3),
-            .o_ddr3_debug_read_dqs_p(o_ddr3_debug_read_dqs_p),
-            .o_ddr3_debug_read_dqs_n(o_ddr3_debug_read_dqs_n)
-            ////////////////////////////////////
-        );
-    */
+// Instantiation Template (DEFAULT VALUE IS FOR ARTY S7)
+/*
+// DDR3 Controller 
+ddr3_top #(
+    .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
+    .DDR3_CLK_PERIOD(3_000), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+    .ROW_BITS(14), //width of row address
+    .COL_BITS(10), //width of column address
+    .BA_BITS(3), //width of bank address
+    .BYTE_LANES(2), //number of byte lanes of DDR3 RAM
+    .AUX_WIDTH(4), //width of aux line (must be >= 4) 
+    .MICRON_SIM(0), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+    .ODELAY_SUPPORTED(0), //set to 1 if ODELAYE2 is supported
+    .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone for debugging is needed 
+    .WB2_ADDR_BITS(7), //width of 2nd wishbone address bus 
+    .WB2_DATA_BITS(32) //width of 2nd wishbone data bus
+    ) ddr3_top
+    (
+        //clock and reset
+        .i_controller_clk(i_controller_clk),
+        .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
+        .i_ref_clk(i_ref_clk), // usually set to 200 MHz 
+        .i_ddr3_clk_90(i_ddr3_clk_90), //90 degree phase shifted version i_ddr3_clk (required only when ODELAY_SUPPORTED is zero)
+        .i_rst_n(!i_rst && clk_locked), 
+        //
+        // Wishbone inputs
+        .i_wb_cyc(1), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+        .i_wb_stb(i_wb_stb), //request a transfer
+        .i_wb_we(i_wb_we), //write-enable (1 = write, 0 = read)
+        .i_wb_addr(i_wb_addr), //burst-addressable {row,bank,col} 
+        .i_wb_data(i_wb_data), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+        .i_wb_sel(16'hffff), //byte strobe for write (1 = write the byte)
+        .i_aux(i_wb_we), //for AXI-interface compatibility (given upon strobe)
+        // Wishbone outputs
+        .o_wb_stall(o_wb_stall), //1 = busy, cannot accept requests
+        .o_wb_ack(o_wb_ack), //1 = read/write request has completed
+        .o_wb_data(o_wb_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        .o_aux(o_aux),
+        //
+        // Wishbone 2 (PHY) inputs
+        .i_wb2_cyc(0), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+        .i_wb2_stb(0), //request a transfer
+        .i_wb2_we(0), //write-enable (1 = write, 0 = read)
+        .i_wb2_addr(0), //burst-addressable {row,bank,col} 
+        .i_wb2_data(0), //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+        .i_wb2_sel(0), //byte strobe for write (1 = write the byte)
+        // Wishbone 2 (Controller) outputs
+        .o_wb2_stall(), //1 = busy, cannot accept requests
+        .o_wb2_ack(), //1 = read/write request has completed
+        .o_wb2_data(), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        //
+        // DDR3 I/O Interface
+        .o_ddr3_clk_p(ddr3_clk_p), 
+        .o_ddr3_clk_n(ddr3_clk_n),
+        .o_ddr3_reset_n(ddr3_reset_n),
+        .o_ddr3_cke(ddr3_cke), 
+        .o_ddr3_cs_n(ddr3_cs_n), // width = number of DDR3 ranks
+        .o_ddr3_ras_n(ddr3_ras_n), 
+        .o_ddr3_cas_n(ddr3_cas_n), 
+        .o_ddr3_we_n(ddr3_we_n), 
+        .o_ddr3_addr(ddr3_addr), // width = ROW_BITS
+        .o_ddr3_ba_addr(ddr3_ba), // width = BA_BITS
+        .io_ddr3_dq(ddr3_dq), // width = BYTE_LANES*8
+        .io_ddr3_dqs(ddr3_dqs_p), // width = BYTE_LANES
+        .io_ddr3_dqs_n(ddr3_dqs_n), // width = BYTE_LANES
+        .o_ddr3_dm(ddr3_dm), // width = BYTE_LANES
+        .o_ddr3_odt(ddr3_odt),
+        // Debug outputs
+        .o_debug1(),
+        .o_debug2(),
+        .o_debug3(),
+        .o_ddr3_debug_read_dqs_p(),
+        .o_ddr3_debug_read_dqs_n()
+        ////////////////////////////////////
+    );
+*/
     
     // Wire connections between controller and phy
     wire[cmd_len*serdes_ratio-1:0] cmd;
@@ -168,15 +162,15 @@ module ddr3_top #(
     wire toggle_dqs;
     wire[wb_data_bits-1:0] data;
     wire[wb_sel_bits-1:0] dm;
-    wire[LANES-1:0] bitslip;
-    wire[DQ_BITS*LANES*8-1:0] iserdes_data;
-    wire[LANES*8-1:0] iserdes_dqs;
-    wire[LANES*8-1:0] iserdes_bitslip_reference;
+    wire[BYTE_LANES-1:0] bitslip;
+    wire[DQ_BITS*BYTE_LANES*8-1:0] iserdes_data;
+    wire[BYTE_LANES*8-1:0] iserdes_dqs;
+    wire[BYTE_LANES*8-1:0] iserdes_bitslip_reference;
     wire idelayctrl_rdy;
     wire[4:0] odelay_data_cntvaluein, odelay_dqs_cntvaluein;
     wire[4:0] idelay_data_cntvaluein, idelay_dqs_cntvaluein;
-    wire[LANES-1:0] odelay_data_ld, odelay_dqs_ld;
-    wire[LANES-1:0] idelay_data_ld, idelay_dqs_ld;
+    wire[BYTE_LANES-1:0] odelay_data_ld, odelay_dqs_ld;
+    wire[BYTE_LANES-1:0] idelay_data_ld, idelay_dqs_ld;
     wire write_leveling_calib;
     wire reset;
     
@@ -184,18 +178,16 @@ module ddr3_top #(
     ddr3_controller #(
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, clock period of the controller interface
             .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
-            .ODELAY_SUPPORTED(ODELAY_SUPPORTED),  //set to 1 when ODELAYE2 is supported
             .ROW_BITS(ROW_BITS), //width of row address
             .COL_BITS(COL_BITS), //width of column address
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
-            .LANES(LANES), //8 lanes of DQ
+            .BYTE_LANES(BYTE_LANES), //8 lanes of DQ
             .AUX_WIDTH(AUX_WIDTH), //width of aux line (must be >= 4) 
             .WB2_ADDR_BITS(WB2_ADDR_BITS), //width of 2nd wishbone address bus 
             .WB2_DATA_BITS(WB2_DATA_BITS),  //width of 2nd wishbone data bus
-            .OPT_LOWPOWER(OPT_LOWPOWER), //1 = low power, 0 = low logic
-            .OPT_BUS_ABORT(OPT_BUS_ABORT),  //1 = can abort bus, 0 = no abort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
             .MICRON_SIM(MICRON_SIM), //simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
+            .ODELAY_SUPPORTED(ODELAY_SUPPORTED),  //set to 1 when ODELAYE2 is supported
             .SECOND_WISHBONE(SECOND_WISHBONE) //set to 1 if 2nd wishbone is needed 
         ) ddr3_controller_inst (
             .i_controller_clk(i_controller_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
@@ -257,7 +249,7 @@ module ddr3_top #(
             .ROW_BITS(ROW_BITS), //width of row address
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
-            .LANES(LANES), //8 lanes of DQ
+            .BYTE_LANES(BYTE_LANES), //8 lanes of DQ
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, period of clock input to this DDR3 controller module
             .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, period of clock input to DDR3 RAM device 
             .ODELAY_SUPPORTED(ODELAY_SUPPORTED)
