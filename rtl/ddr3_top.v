@@ -182,7 +182,7 @@ ddr3_top #(
             .COL_BITS(COL_BITS), //width of column address
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
-            .BYTE_LANES(BYTE_LANES), //8 lanes of DQ
+            .LANES(BYTE_LANES), // byte lanes
             .AUX_WIDTH(AUX_WIDTH), //width of aux line (must be >= 4) 
             .WB2_ADDR_BITS(WB2_ADDR_BITS), //width of 2nd wishbone address bus 
             .WB2_DATA_BITS(WB2_DATA_BITS),  //width of 2nd wishbone data bus
@@ -249,7 +249,7 @@ ddr3_top #(
             .ROW_BITS(ROW_BITS), //width of row address
             .BA_BITS(BA_BITS), //width of bank address
             .DQ_BITS(DQ_BITS),  //width of DQ
-            .BYTE_LANES(BYTE_LANES), //8 lanes of DQ
+            .LANES(BYTE_LANES), //8 lanes of DQ
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, period of clock input to this DDR3 controller module
             .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, period of clock input to DDR3 RAM device 
             .ODELAY_SUPPORTED(ODELAY_SUPPORTED)
