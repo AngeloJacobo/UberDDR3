@@ -207,7 +207,7 @@ module ddr3_controller #(
     localparam tWR = 15_000; // ps Write Recovery Time
     localparam tWTR = max(nCK_to_ps(4), 7_500); //ps Delay from start of internal write transaction to internal read command
     localparam tWLMRD = nCK_to_cycles(40); // nCK First DQS/DQS# rising edge after write leveling mode is programmed
-    localparam tWLO = 7_500; //ps Write leveling output delay
+    localparam tWLO = 9_000; //ps Write leveling output delay
     localparam tWLOE = 2_000; //ps Write leveling output error
     localparam tRTP = max(nCK_to_ps(4), 7_500); //ps Internal Command to PRECHARGE Command delay
     localparam tCCD = 4; //nCK CAS to CAS command delay
@@ -215,11 +215,11 @@ module ddr3_controller #(
     localparam tMOD = max(nCK_to_cycles(12), ps_to_cycles(15_000)); //cycles (controller)  Mode Register Set command update delay
     localparam tZQinit = max(nCK_to_cycles(512), ps_to_cycles(640_000));//cycles (controller)  Power-up and RESET calibration time
     /* verilator lint_on WIDTHEXPAND */
-    localparam CL_nCK = 6; //create a function for this
-    localparam CWL_nCK = 5; //create a function for this
+    localparam CL_nCK = CL_generator(DDR3_CLK_PERIOD); //read latency (given in JEDEC DDR3 spec)
+    localparam CWL_nCK = CWL_generator(DDR3_CLK_PERIOD); //write latency (given in JEDEC DDR3 spec)
     localparam DELAY_MAX_VALUE = ps_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
-    localparam CALIBRATION_DELAY = 2;
+    localparam CALIBRATION_DELAY = 2; // must be >= 2
                                     
     /*********************************************************************************************************************************************/
     
@@ -316,7 +316,7 @@ module ddr3_controller #(
     /************************************************************* Set Mode Registers Parameters *************************************************************/
     // MR2 (JEDEC DDR3 doc pg. 30)
     localparam[2:0] PASR = 3'b000; //Partial Array Self-Refresh: Full Array
-    localparam[2:0] CWL = 3'b000; //CAS write Latency: 8 (1.5 ns > tCK(avg) >= 1.25 ns) CREATE A FUNCTION FOR THIS
+    localparam[2:0] CWL = CWL_nCK-5; //CAS write Latency
     localparam[0:0] ASR = 1'b1; //Auto Self-Refresh: on
     localparam[0:0] SRT = 1'b0; //Self-Refresh Temperature Range:0 (If ASR = 1, SRT bit must be set to 0)
     localparam[1:0] RTT_WR = 2'b00; //Dynamic ODT: off
@@ -326,29 +326,27 @@ module ddr3_controller #(
     // MR3 (JEDEC DDR3 doc pg. 32)
     localparam[1:0] MPR_LOC = 2'b00; //Data location for MPR Reads: Predefined Pattern 0_1_0_1_0_1_0_1
     localparam[0:0] MPR_EN = 1'b1; //MPR Enable: Enable MPR reads and calibration during initialization
-    localparam[0:0] MPR_DIS = 1'b0; //MPR Enable: Enable MPR reads and calibration during initialization
     localparam[2:0] MR3_SEL = 3'b011; //MPR Selected
     localparam[18:0] MR3_MPR_EN = {MR3_SEL, 13'b0_0000_0000_0000, MPR_EN, MPR_LOC}; 
-    localparam[18:0] MR3_MPR_DIS = {MR3_SEL, 13'b0_0000_0000_0000, MPR_DIS, MPR_LOC}; 
+    localparam[18:0] MR3_MPR_DIS = {MR3_SEL, 13'b0_0000_0000_0000, !MPR_EN, MPR_LOC}; 
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
     localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control 
     localparam[2:0] RTT_NOM = 3'b011; //RTT Nominal: 40ohms (RQZ/6) is the impedance of the PCB trace
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
-    localparam[0:0] WL_DIS = 1'b0; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
     localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
                                  //When the TDQS function is disabled, the DM function is provided (vice-versa).TDQS function is only 
                                  //available for X8 DRAM and must be disabled for X4 and X16. 
-    localparam[0:0]  QOFF = 1'b0; //Output Buffer Control: Enabled
+    localparam[0:0] QOFF = 1'b0; //Output Buffer Control: Enabled
     localparam[2:0] MR1_SEL = 3'b001; //Selected Mode Register
     localparam[18:0] MR1_WL_EN = {MR1_SEL, 3'b000, QOFF, TDQS, 1'b0, RTT_NOM[2], 1'b0, WL_EN, RTT_NOM[1], DIC[1], AL, RTT_NOM[0], DIC[0], DLL_EN};
-    localparam[18:0] MR1_WL_DIS = {MR1_SEL, 3'b000, QOFF, TDQS, 1'b0, RTT_NOM[2], 1'b0, WL_DIS, RTT_NOM[1], DIC[1], AL, RTT_NOM[0], DIC[0], DLL_EN};
+    localparam[18:0] MR1_WL_DIS = {MR1_SEL, 3'b000, QOFF, TDQS, 1'b0, RTT_NOM[2], 1'b0, !WL_EN, RTT_NOM[1], DIC[1], AL, RTT_NOM[0], DIC[0], DLL_EN};
 
     //MR0 (JEDEC DDR3 doc pg. 24)
     localparam[1:0] BL = 2'b00; //Burst Length: 8 (Fixed)
-    localparam[3:0] CL = 4'b0100; //CAS Read Latency: 10, can support DDR-1600 speedbin 8-8-8, 9-9-9, and 10-10-10 (Check JEDEC DDR doc pg. 162) CREATE A FUNCTION FOR THIS
+    localparam[3:0] CL = (CL_nCK-4)*2; //CAS Read Latency
     localparam[0:0] RBT = 1'b0; //Read Burst Type: Nibble Sequential
     localparam[0:0] DLL_RST = 1'b1; //DLL Reset: Yes (this is self-clearing and must be applied after DLL enable)
     localparam[2:0] WR = WRA_mode_register_value($rtoi($ceil(tWR/DDR3_CLK_PERIOD))); //Write recovery for autoprecharge (
@@ -2272,28 +2270,6 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     // Logic connected to debug port
     // Logic connected to debug port
     wire debug_trigger;
-    //assign o_debug1 = {debug_trigger, state_calibrate[4:0], instruction_address[4:0], i_phy_iserdes_dqs[7:0], o_phy_dqs_tri_control, 
-    //    o_phy_dq_tri_control, i_phy_iserdes_dqs[15:8], lane[2:0]};
-    //assign o_debug1 = {debug_trigger, o_wb2_stall, { {(3-lanes_clog2){1'b0}} , lane[lanes_clog2-1:0] } , dqs_start_index_stored[2:0], dqs_target_index[2:0], delay_before_read_data[2:0], 
-    //            o_phy_idelay_dqs_ld[lane], state_calibrate[4:0], dqs_store[11:0]};
-    //assign o_debug1 = {debug_trigger, 2'b00, delay_before_read_data[3:0] ,i_phy_idelayctrl_rdy, 2'b00, lane, dqs_start_index_stored[4:0], 
-    //    dqs_target_index[4:0], instruction_address[4:0], state_calibrate[4:0], o_wb2_stall};       
-    //assign o_debug1 = {debug_trigger,stage1_we,stage1_col[5:0],stage1_data[7:0],{8'b0,stage1_dm[7:0]}};
-    /*assign o_debug2 = {debug_trigger, idelay_dqs_cntvaluein[lane][4:0], idelay_data_cntvaluein[lane][4:0],{i_phy_iserdes_dqs[15:0]}, 
-                o_phy_dqs_tri_control, o_phy_dq_tri_control,
-                (i_phy_iserdes_data == 0), (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b1}}), (i_phy_iserdes_data < { {(DQ_BITS*LANES*4){1'b0}}, {(DQ_BITS*LANES*4){1'b1}} } )
-                }; */
-    /*assign o_debug3 = {debug_trigger, delay_before_write_level_feedback[4:0], odelay_data_cntvaluein[lane][4:0], odelay_dqs_cntvaluein[lane][4:0], 
-            state_calibrate[4:0], prev_write_level_feedback, i_phy_iserdes_data[48], i_phy_iserdes_data[40], i_phy_iserdes_data[32], i_phy_iserdes_data[24]
-            , i_phy_iserdes_data[16], i_phy_iserdes_data[8], i_phy_iserdes_data[0], {2'b0,lane} };
-    */
-    
-    /*assign o_debug3 = {debug_trigger, lane[2:0], delay_before_read_data[3:0], i_phy_iserdes_data[448 +: 3], i_phy_iserdes_data[384 +: 3], i_phy_iserdes_data[320 +: 3], 
-                        i_phy_iserdes_data[256 +: 3], i_phy_iserdes_data[192 +: 3], i_phy_iserdes_data[128 +: 3], i_phy_iserdes_data[64 +: 3], i_phy_iserdes_data[0 +: 3]};*/
-    //assign o_debug3 = {debug_trigger, i_phy_iserdes_data[192 +: 7], i_phy_iserdes_data[128 +: 8], i_phy_iserdes_data[64 +: 8], i_phy_iserdes_data[0 +: 8]};
-    //assign o_debug3 = {debug_trigger,  i_phy_iserdes_data[48 +: 7], i_phy_iserdes_data[32 +: 8], i_phy_iserdes_data[16 +: 8], i_phy_iserdes_data[0 +: 8]};
-    //assign o_debug1 = {debug_trigger,i_phy_iserdes_dqs[7:0],state_calibrate[4:0], instruction_address[4:0],reset_from_wb2,
-    //                    repeat_test, delay_before_read_data[2:0], delay_before_write_level_feedback[4:0],lane[2:0]};
     assign o_debug1 = {27'd0, state_calibrate[4:0]};
     assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
     assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
@@ -2360,6 +2336,48 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         endcase
     endfunction
     
+    // Find the correct value for CL based on ddr3 clock period
+    function[2:0] CL_generator(input integer DDR3_CLK_PERIOD);
+        begin
+            if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 3_000) begin
+                CL_generator = 5;
+            end
+            else if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 2_500) begin
+                CL_generator = 6;
+            end
+            else if(DDR3_CLK_PERIOD <= 2_500 && DDR3_CLK_PERIOD >= 1_875) begin
+                CL_generator = 7;
+            end
+            else if(DDR3_CLK_PERIOD <= 1_875 && DDR3_CLK_PERIOD >= 1_500) begin
+                CL_generator = 9;
+            end
+            else if(DDR3_CLK_PERIOD <= 1_500 && DDR3_CLK_PERIOD >= 1_250) begin
+                CL_generator = 11;
+            end
+        end
+    endfunction
+
+    // Find the correct value for CWL based on ddr3 clock period
+    function[2:0] CWL_generator(input integer DDR3_CLK_PERIOD);
+        begin
+            if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 3_000) begin
+                CWL_generator = 5;
+            end
+            else if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 2_500) begin
+                CWL_generator = 5;
+            end
+            else if(DDR3_CLK_PERIOD <= 2_500 && DDR3_CLK_PERIOD >= 1_875) begin
+                CWL_generator = 6;
+            end
+            else if(DDR3_CLK_PERIOD <= 1_875 && DDR3_CLK_PERIOD >= 1_500) begin
+                CWL_generator = 7;
+            end
+            else if(DDR3_CLK_PERIOD <= 1_500 && DDR3_CLK_PERIOD >= 1_250) begin
+                CWL_generator = 8;
+            end
+        end
+    endfunction
+
     function[1:0] get_slot (input[3:0] cmd); //cmd can either be CMD_PRE,CMD_ACT, CMD_WR, CMD_RD
         integer delay;
         reg[1:0] slot_number, read_slot, write_slot, anticipate_activate_slot, anticipate_precharge_slot;
