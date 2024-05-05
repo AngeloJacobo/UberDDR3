@@ -38,12 +38,19 @@
      wire[63:0] o_debug1;
      reg[7:0] i_wb_data;
      reg[7:0] i_wb_addr;
+     // o_debug1 taps on value of state_calibrate (can be traced inside ddr3_controller module)
      assign led[0] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      assign led[1] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      assign led[2] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      assign led[3] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      
-     
+     // what this design do is very simple:
+     // if UART receives small letter ASCII (a-z), this value will be written to DDR3 
+     // if UART receives capital letter ASCII (A-Z), the small letter equivalent will be retrieved from DDR3 by doing
+     // a read request, once read data is available this will be sent to UART to be streamed out.
+     // THUS:
+     // Sendng "abcdefg" to the UART terminal will store that small latter to DDR3
+     // Then sending "ABCDEFG" to the UART terminal will return the small letter equivalent: "abcdefg"
     always @(posedge i_controller_clk) begin
         begin
             i_wb_stb <= 0;
@@ -51,13 +58,13 @@
             i_wb_addr <= 0;
             i_wb_data <= 0;
             if(!o_wb_stall && m_axis_tvalid) begin
-                if(rd_data >= 97 && rd_data <= 122) begin //write
+                if(rd_data >= 97 && rd_data <= 122) begin //write to DDR3 if ASCII is small letter
                     i_wb_stb <= 1;                 
                     i_wb_we <= 1;                  
                     i_wb_addr <= ~rd_data ;                
                     i_wb_data <= rd_data; 
                 end
-                else if(rd_data >= 65 && rd_data <= 90) begin //read
+                else if(rd_data >= 65 && rd_data <= 90) begin //read from DDR3 if ASCII is capital letter
                     i_wb_stb <= 1; //make request
                     i_wb_we <= 0; //read
                     i_wb_addr <= ~(rd_data + 8'd32);
@@ -72,8 +79,8 @@
     // Clock out ports
     .clk_out1(i_controller_clk), //83.333 Mhz
     .clk_out2(i_ddr3_clk), // 333.333 MHz
-    .clk_out3(i_ref_clk), //200MHz
-    .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90degree shift
+    .clk_out3(i_ddr3_clk_90), //200MHz
+    .clk_out4(i_ref_clk), // 333.333 MHz with 90degree shift
     // Status and control signals
     .reset(i_rst),
     .locked(clk_locked),
@@ -81,6 +88,7 @@
     .clk_in1(i_clk)
     );
 
+    // UART module from https://github.com/alexforencich/verilog-uart
     uart #(.DATA_WIDTH(8)) uart_m
     (
          .clk(i_controller_clk),
@@ -95,7 +103,6 @@
          .txd(tx),
         .prescale(1085) //9600 Baud Rate
     );
-       
     
     // DDR3 Controller 
     ddr3_top #(
@@ -164,7 +171,6 @@
             .o_debug1(o_debug1),
             .o_debug2(),
             .o_debug3()
-            ////////////////////////////////////
         );
 
 endmodule
