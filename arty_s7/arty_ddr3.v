@@ -109,8 +109,6 @@
         .AUX_WIDTH(4), //width of aux line (must be >= 4) 
         .WB2_ADDR_BITS(32), //width of 2nd wishbone address bus 
         .WB2_DATA_BITS(32), //width of 2nd wishbone data bus
-        .OPT_LOWPOWER(1), //1 = low power, 0 = low logic
-        .OPT_BUS_ABORT(1),  //1 = can abort bus, 0 = no absort (i_wb_cyc will be ignored, ideal for an AXI implementation which cannot abort transaction)
         .MICRON_SIM(0), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
         .ODELAY_SUPPORTED(0), //set to 1 when ODELAYE2 is supported
         .SECOND_WISHBONE(0) //set to 1 if 2nd wishbone is needed 
