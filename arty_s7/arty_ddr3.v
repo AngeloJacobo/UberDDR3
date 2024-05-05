@@ -112,7 +112,7 @@
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
         .DQ_BITS(8),  //width of DQ
-        .LANES(2), //number of DDR3 modules to be controlled
+        .BYTE_LANES(2), //number of DDR3 modules to be controlled
         .AUX_WIDTH(4), //width of aux line (must be >= 4) 
         .WB2_ADDR_BITS(32), //width of 2nd wishbone address bus 
         .WB2_DATA_BITS(32), //width of 2nd wishbone data bus
