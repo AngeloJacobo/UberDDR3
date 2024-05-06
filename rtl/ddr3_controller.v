@@ -2470,78 +2470,39 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 `ifndef YOSYS
     ///YOSYS: System task `$display' called with invalid/unsupported format specifier
     initial begin
-        $display("TEST FUNCTIONS\n-----------------------------\n");
-        $display("Test ps_to_cycles() function:");
-        $display("\tps_to_cycles(15_000) = %0d", ps_to_cycles(15_000) );
-        $display("\tps_to_cycles(14_500) = %0d", ps_to_cycles(14_500) );
-        $display("\tps_to_cycles(11_000) = %0d\n", ps_to_cycles(11_000) );
-        
-        $display("Test nCK_to_cycles() function:");
-        $display("\tnCK_to_cycles(16) = %0d", nCK_to_cycles(16) );
-        $display("\tnCK_to_cycles(15) = %0d", nCK_to_cycles(15) );
-        $display("\tnCK_to_cycles(13) = %0d\n", nCK_to_cycles(13) );
-        
-        $display("Test ps_to_nCK() function:");
-        $display("\tps_to_nCK(15_000) = %0d", ps_to_nCK(15_000) );
-        $display("\tps_to_nCK(14_875) = %0d", ps_to_nCK(14_875) );
-        $display("\tps_to_nCK(13_875) = %0d\n", ps_to_nCK(13_875) );
-        
-        $display("Test nCK_to_ps() function:");
-        $display("\tnCK_to_ps(4) =  %f", nCK_to_ps(4) );
-        $display("\tnCK_to_ps(3) = %f", nCK_to_ps(3) );
-        $display("\tnCK_to_ps(5) = %f\n", nCK_to_ps(5) );
-        
-        $display("Test $floor() function:");
-        $display("\t$floor(5/2) = %f", $floor(5/2) );
-        $display("\t$floor(9/4) = %f", $floor(9/4) );
-        $display("\t$floor(8/4) = %f", $floor(8/4) );
-        $display("\t$floor(9/5) = %f\n", $floor(9/5) );
+        $display("\nCONTROLLER PARAMETERS:\n-----------------------------");
 
-        $display("\nDISPLAY CONTROLLER PARAMETERS\n-----------------------------\n");
-        $display("MICRON_SIM = %0d", MICRON_SIM);
-        $display("ODELAY_SUPPORTED = %0d", ODELAY_SUPPORTED);
         $display("CONTROLLER_CLK_PERIOD = %0d", CONTROLLER_CLK_PERIOD);
         $display("DDR3_CLK_PERIOD = %0d", DDR3_CLK_PERIOD);
         $display("ROW_BITS = %0d", ROW_BITS);
         $display("COL_BITS = %0d", COL_BITS);
         $display("BA_BITS = %0d", BA_BITS);
-        $display("DQ_BITS = %0d", DQ_BITS);
-        $display("LANES = %0d", LANES);
+        $display("BYTE_LANES = %0d", LANES);
         $display("AUX_WIDTH = %0d", AUX_WIDTH);
+        $display("MICRON_SIM = %0d", MICRON_SIM);
+        $display("ODELAY_SUPPORTED = %0d", ODELAY_SUPPORTED);
+        $display("SECOND_WISHBONE = %0d", SECOND_WISHBONE);
         $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
         $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
 
-        $display("serdes_ratio = %0d", serdes_ratio);
+        $display("\nCONTROLLER LOCALPARAMS:\n-----------------------------");
         $display("wb_addr_bits = %0d", wb_addr_bits);
         $display("wb_data_bits = %0d", wb_data_bits);
         $display("wb_sel_bits  = %0d", wb_sel_bits);
         $display("wb2_sel_bits = %0d", wb2_sel_bits);
-        $display("cmd_len = %0d", cmd_len );
-        $display("DELAY_COUNTER_WIDTH = %0d", DELAY_COUNTER_WIDTH);
-        $display("DELAY_SLOT_WIDTH = %0d", DELAY_SLOT_WIDTH);
+        $display("DQ_BITS = %0d", DQ_BITS);
 
-        //$display("$bits(instruction):%0d - $bits(CMD_MRS):%0d - $bits(MR0):%0d  =  5 = %0d",  $bits(instruction), $bits(CMD_MRS) , $bits(MR0), ($bits(instruction) - $bits(CMD_MRS) - $bits(MR0)));
-        $display("serdes_ratio = %0d",serdes_ratio);
-        $display("wb_addr_bits = %0d",wb_addr_bits);
-        $display("wb_data_bits = %0d",wb_data_bits);
-        $display("wb_sel_bits = %0d\n\n",wb_sel_bits);
-
+        $display("\nCOMMAND SLOTS:\n-----------------------------");
         $display("READ_SLOT = %0d", READ_SLOT);
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
         $display("ACTIVATE_SLOT = %0d", ACTIVATE_SLOT);
         $display("PRECHARGE_SLOT = %0d", PRECHARGE_SLOT);
         $display("REMAINING_SLOT = %0d", REMAINING_SLOT);
         
-        $display("\n\nDELAYS:");
-        $display("\tps_to_nCK(tRCD): %0d", ps_to_nCK(tRCD));
-        $display("\tps_to_nCK(tRP): %0d", ps_to_nCK(tRP));
-        $display("\tps_to_nCK(tRTP): %0d", ps_to_nCK(tRTP));
-        $display("\ttCCD: %0d", tCCD);
-        $display("\t(CL_nCK + tCCD + 2 - CWL_nCK): %0d", (CL_nCK + tCCD + 2 - CWL_nCK));
-        $display("\t(CWL_nCK + 4 + ps_to_nCK(tWR)): %0d", (CWL_nCK + 4 + ps_to_nCK(tWR)));
-        $display("\t(CWL_nCK + 4 + ps_to_nCK(tWTR)): %0d", (CWL_nCK + 4 + ps_to_nCK(tWTR)));
-        
-        $display("\n\nPRECHARGE_TO_ACTIVATE_DELAY = %0d", PRECHARGE_TO_ACTIVATE_DELAY);
+        $display("\nDELAYS:\n-----------------------------");
+        $display("CL = %0d", CL_nCK);
+        $display("CWL = %0d", CWL_nCK);
+        $display("PRECHARGE_TO_ACTIVATE_DELAY = %0d", PRECHARGE_TO_ACTIVATE_DELAY);
         $display("ACTIVATE_TO_WRITE_DELAY = %0d", ACTIVATE_TO_WRITE_DELAY);
         $display("ACTIVATE_TO_READ_DELAY =  %0d", ACTIVATE_TO_READ_DELAY);
         $display("ACTIVATE_TO_PRECHARGE_DELAY =  %0d", ACTIVATE_TO_PRECHARGE_DELAY);
@@ -2552,7 +2513,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("WRITE_TO_READ_DELAY = %0d", WRITE_TO_READ_DELAY);
         $display("WRITE_TO_PRECHARGE_DELAY = %0d", WRITE_TO_PRECHARGE_DELAY);
         $display("STAGE2_DATA_DEPTH = %0d", STAGE2_DATA_DEPTH);
-        $display("READ_ACK_PIPE_WIDTH = %0d", READ_ACK_PIPE_WIDTH);
+        $display("READ_ACK_PIPE_WIDTH = %0d\n", READ_ACK_PIPE_WIDTH);
     end
 `endif
     
