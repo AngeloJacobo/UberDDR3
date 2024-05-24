@@ -226,6 +226,7 @@ module ddr3_controller #(
     
 
     /********************************************************** Computed Delay Parameters **********************************************************/
+    /* verilator lint_off WIDTHEXPAND */
     localparam[3:0] PRECHARGE_TO_ACTIVATE_DELAY =  find_delay(ps_to_nCK(tRP), PRECHARGE_SLOT, ACTIVATE_SLOT); //3
     localparam[3:0] ACTIVATE_TO_PRECHARGE_DELAY = find_delay(ps_to_nCK(tRAS), ACTIVATE_SLOT, PRECHARGE_SLOT);
     localparam[3:0] ACTIVATE_TO_WRITE_DELAY = find_delay(ps_to_nCK(tRCD), ACTIVATE_SLOT, WRITE_SLOT); //3
@@ -236,6 +237,7 @@ module ddr3_controller #(
     localparam[3:0] WRITE_TO_WRITE_DELAY = 0;
     localparam[3:0] WRITE_TO_READ_DELAY = find_delay((CWL_nCK + 4 + ps_to_nCK(tWTR)), WRITE_SLOT, READ_SLOT); //4
     localparam[3:0] WRITE_TO_PRECHARGE_DELAY = find_delay((CWL_nCK + 4 + ps_to_nCK(tWR)), WRITE_SLOT, PRECHARGE_SLOT); //5
+    /* verilator lint_on WIDTHEXPAND */
     localparam PRE_REFRESH_DELAY = WRITE_TO_PRECHARGE_DELAY + 1; 
     `ifdef FORMAL 
         (*keep*) wire[3:0] f_PRECHARGE_TO_ACTIVATE_DELAY, f_ACTIVATE_TO_PRECHARGE_DELAY, f_ACTIVATE_TO_WRITE_DELAY, f_ACTIVATE_TO_READ_DELAY,
@@ -262,7 +264,9 @@ module ddr3_controller #(
     localparam MARGIN_BEFORE_ANTICIPATE = PRECHARGE_TO_ACTIVATE_DELAY + ACTIVATE_TO_WRITE_DELAY + WRITE_TO_PRECHARGE_DELAY;
     // STAGE2_DATA_DEPTH is the number of controller clk cycles of delay before issuing the data after the write command
     // depends on the CWL_nCK
+    /* verilator lint_off WIDTHEXPAND */
     localparam STAGE2_DATA_DEPTH = (CWL_nCK - (3 - WRITE_SLOT + 1))/4 + 1; //this is always >= 1 (5 - (3 - 3 + 1))/4.0 -> floor(1) + 1 = floor(4
+    /* verilator lint_on WIDTHEXPAND */
     `ifdef FORMAL
         wire stage2_data_depth;
         assign stage2_data_depth = STAGE2_DATA_DEPTH;
@@ -317,12 +321,12 @@ module ddr3_controller #(
     /************************************************************* Set Mode Registers Parameters *************************************************************/
     // MR2 (JEDEC DDR3 doc pg. 30)
     localparam[2:0] PASR = 3'b000; //Partial Array Self-Refresh: Full Array
-    localparam[2:0] CWL = CWL_nCK-5; //CAS write Latency
+    localparam[3:0] CWL = CWL_nCK-4'd5; //CAS write Latency
     localparam[0:0] ASR = 1'b1; //Auto Self-Refresh: on
     localparam[0:0] SRT = 1'b0; //Self-Refresh Temperature Range:0 (If ASR = 1, SRT bit must be set to 0)
     localparam[1:0] RTT_WR = 2'b00; //Dynamic ODT: off
     localparam[2:0] MR2_SEL = 3'b010; //Selected Mode Register
-    localparam[18:0] MR2 = {MR2_SEL, 5'b00000, RTT_WR, 1'b0, SRT, ASR, CWL, PASR}; 
+    localparam[18:0] MR2 = {MR2_SEL, 5'b00000, RTT_WR, 1'b0, SRT, ASR, CWL[2:0], PASR}; 
 
     // MR3 (JEDEC DDR3 doc pg. 32)
     localparam[1:0] MPR_LOC = 2'b00; //Data location for MPR Reads: Predefined Pattern 0_1_0_1_0_1_0_1
@@ -2347,61 +2351,61 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     endfunction
     
     // Find the correct value for CL based on ddr3 clock period
-    function[2:0] CL_generator(input integer DDR3_CLK_PERIOD);
+    function[3:0] CL_generator(input integer ddr3_clk_period);
         begin
-            if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 3_000) begin
-                CL_generator = 5;
+            if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 3_000) begin
+                CL_generator = 4'd5;
             end
-            else if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 2_500) begin
-                CL_generator = 6;
+            else if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 2_500) begin
+                CL_generator = 4'd6;
             end
-            else if(DDR3_CLK_PERIOD <= 2_500 && DDR3_CLK_PERIOD >= 1_875) begin
-                CL_generator = 7;
+            else if(ddr3_clk_period <= 2_500 && ddr3_clk_period >= 1_875) begin
+                CL_generator = 4'd7;
             end
-            else if(DDR3_CLK_PERIOD <= 1_875 && DDR3_CLK_PERIOD >= 1_500) begin
-                CL_generator = 9;
+            else if(ddr3_clk_period <= 1_875 && ddr3_clk_period >= 1_500) begin
+                CL_generator = 4'd9;
             end
-            else if(DDR3_CLK_PERIOD <= 1_500 && DDR3_CLK_PERIOD >= 1_250) begin
-                CL_generator = 11;
+            else if(ddr3_clk_period <= 1_500 && ddr3_clk_period >= 1_250) begin
+                CL_generator = 4'd11;
             end
         end
     endfunction
 
     // Find the correct value for CWL based on ddr3 clock period
-    function[2:0] CWL_generator(input integer DDR3_CLK_PERIOD);
+    function[3:0] CWL_generator(input integer ddr3_clk_period);
         begin
-            if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 3_000) begin
-                CWL_generator = 5;
+            if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 3_000) begin
+                CWL_generator = 4'd5;
             end
-            else if(DDR3_CLK_PERIOD <= 3_300 && DDR3_CLK_PERIOD >= 2_500) begin
-                CWL_generator = 5;
+            else if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 2_500) begin
+                CWL_generator = 4'd5;
             end
-            else if(DDR3_CLK_PERIOD <= 2_500 && DDR3_CLK_PERIOD >= 1_875) begin
-                CWL_generator = 6;
+            else if(ddr3_clk_period <= 2_500 && ddr3_clk_period >= 1_875) begin
+                CWL_generator = 4'd6;
             end
-            else if(DDR3_CLK_PERIOD <= 1_875 && DDR3_CLK_PERIOD >= 1_500) begin
-                CWL_generator = 7;
+            else if(ddr3_clk_period <= 1_875 && ddr3_clk_period >= 1_500) begin
+                CWL_generator = 4'd7;
             end
-            else if(DDR3_CLK_PERIOD <= 1_500 && DDR3_CLK_PERIOD >= 1_250) begin
-                CWL_generator = 8;
+            else if(ddr3_clk_period <= 1_500 && ddr3_clk_period >= 1_250) begin
+                CWL_generator = 4'd8;
             end
         end
     endfunction
 
     function[1:0] get_slot (input[3:0] cmd); //cmd can either be CMD_PRE,CMD_ACT, CMD_WR, CMD_RD
         integer delay;
-        reg[1:0] slot_number, read_slot, write_slot, anticipate_activate_slot, anticipate_precharge_slot;
+        reg[2:0] slot_number, read_slot, write_slot, anticipate_activate_slot, anticipate_precharge_slot;
         reg[2:0] remaining_slot;
         begin
             // find read command slot number
-            delay = CL_nCK;
+            delay = {{(32-4){1'b0}},CL_nCK};
             for(slot_number = 0 ;  delay != 0 ; delay = delay - 1) begin
                     slot_number = slot_number - 1'b1;
             end 
             read_slot = slot_number;
             
             // find write command slot number
-            delay = CWL_nCK;
+            delay = {{(32-4){1'b0}},CWL_nCK};
             for(slot_number = 0 ;  delay != 0; delay = delay - 1) begin
                     slot_number = slot_number - 1'b1;
             end 
@@ -2433,11 +2437,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             end
 
             case(cmd)
-                CMD_RD: get_slot = read_slot;
-                CMD_WR: get_slot = write_slot;
-                CMD_ACT: get_slot = anticipate_activate_slot;
-                CMD_PRE: get_slot = anticipate_precharge_slot;
-                0: get_slot = remaining_slot;
+                CMD_RD: get_slot = read_slot[1:0];
+                CMD_WR: get_slot = write_slot[1:0];
+                CMD_ACT: get_slot = anticipate_activate_slot[1:0];
+                CMD_PRE: get_slot = anticipate_precharge_slot[1:0];
+                0: get_slot = remaining_slot[1:0];
                 default: begin
                             `ifdef FORMAL
                                 assert(0); //force FORMAL to fail if this is ever reached
