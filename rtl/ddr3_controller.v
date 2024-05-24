@@ -36,7 +36,7 @@
 //`define RAM_8Gb
 
 module ddr3_controller #(
-    parameter      CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
+    parameter integer CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
                    DDR3_CLK_PERIOD = 2_500, //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
                    ROW_BITS = 14,   //width of DDR3 row address
                    COL_BITS = 10, //width of DDR3 column address
