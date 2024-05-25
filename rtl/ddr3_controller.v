@@ -2397,37 +2397,44 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         reg[2:0] slot_number, read_slot, write_slot, anticipate_activate_slot, anticipate_precharge_slot;
         reg[2:0] remaining_slot;
         begin
+            slot_number = 0;
+            read_slot = 0;
+            write_slot = 0;
+            anticipate_activate_slot = 0;
+            anticipate_precharge_slot = 0;
+            remaining_slot = 0;
+            delay = 0;
             // find read command slot number
             delay = {{(32-4){1'b0}},CL_nCK};
             for(slot_number = 0 ;  delay != 0 ; delay = delay - 1) begin
-                    slot_number = slot_number - 1'b1;
+                    slot_number[1:0] = slot_number[1:0] - 1'b1;
             end 
-            read_slot = slot_number;
+            read_slot[1:0] = slot_number[1:0];
             
             // find write command slot number
             delay = {{(32-4){1'b0}},CWL_nCK};
             for(slot_number = 0 ;  delay != 0; delay = delay - 1) begin
-                    slot_number = slot_number - 1'b1;
+                    slot_number[1:0] = slot_number[1:0] - 1'b1;
             end 
-            write_slot = slot_number;
+            write_slot[1:0] = slot_number[1:0];
             
             // find anticipate activate command slot number
-            if(CL_nCK > CWL_nCK) slot_number = read_slot;
-            else slot_number = write_slot;
+            if(CL_nCK > CWL_nCK) slot_number[1:0] = read_slot[1:0];
+            else slot_number[1:0] = write_slot[1:0];
                 delay = ps_to_nCK(tRCD); 
             for(slot_number = slot_number;  delay != 0; delay = delay - 1) begin
-                    slot_number = slot_number - 1'b1;
+                    slot_number[1:0] = slot_number[1:0] - 1'b1;
             end 
-            anticipate_activate_slot = slot_number;
+            anticipate_activate_slot[1:0] = slot_number[1:0];
             // if computed anticipate_activate_slot is same with either write_slot or read_slot, decrement slot number until 
-            while(anticipate_activate_slot == write_slot || anticipate_activate_slot == read_slot) begin 
-                anticipate_activate_slot = anticipate_activate_slot - 1'b1;
+            while(anticipate_activate_slot[1:0] == write_slot[1:0] || anticipate_activate_slot[1:0] == read_slot[1:0]) begin 
+                anticipate_activate_slot[1:0] = anticipate_activate_slot[1:0] - 1'b1;
             end
             
              //the remaining slot will be for precharge command
             anticipate_precharge_slot = 0;
-            while(anticipate_precharge_slot == write_slot || anticipate_precharge_slot == read_slot || anticipate_precharge_slot == anticipate_activate_slot) begin
-                anticipate_precharge_slot = anticipate_precharge_slot  - 1'b1;
+            while(anticipate_precharge_slot[1:0] == write_slot[1:0] || anticipate_precharge_slot[1:0] == read_slot[1:0] || anticipate_precharge_slot[1:0] == anticipate_activate_slot[1:0]) begin
+                anticipate_precharge_slot[1:0] = anticipate_precharge_slot[1:0]  - 1'b1;
             end
 
             //the remaining slot will be for precharge command
