@@ -337,8 +337,8 @@ module ddr3_controller #(
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
-    localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control 
-    localparam[2:0] RTT_NOM = 3'b011; //RTT Nominal: 40ohms (RQZ/6) is the impedance of the PCB trace
+    localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (RZQ/7)
+    localparam[2:0] RTT_NOM = 3'b001; //RTT Nominal: RZQ/4
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
     localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
