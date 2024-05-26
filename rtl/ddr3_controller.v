@@ -1055,7 +1055,6 @@ module ddr3_controller #(
                     for(index=0; index < (1<<BA_BITS); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
                         delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY + 1; //NOTE TO SELF: why plus 1?
                     end
-                    delay_before_read_counter_d[stage2_bank] = WRITE_TO_READ_DELAY + 1;     
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
                     //issue read command
                     if(COL_BITS <= 10) begin
@@ -3955,7 +3954,7 @@ module mini_fifo #(
         full = 0;
     end
 
-    always @(posedge i_clk, negedge i_rst_n) begin
+    always @(posedge i_clk) begin
         if(!i_rst_n) begin
             empty <= 1;
             full <=0;
