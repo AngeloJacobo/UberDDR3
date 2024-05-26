@@ -1,6 +1,7 @@
 # run verilator lint
 echo -e "\e[32mRun Verilator Lint:\e[0m"
-verilator --lint-only ddr3_top.v -Irtl/
+verilator --lint-only rtl/ddr3_controller.v -Irtl/ -Wall
+echo "DONE!"
     
 
 # run yosys compile
