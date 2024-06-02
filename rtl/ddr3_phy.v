@@ -912,7 +912,7 @@ module ddr3_phy #(
                 ); // End of IOBUFDS_inst instantiation
                 
             end
-            (* mark_debug = "true" *) wire[4:0] IDELAYE2_dqs_CNTVALUEOUT;
+//            (* mark_debug = "true" *) wire[4:0] IDELAYE2_dqs_CNTVALUEOUT;
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -926,7 +926,7 @@ module ddr3_phy #(
                 .SIGNAL_PATTERN("CLOCK") //DATA, CLOCK input signal
             )
             IDELAYE2_dqs (
-                .CNTVALUEOUT(IDELAYE2_dqs_CNTVALUEOUT), // 5-bit output: Counter value output
+                .CNTVALUEOUT(), // 5-bit output: Counter value output
                 .DATAOUT(idelay_dqs[gen_index]), // 1-bit output: Delayed data output
                 .C(i_controller_clk), // 1-bit input: Clock input
                 .CE(1'b0), // 1-bit input: Active high enable increment/decrement input
