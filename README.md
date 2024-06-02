@@ -194,6 +194,15 @@ The summary under `TEST CALIBRATION` are the results from the **internal** read/
 
 This will run the DDR3 controller at 333 MHz (3 ns clock period) which is the [maximum clock period for Arty-S7](https://digilent.com/reference/programmable-logic/arty-s7/reference-manual). Upload the bitstream to Arty-S7, after around 2 seconds the 4 LEDS should light up.
 
+- The [Nexys Video](./nexys_video) project utilizes the DDR3 chip on the Digilent Nexys Video board with xc7a200t. Only one lane is used for simplicity. Supports OpenXC7 toolchain. Makefiles have been included for quick start, just run the following command in the root directory of repo:
+
+  - Vivado compilation: `source /opt/Xilinx/Vivado/2019.1/settings64.sh` then `make -C nexys_video -f Makefile.vivado`
+  - OpenXC7 compilation (using toolchain in Docker): `docker run --rm -v .:/mnt -v /chipdb:/chipdb regymm/openxc7 make -C /mnt/nexys_video -f Makefile.openxc7`
+
+  The bitstream will be compiled as `nexys_video/build/top.bit`. 
+
+  - Board test: after programming bitstream, the 8 LEDs will show some pattern, then become all lit up after calibration. When pressing BTND(D22), LD7/LD6 will show a blinky, and LD5-LD0 will show 101110 after successful calibration. BTNC(B22) resets the controller, and calibration will be redone. 9600 baud UART will be the same as the Arty-S7 case: type small `abcd` to write to memory, and type capital `ABCD` to read back. For example, type `abcd` then `ABCDEFGH` will show `abcd����` (because EFGH memory locations are not written yet). 
+
 - The [10Gb Ethernet Switch](https://github.com/ZipCPU/eth10g) project utilizes this DDR3 controller for accessing a single-rank DDR3 module (8 lanes of x8 DDR3) at DDR3-800 (100 MHz controller and 400 MHz PHY).
 
 # Other Open-Sourced DDR3 Controllers
