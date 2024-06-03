@@ -1,4 +1,4 @@
-module ddr3_axi_traffic_gen;
+module ddr3_axi_traffic_gen_tb;
 
 reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
 reg i_rst_n;
@@ -68,7 +68,7 @@ wire m_axi_lite_ch1_rready;
 wire done;
 wire [31 : 0] status;
 
-axi_traffic_gen_1 axi_traffic_gen_inst(
+axi_traffic_gen_0 axi_traffic_gen_inst(
   .s_axi_aclk(i_controller_clk),
   .s_axi_aresetn(i_rst_n && (dut.ddr3_top_inst.ddr3_controller_inst.state_calibrate == 23)), //stay reset until calibration is done
   .m_axi_lite_ch1_awaddr(m_axi_lite_ch1_awaddr),
