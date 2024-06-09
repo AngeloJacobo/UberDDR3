@@ -49,6 +49,8 @@ module ddr3_controller #(
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
+    parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
+    parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -338,8 +340,8 @@ module ddr3_controller #(
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
-    localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (RZQ/7)
-    localparam[2:0] RTT_NOM = 3'b001; //RTT Nominal: RZQ/4
+    // localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (RZQ/7) (elevate this to parameter)
+    // localparam[2:0] RTT_NOM = 3'b001; //RTT Nominal: RZQ/4 (elevate this to parameter)
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
     localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
@@ -428,9 +430,9 @@ module ddr3_controller #(
     reg write_dq_d;
     reg[STAGE2_DATA_DEPTH+1:0] write_dq;  
     
-    (* mark_debug = "true" *) reg[$clog2(DONE_CALIBRATE):0] state_calibrate;
+    (* mark_debug = "true" *) reg[$clog2(DONE_CALIBRATE)-1:0] state_calibrate;
     reg[STORED_DQS_SIZE*8-1:0] dqs_store = 0;
-    reg[$clog2(STORED_DQS_SIZE):0] dqs_count_repeat = 0;
+    reg[$clog2(STORED_DQS_SIZE)-1:0] dqs_count_repeat = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
     reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
@@ -2234,7 +2236,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
                     4: if(!wb2_we) begin
                             o_wb2_data[0] <= i_phy_idelayctrl_rdy; //1 bit, should be high when IDELAYE2 is ready
-                            o_wb2_data[1 +: 6] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
+                            o_wb2_data[1 +: 5] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
                             o_wb2_data[1 + 6 +: 5] <= instruction_address; //5 bits, address of the reset sequence
                             o_wb2_data[1 + 6 + 5 +: 4] <= added_read_pipe_max; //4 bit, max added read delay (must have a max value of 1)
                        end
