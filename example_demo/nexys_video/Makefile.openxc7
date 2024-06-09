@@ -4,7 +4,7 @@ CHIPDB = ./chipdb
 
 BUILDDIR := ${CURDIR}/build
 TOP := nexysvideo_ddr3
-#SOURCES :=  $(wildcard *.v)  $(wildcard ../rtl/*.v)  $(wildcard ../arty_s7/verilog-uart/rtl/*.v) 
+#SOURCES :=  $(wildcard *.v ../../rtl/ddr3*.v)
 XDC := $(wildcard  $(wildcard Nexys-video.xdc) )
 
 CHIPFAM := artix7
@@ -22,7 +22,7 @@ ${CHIPDB}:
 
 # we run this in parent directory to seeminglessly import user source files
 # otherwise have to parse user pattern and add ../
-${BUILDDIR}/top.json:  $(wildcard *.v)  $(wildcard ../rtl/*.v)  $(wildcard ../arty_s7/verilog-uart/rtl/*.v) 
+${BUILDDIR}/top.json:  $(wildcard *.v)  $(wildcard ../../rtl/*.v)  
 	yosys -p "synth_xilinx -flatten -abc9 -arch xc7 -top ${TOP}; write_json ${BUILDDIR}/top.json" $^ >> ${LOGFILE} 2>&1
 
 # The chip database only needs to be generated once
