@@ -1,8 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename:	ddr3_controller.v
-// {{{
-// Project:	DDR3 Controller
+// Filename: ddr3_controller.v
+// Project:	UberDDR3 - An Open Source DDR3 Controller
 //
 // Purpose: This DDR3 controller was originally designed to be used on the 
 // Network Switch Project (https://github.com/ZipCPU/eth10g). The Network Switch 
@@ -17,6 +16,24 @@
 // Engineer: Angelo C. Jacobo
 //
 ////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2023-2024  Angelo Jacobo
+// 
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 // NOTE TO SELF are questions which I still need to answer
 // Comments are continuously added on this RTL for better readability
 

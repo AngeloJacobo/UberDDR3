@@ -1,3 +1,38 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename: arty_ddr3.v
+// Project: UberDDR3 - An Open Source DDR3 Controller
+//
+// Purpose: Example demo of UberDDR3 for Arty-S7. Mechanism:
+//          - four LEDs will light up once UberDDR3 is done calibrating
+//          - if UART (9600 Baud Rate)receives small letter ASCII (a-z), this value will be written to DDR3 
+//          - if UART receives capital letter ASCII (A-Z), the small letter equivalent will be retrieved from DDR3 by doing
+//          - a read request, once read data is available this will be sent to UART to be streamed out.
+//          THUS:
+//          - Sendng "abcdefg" to the UART terminal will store that small latter to DDR3
+//          - Then sending "ABCDEFG" to the UART terminal will return the small letter equivalent: "abcdefg"
+//
+// Engineer: Angelo C. Jacobo
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2023-2024  Angelo Jacobo
+// 
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 `timescale 1ns / 1ps
 
    module arty_ddr3
@@ -44,13 +79,6 @@
      assign led[2] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      assign led[3] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      
-     // what this design do is very simple:
-     // if UART receives small letter ASCII (a-z), this value will be written to DDR3 
-     // if UART receives capital letter ASCII (A-Z), the small letter equivalent will be retrieved from DDR3 by doing
-     // a read request, once read data is available this will be sent to UART to be streamed out.
-     // THUS:
-     // Sendng "abcdefg" to the UART terminal will store that small latter to DDR3
-     // Then sending "ABCDEFG" to the UART terminal will return the small letter equivalent: "abcdefg"
     always @(posedge i_controller_clk) begin
         begin
             i_wb_stb <= 0;

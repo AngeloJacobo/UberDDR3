@@ -1,22 +1,30 @@
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename: ddr3_dimm_micron_sim.v
+// Project: UberDDR3 - An Open Source DDR3 Controller
+//
+// Purpose: Simulation testbench for UberDDR3
+//
+// Engineer: Angelo C. Jacobo
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2023-2024  Angelo Jacobo
 // 
-// Create Date: 06/01/2023 08:50:24 AM
-// Design Name: 
-// Module Name: ddr3_dimm_micron_sim
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
 // 
-// Dependencies: 
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
 // 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+//     You should have received a copy of the GNU General Public License
+//     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+////////////////////////////////////////////////////////////////////////////////
 
 `timescale 1ps / 1ps
 `define den8192Mb

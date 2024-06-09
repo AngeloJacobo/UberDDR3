@@ -42,7 +42,7 @@ echo ""
 echo ""
 echo "Summary:"
 # Iterate over folders starting with 'ddr3*'
-for folder in ddr3*/ ; do
+for folder in formal/ddr3*/ ; do
     # Check if the 'PASS' file exists in the folder
     if [[ -e "${folder}PASS" ]]; then
         # Print the folder name and 'PASS' in green

@@ -1,3 +1,33 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename: ddr3_phy.v
+// Project: UberDDR3 - An Open Source DDR3 Controller
+//
+// Purpose: PHY component for the DDR3 controller. Handles the primitives such
+// as IOSERDES, IODELAY, and IOBUF. These generates the signals connected to 
+// the DDR3 RAM.
+//
+// Engineer: Angelo C. Jacobo
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2023-2024  Angelo Jacobo
+// 
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 `default_nettype none
 `timescale 1ps / 1ps
 //`define DEBUG_DQS // uncomment to route the raw DQS to output port for debugging
