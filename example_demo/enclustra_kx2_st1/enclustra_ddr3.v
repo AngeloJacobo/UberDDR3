@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename: arty_ddr3.v
+// Filename: enclustra_ddr3.v
 // Project: UberDDR3 - An Open Source DDR3 Controller
 //
-// Purpose: Example demo of UberDDR3 for Arty-S7. Mechanism:
-//          - four LEDs will light up once UberDDR3 is done calibrating
+// Purpose: Example demo of UberDDR3 for Enclustra KX2-ST1 (xc7k160tffg676-2). Mechanism:
+//          - three LEDs will light up once UberDDR3 is done calibrating
 //          - if UART (9600 Baud Rate)receives small letter ASCII (a-z), this value will be written to DDR3 
 //          - if UART receives capital letter ASCII (A-Z), the small letter equivalent will be retrieved from DDR3 by doing
 //          - a read request, once read data is available this will be sent to UART to be streamed out.
@@ -35,32 +35,32 @@
 
 `timescale 1ns / 1ps
 
-   module arty_ddr3
+   module enclustra_ddr3
 	(
 	input wire i_clk, 
-	input wire i_rst,
+	input wire i_rst_n,
 	// DDR3 I/O Interface
     output wire ddr3_clk_p, ddr3_clk_n,
     output wire ddr3_reset_n,
-    output wire ddr3_cke, // CKE
-    output wire ddr3_cs_n, // chip select signal
-    output wire ddr3_ras_n, // RAS#
-    output wire ddr3_cas_n, // CAS#
-    output wire ddr3_we_n, // WE#
-    output wire[14-1:0] ddr3_addr,
+    output wire ddr3_cke, 
+    output wire ddr3_cs_n, 
+    output wire ddr3_ras_n, 
+    output wire ddr3_cas_n, 
+    output wire ddr3_we_n,
+    output wire[15-1:0] ddr3_addr,
     output wire[3-1:0] ddr3_ba,
-    inout wire[16-1:0] ddr3_dq,
-    inout wire[2-1:0] ddr3_dqs_p, ddr3_dqs_n,
-    output wire[2-1:0] ddr3_dm,
-    output wire ddr3_odt, // on-die termination
+    inout wire[64-1:0] ddr3_dq,
+    inout wire[8-1:0] ddr3_dqs_p, ddr3_dqs_n,
+    output wire[8-1:0] ddr3_dm,
+    output wire ddr3_odt, 
     // UART line
 	input wire rx,
 	output wire tx,
 	//Debug LEDs
-	output wire[3:0] led
+	output wire[2:0] led
     );
      
-     wire i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
+     wire i_controller_clk, i_ddr3_clk, i_ref_clk;
      wire m_axis_tvalid;
      wire rx_empty;
      wire tx_full;
@@ -74,10 +74,9 @@
      reg[7:0] i_wb_data;
      reg[7:0] i_wb_addr;
      // o_debug1 taps on value of state_calibrate (can be traced inside ddr3_controller module)
-     assign led[0] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
+     assign led[0] = !(o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      assign led[1] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      assign led[2] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
-     assign led[3] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
      
     always @(posedge i_controller_clk) begin
         begin
@@ -101,16 +100,15 @@
         end
     end
      
-    (* mark_debug = "true" *) wire clk_locked;
+    wire clk_locked;
     clk_wiz_0 clk_wiz_inst
     (
     // Clock out ports
-    .clk_out1(i_controller_clk), //83.333 Mhz
-    .clk_out2(i_ddr3_clk), // 333.333 MHz
-    .clk_out3(i_ddr3_clk_90), //200MHz
-    .clk_out4(i_ref_clk), // 333.333 MHz with 90degree shift
+    .clk_out1(i_controller_clk), //100 Mhz
+    .clk_out2(i_ddr3_clk), // 400 MHz
+    .clk_out3(i_ref_clk), // 200 MHz 
     // Status and control signals
-    .reset(i_rst),
+    .reset(!i_rst_n),
     .locked(clk_locked),
     // Clock in ports
     .clk_in1(i_clk)
@@ -120,7 +118,7 @@
     uart #(.DATA_WIDTH(8)) uart_m
     (
          .clk(i_controller_clk),
-         .rst(i_rst),
+         .rst(!i_rst_n),
          .s_axis_tdata(o_wb_data),
          .s_axis_tvalid(o_wb_ack),
          .s_axis_tready(),
@@ -129,22 +127,22 @@
          .m_axis_tready(1),
          .rxd(rx),
          .txd(tx),
-        .prescale(1085) //9600 Baud Rate
+        .prescale(1302) //9600 Baud Rate: 100MHz/(8*9600)
     );
     
     // DDR3 Controller 
     ddr3_top #(
-        .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
-        .DDR3_CLK_PERIOD(3_000), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
-        .ROW_BITS(14), //width of row address
+        .CONTROLLER_CLK_PERIOD(10_000), //ps, clock period of the controller interface
+        .DDR3_CLK_PERIOD(2_500), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+        .ROW_BITS(15), //width of row address
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
-        .BYTE_LANES(2), //number of DDR3 modules to be controlled
+        .BYTE_LANES(8), //number of DDR3 modules to be controlled
         .AUX_WIDTH(4), //width of aux line (must be >= 4) 
         .WB2_ADDR_BITS(32), //width of 2nd wishbone address bus 
         .WB2_DATA_BITS(32), //width of 2nd wishbone data bus
         .MICRON_SIM(0), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
-        .ODELAY_SUPPORTED(0), //set to 1 when ODELAYE2 is supported
+        .ODELAY_SUPPORTED(1), //set to 1 when ODELAYE2 is supported
         .SECOND_WISHBONE(0) //set to 1 if 2nd wishbone is needed 
         ) ddr3_top
         (
@@ -152,8 +150,8 @@
             .i_controller_clk(i_controller_clk),
             .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
             .i_ref_clk(i_ref_clk),
-            .i_ddr3_clk_90(i_ddr3_clk_90),
-            .i_rst_n(!i_rst && clk_locked), 
+            .i_ddr3_clk_90(0),
+            .i_rst_n(i_rst_n && clk_locked), 
             // Wishbone inputs
             .i_wb_cyc(1), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
             .i_wb_stb(i_wb_stb), //request a transfer
