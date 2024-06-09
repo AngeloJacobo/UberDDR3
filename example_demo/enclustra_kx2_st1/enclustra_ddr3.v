@@ -101,7 +101,7 @@
     end
      
     wire clk_locked;
-    clk_wiz_0 clk_wiz_inst
+    clk_wiz clk_wiz_inst
     (
     // Clock out ports
     .clk_out1(i_controller_clk), //100 Mhz

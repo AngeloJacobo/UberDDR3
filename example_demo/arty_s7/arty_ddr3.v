@@ -102,13 +102,13 @@
     end
      
     (* mark_debug = "true" *) wire clk_locked;
-    clk_wiz_0 clk_wiz_inst
+    clk_wiz clk_wiz_inst
     (
     // Clock out ports
     .clk_out1(i_controller_clk), //83.333 Mhz
     .clk_out2(i_ddr3_clk), // 333.333 MHz
-    .clk_out3(i_ddr3_clk_90), //200MHz
-    .clk_out4(i_ref_clk), // 333.333 MHz with 90degree shift
+    .clk_out3(i_ref_clk), //200MHz
+    .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90degree shift
     // Status and control signals
     .reset(i_rst),
     .locked(clk_locked),
@@ -129,7 +129,7 @@
          .m_axis_tready(1),
          .rxd(rx),
          .txd(tx),
-        .prescale(1085) //9600 Baud Rate
+        .prescale(1085) //9600 Baud Rate (83.33MHz/(8*9600))
     );
     
     // DDR3 Controller 
