@@ -25,7 +25,7 @@ echo
 echo ""
 echo -e "\e[32mRun Symbiyosys Formal Verification:\e[0m"
 echo "---------------------------------------"
-sby -f ddr3.sby
+sby -f ddr3_multiconfig.sby
 
 
 # ANSI color codes
