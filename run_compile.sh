@@ -23,9 +23,14 @@ echo
 
 # run symbiyosys 
 echo ""
-echo -e "\e[32mRun Symbiyosys Formal Verification:\e[0m"
+echo -e "\e[32mRun Symbiyosys Formal Verification: Single Configuration\e[0m"
 echo "---------------------------------------"
-sby -f ddr3_multiconfig.sby
+sby -f formal/ddr3_singleconfig.sby
+
+echo ""
+echo -e "\e[32mRun Symbiyosys Formal Verification: Multiple Configurations\e[0m"
+echo "---------------------------------------"
+sby -f formal/ddr3_multiconfig.sby
 
 
 # ANSI color codes
