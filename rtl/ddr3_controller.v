@@ -46,10 +46,11 @@ module ddr3_controller #(
                    AUX_WIDTH = 4, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
-    /* verilator lint_off UNUSEDPARAM */
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
+    parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
+    parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -62,7 +63,7 @@ module ddr3_controller #(
     ) 
     (
         input wire i_controller_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
-        (* mark_debug = "true" *) input wire i_rst_n, //200MHz input clock
+        input wire i_rst_n, //200MHz input clock
         // Wishbone inputs
         input wire i_wb_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
         input wire i_wb_stb, //request a transfer
@@ -79,31 +80,32 @@ module ddr3_controller #(
         //
         // Wishbone 2 (PHY) inputs
         input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-        (* mark_debug = "true" *) input wire i_wb2_stb, //request a transfer
+        input wire i_wb2_stb, //request a transfer
         input wire i_wb2_we, //write-enable (1 = write, 0 = read)
         input wire[WB2_ADDR_BITS - 1:0] i_wb2_addr, //memory-mapped register to be accessed 
         input wire[wb2_sel_bits - 1:0] i_wb2_sel, //byte strobe for write (1 = write the byte)
         input wire[WB2_DATA_BITS - 1:0] i_wb2_data, //write data
         // Wishbone 2 (Controller) outputs
         output reg o_wb2_stall, //1 = busy, cannot accept requests
-        (* mark_debug = "true" *) output reg o_wb2_ack, //1 = read/write request has completed
+        output reg o_wb2_ack, //1 = read/write request has completed
         output reg[WB2_DATA_BITS - 1:0] o_wb2_data, //read data
         //
         // PHY interface
         (* mark_debug = "true" *) input wire[DQ_BITS*LANES*8 - 1:0] i_phy_iserdes_data,
-        (* mark_debug = "true" *)  input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
+        (* mark_debug = "true" *) input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
         input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_bitslip_reference,
-        (* mark_debug = "true" *) input wire i_phy_idelayctrl_rdy,
+        input wire i_phy_idelayctrl_rdy,
         output wire[cmd_len*serdes_ratio-1:0] o_phy_cmd,
-        (* mark_debug = "true" *) output wire o_phy_dqs_tri_control, o_phy_dq_tri_control,
+        output reg o_phy_dqs_tri_control, o_phy_dq_tri_control,
         output wire o_phy_toggle_dqs,
-        (* mark_debug = "true" *) output wire[wb_data_bits-1:0] o_phy_data,
+        output wire[wb_data_bits-1:0] o_phy_data,
         output wire[wb_sel_bits-1:0] o_phy_dm, 
         output wire[4:0] o_phy_odelay_data_cntvaluein, o_phy_odelay_dqs_cntvaluein,
-        (* mark_debug = "true" *) output wire[4:0] o_phy_idelay_data_cntvaluein, o_phy_idelay_dqs_cntvaluein,
+        output wire[4:0] o_phy_idelay_data_cntvaluein, 
+        output wire[4:0] o_phy_idelay_dqs_cntvaluein,
         output reg[LANES-1:0] o_phy_odelay_data_ld, o_phy_odelay_dqs_ld,
         output reg[LANES-1:0] o_phy_idelay_data_ld, 
-        (* mark_debug = "true" *) output reg[LANES-1:0] o_phy_idelay_dqs_ld,
+        output reg[LANES-1:0] o_phy_idelay_dqs_ld,
         output reg[LANES-1:0] o_phy_bitslip,
         output reg o_phy_write_leveling_calib,
         output wire o_phy_reset,
@@ -298,6 +300,7 @@ module ddr3_controller #(
                 ISSUE_WRITE_1 = 9, 
                 ISSUE_WRITE_2 = 10,
                 ISSUE_READ = 11,
+                //ISSUE_READ_2 = 12,
                 READ_DATA = 12,
                 ANALYZE_DATA = 13, 
                 CHECK_STARTING_DATA = 14,
@@ -337,8 +340,8 @@ module ddr3_controller #(
     
     // MR1 (JEDEC DDR3 doc pg. 27)
     localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
-    localparam[1:0] DIC = 2'b00; //Output Driver Impedance Control 
-    localparam[2:0] RTT_NOM = 3'b011; //RTT Nominal: 40ohms (RQZ/6) is the impedance of the PCB trace
+    // localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (RZQ/7) (elevate this to parameter)
+    // localparam[2:0] RTT_NOM = 3'b001; //RTT Nominal: RZQ/4 (elevate this to parameter)
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
     localparam[1:0] AL = 2'b00; //Additive Latency: Disabled
     localparam[0:0] TDQS = 1'b0; //Termination Data Strobe: Disabled (provides additional termination resistance outputs. 
@@ -363,7 +366,7 @@ module ddr3_controller #(
 
     /************************************************************* Registers and Wires *************************************************************/
     integer index;
-    (* mark_debug = "true" *)  reg[4:0] instruction_address = 0; //address for accessing rom instruction
+    reg[4:0] instruction_address = 0; //address for accessing rom instruction
     reg[27:0] instruction = INITIAL_RESET_INSTRUCTION; //instruction retrieved from reset instruction rom
     reg[ DELAY_COUNTER_WIDTH - 1:0] delay_counter = INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0]; //counter used for delays
     reg delay_counter_is_zero = (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0); //counter is now zero so retrieve next delay
@@ -427,27 +430,27 @@ module ddr3_controller #(
     reg write_dq_d;
     reg[STAGE2_DATA_DEPTH+1:0] write_dq;  
     
-    (* mark_debug = "true" *) reg[$clog2(DONE_CALIBRATE):0] state_calibrate;
+    (* mark_debug = "true" *) reg[$clog2(DONE_CALIBRATE)-1:0] state_calibrate;
     reg[STORED_DQS_SIZE*8-1:0] dqs_store = 0;
-    reg[$clog2(STORED_DQS_SIZE):0] dqs_count_repeat = 0;
-    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
+    reg[$clog2(STORED_DQS_SIZE)-1:0] dqs_count_repeat = 0;
+    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
+    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
     (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8):0] dq_target_index[LANES-1:0];
-    (* mark_debug ="true" *) wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
-    reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
+    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0;
+    reg[$clog2(STORED_DQS_SIZE*8):0] dq_target_index[LANES-1:0];
+    wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
+    (* mark_debug ="true" *) reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
     reg[3:0] train_delay;
-    (* mark_debug = "true" *) reg[3:0] delay_before_read_data = 0;
+    reg[3:0] delay_before_read_data = 0;
     reg[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0] delay_before_write_level_feedback = 0;
-    reg initial_dqs = 0;
+    (* mark_debug = "true" *) reg initial_dqs = 0;
     (* mark_debug = "true" *) reg[lanes_clog2-1:0] lane = 0;
     reg[$clog2(8*LANES)-1:0] lane_times_8 = 0;
     /* verilator lint_off UNUSEDSIGNAL */
     reg[15:0] dqs_bitslip_arrangement = 0;
     /* verilator lint_off UNUSEDSIGNAL */
-    (* mark_debug = "true" *) reg[3:0] added_read_pipe_max = 0;
-    (* mark_debug = "true" *) reg[3:0] added_read_pipe[LANES - 1:0]; 
+    reg[3:0] added_read_pipe_max = 0;
+    reg[3:0] added_read_pipe[LANES - 1:0]; 
     //each lane will have added delay relative to when ISERDES should actually return the data
     //this make sure that we will wait until the lane with longest delay (added_read_pipe_max) is received before
     //all lanes are sent to wishbone data
@@ -460,30 +463,29 @@ module ddr3_controller #(
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data (since different lanes might not be aligned with each other and needs to be retrieved at a different time)
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
-    
-    reg calib_stb = 0;
+    (* mark_debug = "true" *) reg calib_stb = 0;
     reg[wb_sel_bits-1:0] calib_sel = 0;
     reg[AUX_WIDTH-1:0] calib_aux = 0;
-    reg calib_we = 0;
+    (* mark_debug = "true" *) reg calib_we = 0;
     reg[wb_addr_bits-1:0] calib_addr = 0;
     reg[wb_data_bits-1:0] calib_data = 0;
     reg write_calib_odt = 0;
     reg write_calib_dqs = 0;
     reg write_calib_dq = 0;
-    reg prev_write_level_feedback = 1;
+    (* mark_debug = "true" *) reg prev_write_level_feedback = 1;
     reg[wb_data_bits-1:0] read_data_store = 0;
     reg[127:0] write_pattern = 0;
-    (* mark_debug = "true" *) reg[$clog2(64):0] data_start_index[LANES-1:0];       
-    reg[4:0] odelay_data_cntvaluein[LANES-1:0]; 
+    reg[$clog2(64):0] data_start_index[LANES-1:0];       
+    (* mark_debug = "true" *) reg[4:0] odelay_data_cntvaluein[LANES-1:0]; 
     reg[4:0] odelay_dqs_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein_prev;
-    reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
+    (* mark_debug = "true" *) reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
     reg[$clog2(REPEAT_CLK_SAMPLING):0] sample_clk_repeat = 0;
-    reg stored_write_level_feedback = 0;
+    (* mark_debug = "true" *) reg stored_write_level_feedback = 0;
     reg[5:0] start_index_check = 0;
-    reg[63:0] read_lane_data = 0;
-    reg odelay_cntvalue_repeated = 0;
+    (* mark_debug = "true" *) reg[63:0] read_lane_data = 0;
+    (* mark_debug = "true" *) reg odelay_cntvalue_halfway = 0;
     reg already_finished_calibration = 0;
     // Wishbone 2
     reg wb2_stb = 0;
@@ -500,7 +502,7 @@ module ddr3_controller #(
     reg[LANES-1:0] wb2_phy_odelay_dqs_ld;
     reg[LANES-1:0] wb2_phy_idelay_data_ld;
     reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
-    reg[LANES-1:0] write_level_fail = 0;
+    (* mark_debug ="true" *)reg[LANES-1:0] write_level_fail = 0;
     reg[lanes_clog2-1:0] wb2_write_lane;
     reg sync_rst_wb2 = 0, sync_rst_controller = 0;
     reg reset_from_wb2 = 0, reset_from_calibrate = 0, reset_from_test = 0, repeat_test = 0;
@@ -928,12 +930,13 @@ module ddr3_controller #(
                         << (data_start_index[index]>>3)) | unaligned_dm[index];
                 /* verilator lint_on WIDTH */
             end
+          
             // stage2 can have multiple pipelined stages inside it which acts as delay before issuing the write data (after issuing write command)
             for(index = 0; index < STAGE2_DATA_DEPTH-1; index = index+1) begin
                 stage2_data[index+1] <=  stage2_data[index];              
                 stage2_dm[index+1] <= stage2_dm[index];
             end
-
+                    
             //abort any outgoing ack when cyc is low
             if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
                 stage2_pending <= 0;
@@ -1391,8 +1394,14 @@ module ddr3_controller #(
     //o_wb_ack_read_q[0][0] is needed internally to ack during write calibration but it must not go outside (since it is not an actual user wb request unless we are in DONE_CALIBRATE) 
     assign o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; 
     assign o_wb_data = o_wb_data_q[index_wb_data];
-    assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH];
-    assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH];
+    
+    // DQ/DQS IO tristate control logic
+    always @(posedge i_controller_clk) begin
+        o_phy_dqs_tri_control <= !write_dqs[STAGE2_DATA_DEPTH-1];
+        o_phy_dq_tri_control <= !write_dq[STAGE2_DATA_DEPTH-1];
+    end
+//    assign o_phy_dqs_tri_control = !write_dqs[STAGE2_DATA_DEPTH]; // Warning in implementation: not routable to load
+//    assign o_phy_dq_tri_control = !write_dq[STAGE2_DATA_DEPTH]; // Warning in implementation: not routable to load
     generate 
         if(STAGE2_DATA_DEPTH >= 2) begin: TOGGLE_DQS
             assign o_phy_toggle_dqs = write_dqs_val[STAGE2_DATA_DEPTH-2]; 
@@ -1445,7 +1454,7 @@ module ddr3_controller #(
             delay_before_read_data <= 0;
             read_lane_data <= 0;
             o_phy_write_leveling_calib <= 0;
-            odelay_cntvalue_repeated <= 0;
+            odelay_cntvalue_halfway <= 0;
             write_level_fail <= 0;
             read_test_address_counter <= 0;
             write_test_address_counter <= 0;
@@ -1647,7 +1656,7 @@ module ddr3_controller #(
                                 /* verilator lint_on WIDTH */
                                     pause_counter <= 0; //read calibration now complete so continue the reset instruction sequence
                                     lane <= 0;
-                                    odelay_cntvalue_repeated <= 0;
+                                    odelay_cntvalue_halfway <= 0;
                                     prev_write_level_feedback <= 1'b1;
                                     sample_clk_repeat <= 0;
                                     stored_write_level_feedback <= 0;
@@ -1705,7 +1714,7 @@ module ddr3_controller #(
                                     end
                                     else begin
                                         lane <= lane + 1;
-                                        odelay_cntvalue_repeated <= 0;
+                                        odelay_cntvalue_halfway <= 0;
                                         prev_write_level_feedback <= 1'b1;
                                         sample_clk_repeat <= 0;
                                         state_calibrate <= START_WRITE_LEVEL; 
@@ -1714,7 +1723,11 @@ module ddr3_controller #(
                                 else begin
                                     o_phy_odelay_data_ld[lane] <= 1;
                                     o_phy_odelay_dqs_ld[lane] <= 1;
-                                    write_level_fail[lane] <= (odelay_cntvalue_repeated && odelay_data_cntvaluein[lane] == 2);
+                                    write_level_fail[lane] <= odelay_cntvalue_halfway;
+                                    if(odelay_cntvalue_halfway) begin // if halfway cntvalue is reached which is illegal (or impossible to happen), then we load the original cntvalues
+                                        odelay_data_cntvaluein[lane] <= DATA_INITIAL_ODELAY_TAP[4:0];
+                                        odelay_dqs_cntvaluein[lane] <= DQS_INITIAL_ODELAY_TAP[4:0];                
+                                    end
                                     state_calibrate <= START_WRITE_LEVEL; 
                                 end
                              end     
@@ -1754,7 +1767,7 @@ module ddr3_controller #(
                 // at burst 2 (burst 0 and burst 1 are cut-off since each burst uses 1 ddr3_clk cycle)
                 // Note here that if DQ and DQS sa same delay, then we know the DQS will always be aligned with DQ data 
                 
-          ISSUE_READ: begin
+        ISSUE_READ: begin
                         calib_stb <= 1;//actual request flag
                         calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
                         calib_we <= 0; //write-enable
@@ -1762,6 +1775,14 @@ module ddr3_controller #(
                         state_calibrate <= READ_DATA;
                       end   
                       
+//        ISSUE_READ_2: begin
+//                        calib_stb <= 1;//actual request flag
+//                        calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
+//                        calib_we <= 0; //write-enable
+//                        calib_addr <= 1;
+//                        state_calibrate <= READ_DATA;
+//                      end   
+                                 
            READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
                          read_data_store <= o_wb_data; // read data on address 0 
                          calib_stb <= 0;
@@ -2036,9 +2057,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
              read_lane_data <= {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
                     read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
                     read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] };
-             //maximum value has been reached and will go back to zero at next load
-             if(odelay_data_cntvaluein[lane] == 31) begin
-                odelay_cntvalue_repeated <= 1; 
+             //halfway value has been reached (illegal) and will go back to zero at next load
+             if(odelay_data_cntvaluein[lane] == 15) begin
+                odelay_cntvalue_halfway <= 1; 
              end
             if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
                 pause_counter <= 1; // pause instruction address until pre-stall delay before refresh sequence finishes
@@ -2215,7 +2236,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
                     4: if(!wb2_we) begin
                             o_wb2_data[0] <= i_phy_idelayctrl_rdy; //1 bit, should be high when IDELAYE2 is ready
-                            o_wb2_data[1 +: 6] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
+                            o_wb2_data[1 +: 5] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
                             o_wb2_data[1 + 6 +: 5] <= instruction_address; //5 bits, address of the reset sequence
                             o_wb2_data[1 + 6 + 5 +: 4] <= added_read_pipe_max; //4 bit, max added read delay (must have a max value of 1)
                        end
@@ -2287,8 +2308,6 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
     assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
     assign debug_trigger = repeat_test /*o_wb_ack_read_q[0][0]*/;
-    (* mark_debug = "true" *) wire dq_all_zeroes;
-    assign dq_all_zeroes = (i_phy_iserdes_data == {(DQ_BITS*LANES*8){1'b0}});
     /*********************************************************************************************************************************************/
 
 
@@ -2921,10 +2940,10 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             if(state_calibrate < ISSUE_WRITE_1) begin
                 assert(!stage1_pending && !stage2_pending);
             end
-            if(stage1_pending && state_calibrate == ISSUE_READ) begin
+            if(stage1_pending && (state_calibrate == ISSUE_READ)) begin
                 assert(stage1_we);
             end
-            if(stage2_pending && state_calibrate == ISSUE_READ) begin
+            if(stage2_pending && (state_calibrate == ISSUE_READ)) begin
                 assert(stage2_we);
             end
             if(state_calibrate == ANALYZE_DATA) begin
