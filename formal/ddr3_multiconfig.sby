@@ -54,5 +54,5 @@ prep -top ddr3_controller
 
 [files]
 ./rtl/ddr3_controller.v
-./rtl/formal/fwb_slave.v
+./formal/fwb_slave.v
 
