@@ -200,7 +200,7 @@ The summary under `TEST CALIBRATION` are the results from the **internal** read/
   The bitstream will be compiled as `nexys_video/build/top.bit`. 
 
   - Board test: after programming bitstream, the 8 LEDs will show some pattern, then become all lit up after calibration. When pressing BTND(D22), LD7/LD6 will show a blinky, and LD5-LD0 will show 101110 after successful calibration. BTNC(B22) resets the controller, and calibration will be redone. 9600 baud UART will be the same as the Arty-S7 case: type small `abcd` to write to memory, and type capital `ABCD` to read back. For example, type `abcd` then `ABCDEFGH` will show `abcd����` (because EFGH memory locations are not written yet). 
-- The [QMTech Wukong demo project](./example_demo/qmtech_wukong) is jus the same as the arty-s7 demo mentioned above.
+- The [QMTech Wukong demo project](./example_demo/qmtech_wukong) is just the same as the arty-s7 demo mentioned above.
    - To run this project on your [QMTech Wukong board](https://github.com/ChinaQMTECH/QM_XC7A100T_WUKONG_BOARD/tree/master/V3), import all verilog files and xdc file under `example_demo/qmtech_wukong/` and `rtl/`. Run synthesis-to-bitstream generation then upload the bitfile. After around 2 seconds, the 2 LEDS should light up then you can start interacting with the UART line. SW2 button is for reset.
    - Or just upload the [bitfile already given in the repo](./example_demo/qmtech_wukong).
 - 
