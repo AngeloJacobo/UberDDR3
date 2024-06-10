@@ -7,7 +7,7 @@
     - [Edit Localparams](https://github.com/AngeloJacobo/DDR3_Controller#heavy_check_mark-edit-localparams)
  - [Lint and Formal Verification](https://github.com/AngeloJacobo/DDR3_Controller#lint-and-formal-verification)
  - [Simulation](https://github.com/AngeloJacobo/DDR3_Controller#simulation)
- - [Sample Projects](https://github.com/AngeloJacobo/DDR3_Controller#sample-projects)
+ - [Demo Projects](https://github.com/AngeloJacobo/UberDDR3/tree/main?tab=readme-ov-file#demo-projects)
  - [Other Open-Sourced DDR3 Controllers](https://github.com/AngeloJacobo/DDR3_Controller#other-open-sourced-ddr3-controllers)
  - [Developer Documentation](https://github.com/AngeloJacobo/DDR3_Controller#developer-documentation)
 
