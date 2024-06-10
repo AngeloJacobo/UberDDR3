@@ -187,22 +187,23 @@ Number of Injected Errors = 4
 
 The summary under `TEST CALIBRATION` are the results from the **internal** read/write test as part of the internal calibration. These are the same counters on the waveform shown before where the `wrong_read_data` should be zero. Under `SUMMARY` is the report from the **external** read/write test where the top-level simulation file `ddr3_dimm_micron_sim.sv` sends read/write request to the DDR3 controller via the wishbone bus. Notice that the number of fails (4) matches the number of injected errors (4) which is only proper.  
 
-# Sample Projects
-- The [Arty-S7](https://github.com/AngeloJacobo/DDR3_Controller/tree/main/arty_s7) project is a basic project for testing the DDR3 controller. The gist is that the 4 LEDS should light-up which means reset sequence is done and all internal read/write test passed during calibration. This project also uses a UART line, sending small letters via UART will write those corresponding small letters to memory, meanwhile sending capital letters will read those small letters back from memory. To run this project on your Arty-S7 board, import all verilog files and xdc file under `arty_s7/` including the verilog files under the submodule `verilog-uart/rtl/`. Instantiate a clock wizard with the following settings:  
+# Demo Projects
+- The [Arty-S7 demo project](./example_demo/arty_s7) is a basic project for testing the DDR3 controller. The gist is that the 4 LEDS should light-up which means reset sequence is done and all internal read/write test passed during calibration. This project also uses a UART line, sending small letters via UART will write those corresponding small letters to memory, meanwhile sending capital letters will read those small letters back from memory.
+   - To run this project on your Arty-S7 board, import all verilog files and xdc file under `example_demo/arty_s7/` and `rtl/`. Run synthesis-to-bitstream generation then upload the bitfile. After around 2 seconds, the 4 LEDS should light up then you can start interacting with the UART line. BTN0 button is for reset.
+   - Or just upload the [bitfile already given in the repo](./example_demo/arty_s7).
 
-![image](https://github.com/AngeloJacobo/DDR3_Controller/assets/87559347/b35cecb4-c8cc-4b0f-93ff-8fb2ef337dde)
+- The [Nexys Video demo project](./example_demo/nexys_video)  utilizes the DDR3 chip on the Digilent Nexys Video board with xc7a200t. Only one lane is used for simplicity. Supports OpenXC7 toolchain. Makefiles have been included for quick start, just run the following command in the root directory of repo:
 
-This will run the DDR3 controller at 333 MHz (3 ns clock period) which is the [maximum clock period for Arty-S7](https://digilent.com/reference/programmable-logic/arty-s7/reference-manual). Upload the bitstream to Arty-S7, after around 2 seconds the 4 LEDS should light up.
-
-- The [Nexys Video](./nexys_video) project utilizes the DDR3 chip on the Digilent Nexys Video board with xc7a200t. Only one lane is used for simplicity. Supports OpenXC7 toolchain. Makefiles have been included for quick start, just run the following command in the root directory of repo:
-
-  - Vivado compilation: `source /opt/Xilinx/Vivado/2019.1/settings64.sh` then `make -C nexys_video -f Makefile.vivado`
+  - Vivado compilation: `source /opt/Xilinx/Vivado/2019.1/settings64.sh` then `make -C example_demo/nexys_video -f Makefile.vivado`
   - OpenXC7 compilation (using toolchain in Docker): `docker run --rm -v .:/mnt -v /chipdb:/chipdb regymm/openxc7 make -C /mnt/nexys_video -f Makefile.openxc7`
 
   The bitstream will be compiled as `nexys_video/build/top.bit`. 
 
   - Board test: after programming bitstream, the 8 LEDs will show some pattern, then become all lit up after calibration. When pressing BTND(D22), LD7/LD6 will show a blinky, and LD5-LD0 will show 101110 after successful calibration. BTNC(B22) resets the controller, and calibration will be redone. 9600 baud UART will be the same as the Arty-S7 case: type small `abcd` to write to memory, and type capital `ABCD` to read back. For example, type `abcd` then `ABCDEFGH` will show `abcd����` (because EFGH memory locations are not written yet). 
-
+- The [QMTech Wukong demo project](./example_demo/qmtech_wukong) is jus the same as the arty-s7 demo mentioned above.
+   - To run this project on your [QMTech Wukong board](https://github.com/ChinaQMTECH/QM_XC7A100T_WUKONG_BOARD/tree/master/V3), import all verilog files and xdc file under `example_demo/qmtech_wukong/` and `rtl/`. Run synthesis-to-bitstream generation then upload the bitfile. After around 2 seconds, the 2 LEDS should light up then you can start interacting with the UART line. SW2 button is for reset.
+   - Or just upload the [bitfile already given in the repo](./example_demo/qmtech_wukong).
+- 
 - The [10Gb Ethernet Switch](https://github.com/ZipCPU/eth10g) project utilizes this DDR3 controller for accessing a single-rank DDR3 module (8 lanes of x8 DDR3) at DDR3-800 (100 MHz controller and 400 MHz PHY).
 
 # Other Open-Sourced DDR3 Controllers
