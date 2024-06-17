@@ -66,6 +66,7 @@ module ddr3_controller #(
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
+    parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
@@ -299,8 +300,10 @@ module ddr3_controller #(
      //and the IDELAY and ISERDES when receiving the data  (NOTE TO SELF: ELABORATE ON WHY THOSE MAGIC NUMBERS)
     localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;                           
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
-    localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
-                                                                                                      //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
+    localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  
+    //plus 10 controller clocks for possible bus latency and the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
+    localparam ECC_INFORMATION_BITS = max_information_bits(wb_data_bits);
+    
     /*********************************************************************************************************************************************/
    
     
@@ -402,6 +405,7 @@ module ddr3_controller #(
     reg[AUX_WIDTH-1:0] stage1_aux = 0;
     reg stage1_we = 0;
     reg[wb_data_bits - 1:0] stage1_data = 0;
+    wire[wb_data_bits - 1:0] stage1_data_processed, stage1_data_encoded;
     reg[wb_sel_bits - 1:0] stage1_dm = 0;
     reg[COL_BITS-1:0] stage1_col = 0;
     reg[BA_BITS-1:0] stage1_bank = 0;
@@ -479,6 +483,11 @@ module ddr3_controller #(
     reg index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data (since different lanes might not be aligned with each other and needs to be retrieved at a different time)
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
+    reg[wb_data_bits - 1:0] o_wb_data_q_q;
+    reg o_wb_ack_q;
+    reg[AUX_WIDTH-1:0] o_aux_q;
+    reg o_wb_ack_q_uncalibrated;
+    wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
     (* mark_debug = "true" *) reg calib_stb = 0;
     reg[wb_sel_bits-1:0] calib_sel = 0;
@@ -504,6 +513,7 @@ module ddr3_controller #(
     (* mark_debug = "true" *) reg[63:0] read_lane_data = 0;
     (* mark_debug = "true" *) reg odelay_cntvalue_halfway = 0;
     reg already_finished_calibration = 0;
+    reg initial_calibration_done = 0;
     // Wishbone 2
     reg wb2_stb = 0;
     reg wb2_update = 0;
@@ -527,7 +537,8 @@ module ddr3_controller #(
     reg[wb_addr_bits-1:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
     reg[31:0] write_test_address_counter = 0;
     reg[31:0] correct_read_data = 0, wrong_read_data = 0;
-
+    wire sb_err_o;
+    wire db_err_o;
         
     // initial block for all regs
     initial begin
@@ -838,11 +849,11 @@ module ddr3_controller #(
                 stage2_bank <= stage1_bank;
                 stage2_row <= stage1_row;
                 if(ODELAY_SUPPORTED) begin
-                    stage2_data_unaligned <= stage1_data;
+                    stage2_data_unaligned <= stage1_data_processed;
                     stage2_dm_unaligned <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
                 end
                 else begin
-                    stage2_data_unaligned_temp <= stage1_data;
+                    stage2_data_unaligned_temp <= stage1_data_processed;
                     stage2_dm_unaligned_temp <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
                 end
                 //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
@@ -962,6 +973,8 @@ module ddr3_controller #(
         end
     end
     assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];  // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
+    //assign o_phy_data = initial_calibration_done? {stage2_data[STAGE2_DATA_DEPTH-1][wb_data_bits - 1:1], 1'b0} : stage2_data[STAGE2_DATA_DEPTH-1];  // ECC test
+    
     assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
     /* verilator lint_off WIDTH */
     assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE; // wb_addr_plus_anticipate determines if it is near the end of column by checking if it jumps to next row
@@ -1405,13 +1418,32 @@ module ddr3_controller #(
                     shift_reg_read_pipe_q[index] <= 0;
                 end
             end
+            if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin // added latency of 1 clock cycle for decoding the ECC
+                o_wb_data_q_q <= o_wb_data_q_decoded;
+                o_wb_ack_q <= o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
+                o_wb_ack_q_uncalibrated <= o_wb_ack_read_q[0][0];
+                o_aux_q <= o_wb_ack_read_q[0][AUX_WIDTH:1];
+            end
        end
     end
-    assign o_wb_ack = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
-    //o_wb_ack_read_q[0][0] is needed internally to ack during write calibration but it must not go outside (since it is not an actual user wb request unless we are in DONE_CALIBRATE) 
-    assign o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; 
-    assign o_wb_data = o_wb_data_q[index_wb_data];
-    
+
+    generate
+        if(ECC_ENABLE == 0) begin: ecc_disabled_wishbone_out
+            assign o_wb_data_q_decoded = o_wb_data_q[index_wb_data];
+            always @* begin
+                o_wb_data_q_q = o_wb_data_q_decoded;
+                o_wb_ack_q = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
+                o_wb_ack_q_uncalibrated = o_wb_ack_read_q[0][0];
+                o_aux_q = o_wb_ack_read_q[0][AUX_WIDTH:1];
+            end
+        end
+    endgenerate
+
+    // WIshbone Outputs
+    assign o_wb_data = o_wb_data_q_q;
+    assign o_wb_ack = o_wb_ack_q;
+    assign o_aux = o_aux_q;
+
     // DQ/DQS IO tristate control logic
     always @(posedge i_controller_clk) begin
         o_phy_dqs_tri_control <= !write_dqs[STAGE2_DATA_DEPTH-1];
@@ -1478,6 +1510,7 @@ module ddr3_controller #(
             reset_from_calibrate <= 0;
             write_by_byte_counter <= 0;
             already_finished_calibration <= 0;
+            initial_calibration_done <= 1'b0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -1554,6 +1587,7 @@ module ddr3_controller #(
                         write_calib_dqs <= 0;
                         write_calib_odt <= 0;
                         o_phy_write_leveling_calib <= 0;
+                        initial_calibration_done <= 1'b0;
                       end
                       else if(instruction_address == 13) begin
                         pause_counter <= 1; //pause instruction address @13 until read calibration finishes
@@ -1801,7 +1835,7 @@ module ddr3_controller #(
 //                      end   
                                  
            READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
-                         read_data_store <= o_wb_data; // read data on address 0 
+                         read_data_store <= o_wb_data_q[index_wb_data]; // read data on address 0 
                          calib_stb <= 0;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index[lane] <= 0;
@@ -1828,6 +1862,7 @@ module ddr3_controller #(
                             if(lane == LANES - 1) begin
                             /* verilator lint_on WIDTH */
                                 state_calibrate <= BURST_WRITE;
+                                initial_calibration_done <= 1'b1;
                             end        
                             else begin
                                 lane <= lane + 1;
@@ -1905,11 +1940,11 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
        BURST_WRITE: if(!o_wb_stall_calib) begin // Test 1: Burst write (per byte write to test datamask feature), then burst read
                             calib_stb <= 1;
                             calib_aux <= 2;
-                            if(TDQS == 0) begin //Test datamask by writing 1 byte at a time
+                            if(TDQS == 0 && ECC_ENABLE == 0) begin //Test datamask by writing 1 byte at a time
                                 calib_sel <= 1 << write_by_byte_counter;
                                 calib_we <= 1; 
                                 calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                                calib_data<= {wb_sel_bits{8'haa}}; 
+                                calib_data <= {wb_sel_bits{8'haa}}; 
                                 calib_data[8*write_by_byte_counter +: 8] <= write_test_address_counter[7:0]; 
 
                                 if(MICRON_SIM) begin
@@ -1941,7 +1976,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                                 calib_sel <= {wb_sel_bits{1'b1}};
                                 calib_we <= 1; 
                                 calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                                calib_data<= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+                                calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
 
                                 if(MICRON_SIM) begin
                                     //if(write_test_address_counter[wb_addr_bits-1:0] == 500) begin //inject error at middle
@@ -2101,14 +2136,25 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
     assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
      // To show why next odd number is needed: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
-    reg[31:0] wb_data_to_wb2 = 0;
-    always @(posedge i_controller_clk) begin
-        if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
-    end
+
     /*********************************************************************************************************************************************/
 
     /******************************************************* Calibration Test Receiver *******************************************************/
     reg[wb_data_bits-1:0] wrong_data = 0;
+    wire[wb_data_bits-1:0] correct_data;
+
+    generate
+        if(ECC_ENABLE == 0) begin : ecc_enable_0_correct_data
+            assign correct_data = {wb_sel_bits{check_test_address_counter[7:0]}};
+        end
+        if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin : ecc_enable_1_2_correct_data
+            wire[wb_data_bits-1:0] correct_data_orig;
+
+            assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
+            assign correct_data = {{(wb_data_bits-ECC_INFORMATION_BITS){1'b0}} , correct_data_orig[ECC_INFORMATION_BITS - 1 : 0]}; //only ECC_INFORMATION_BITS are valid in o_wb_data
+        end
+    endgenerate
+
     always @(posedge i_controller_clk) begin
         if(sync_rst_controller) begin
             check_test_address_counter <= 0;
@@ -2118,9 +2164,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         else begin
             reset_from_test <= 0;
-            if(state_calibrate != DONE_CALIBRATE) begin
-                if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-3){1'b0}}, 3'd3, 1'b1}) begin //read ack received 
-                    if(o_wb_data == {wb_sel_bits{check_test_address_counter[7:0]}}) begin
+            if(state_calibrate != DONE_CALIBRATE) begin          
+                if ( (o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd3} || o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd5}) && o_wb_ack_q_uncalibrated ) begin
+                    if(o_wb_data == correct_data) begin
                         correct_read_data <= correct_read_data + 1;
                     end
                     else begin
@@ -2128,18 +2174,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         wrong_data <= o_wb_data;
                         reset_from_test <= !already_finished_calibration; //reset controller when a wrong data is received (only when calibration is not yet done)
                     end
-                    check_test_address_counter <= check_test_address_counter + 1;
-                end
-                else if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-3){1'b0}}, 3'd5, 1'b1}) begin //read ack received (alternate write read)
-                    if(o_wb_data == {wb_sel_bits{check_test_address_counter[7:0]}}) begin
-                        correct_read_data <= correct_read_data + 1;
-                    end
-                    else begin
-                        wrong_read_data <= wrong_read_data + 1;
-                        wrong_data <= o_wb_data;
-                        reset_from_test <= !already_finished_calibration; //reset controller when a wrong data is received (only when calibration is not yet done)
-                    end
-                    check_test_address_counter <= check_test_address_counter + 2;
+                    /* verilator lint_off WIDTHEXPAND */
+                    check_test_address_counter <= check_test_address_counter + 1 + (o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd5}); // alternate write read when aux == 5
+                    /* verilator lint_on WIDTHEXPAND */
                 end
             end
             if(repeat_test) begin
@@ -2510,6 +2547,70 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             find_delay = k[3:0];
         end
     endfunction
+
+    // find maximum information bit the data width can accomadate 
+    // Reference: https://docs.amd.com/v/u/en-US/xapp383
+    // Relevant equations: N <= 2^(K-1) - K  ,  total_bits = N + K  --->  total_bits <= 2^(total_bits - N - 1)
+    // N = information bits , K = parity bits ,  total_bits = total data width (information bit plus parity bits)
+    function integer max_information_bits;
+    input integer total_bits;
+    integer N;
+    begin
+        N = total_bits;
+        while (total_bits > 2**(total_bits-N-1)) N = N - 1;
+        max_information_bits = N;
+    end
+    endfunction 
+    /*********************************************************************************************************************************************/
+
+    /******************************************************* Module Instantiations *******************************************************/
+    generate
+        if(ECC_ENABLE == 0) begin : no_ecc
+            assign stage1_data_encoded = stage1_data;
+            assign stage1_data_processed = stage1_data_encoded;
+        end
+        else if (ECC_ENABLE == 2) begin : sideband_ECC_per_8_bursts
+            /* verilator lint_off PINCONNECTEMPTY */
+            ecc_enc #(
+                .K(ECC_INFORMATION_BITS), //Information bit vector size
+                .P0_LSB(0) //0: p0 is located at MSB
+                        //1: p0 is located at LSB
+            ) ecc_enc_inst (
+                .d_i(stage1_data[ECC_INFORMATION_BITS-1:0]),      //information bit vector input
+                .q_o(stage1_data_encoded),  //encoded data word output
+                .p_o(),      //parity vector output
+                .p0_o()      //extended parity bit
+            );
+
+            // if initial calibration is not yet done, then data will not be encoded with ECC
+            assign stage1_data_processed = initial_calibration_done? stage1_data_encoded : stage1_data;
+
+            ecc_dec #(
+            .K(ECC_INFORMATION_BITS), //Information bit vector size
+            .LATENCY(0), //0: no latency (combinatorial design)
+                                //1: registered outputs
+                                //2: registered inputs+outputs
+            .P0_LSB(0) //0: p0 is located at MSB
+                                //1: p0 is located at LSB
+            ) ecc_dec_inst (
+                //clock/reset ports (if LATENCY > 0)
+                .rst_ni(1'b1),     //asynchronous reset
+                .clk_i(1'b0),      //clock input
+                .clkena_i(1'b0),   //clock enable input
+                //data ports
+                .d_i(o_wb_data_q[index_wb_data]),        //encoded code word input
+                .q_o(o_wb_data_q_decoded[ECC_INFORMATION_BITS-1:0]),        //information bit vector output
+                .syndrome_o(), //syndrome vector output
+                //flags
+                .sb_err_o(sb_err_o),   //single bit error detected
+                .db_err_o(db_err_o),   //double bit error detected
+                .sb_fix_o()    //repaired error in the information bits
+            );
+            /* verilator lint_on PINCONNECTEMPTY */
+            assign o_wb_data_q_decoded[wb_data_bits - 1 : ECC_INFORMATION_BITS] = 0;
+        end
+    endgenerate
+
     /*********************************************************************************************************************************************/
 
 
@@ -2530,6 +2631,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("SECOND_WISHBONE = %0d", SECOND_WISHBONE);
         $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
         $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
+        $display("ECC_ENABLE = %0d", ECC_ENABLE);
+        $display("ECC_INFORMATION_BITS = %0d", ECC_INFORMATION_BITS);
 
         $display("\nCONTROLLER LOCALPARAMS:\n-----------------------------");
         $display("wb_addr_bits = %0d", wb_addr_bits);
@@ -2560,6 +2663,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("WRITE_TO_PRECHARGE_DELAY = %0d", WRITE_TO_PRECHARGE_DELAY);
         $display("STAGE2_DATA_DEPTH = %0d", STAGE2_DATA_DEPTH);
         $display("READ_ACK_PIPE_WIDTH = %0d\n", READ_ACK_PIPE_WIDTH);
+        
     end
 `endif
     

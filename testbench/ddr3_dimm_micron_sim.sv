@@ -63,7 +63,8 @@ module ddr3_dimm_micron_sim;
 
  localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
             DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
-            AUX_WIDTH = 16; // AUX lines
+            AUX_WIDTH = 16, // AUX lines
+            ECC_ENABLE = 2; // ECC enable
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -160,7 +161,8 @@ ddr3_top #(
     .AUX_WIDTH(AUX_WIDTH), //width of aux line (must be >= 4) 
     .MICRON_SIM(1), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
     .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 if ODELAYE2 is supported
-    .SECOND_WISHBONE(0) //set to 1 if 2nd wishbone for debugging is needed 
+    .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone for debugging is needed 
+    .ECC_ENABLE(ECC_ENABLE)
     ) ddr3_top
     (
         //clock and reset
@@ -258,7 +260,16 @@ ddr3_top #(
         .dq(dq)
     );
  `endif
-    
+    // Force change for ECC tests
+    always @(ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1]) begin
+        if(ddr3_top.ddr3_controller_inst.initial_calibration_done) begin
+            force ddr3_top.ddr3_controller_inst.o_phy_data = {ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1][ddr3_top.ddr3_controller_inst.wb_data_bits - 1:1], 1'b0}; 
+        end
+        else begin
+            release ddr3_top.ddr3_controller_inst.o_phy_data;
+        end
+    end
+
     reg[511:0] write_data = 0, expected_read_data = 0;
     integer address = 0, read_address = 0, address_inner = 0;
     integer start_address = 0, start_read_address;
@@ -619,6 +630,9 @@ ddr3_top #(
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
+                if (ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                        expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
+                end
                 if(expected_read_data == o_wb_data) begin
                     //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
                     number_of_successful = number_of_successful + 1;
@@ -638,6 +652,9 @@ ddr3_top #(
            if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                end
+                if (ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                        expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
                 end
                 if(expected_read_data == o_wb_data) begin
                     //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
@@ -659,6 +676,9 @@ ddr3_top #(
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
+                if (ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                        expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
+                end
                 if(expected_read_data == o_wb_data) begin
                     //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
                     number_of_successful = number_of_successful + 1;
@@ -678,6 +698,9 @@ ddr3_top #(
            if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                end
+                if (ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                        expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
                 end
                 if(expected_read_data == o_wb_data) begin
                     //$display("SUCCESSFUL: Address = %0d, expected data = %h, read data = %h", (read_address/($bits(ddr3_top.i_wb_data)/32)), expected_read_data, o_wb_data);
