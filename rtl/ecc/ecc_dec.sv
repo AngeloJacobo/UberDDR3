@@ -108,10 +108,12 @@ module ecc_dec #(
   parameter n = m + K
 )
 (
+  /* verilator lint_off UNUSEDSIGNAL */
   //clock/reset ports (if LATENCY > 0)
   input              rst_ni,     //asynchronous reset
   input              clk_i,      //clock input
   input              clkena_i,   //clock enable input
+  /* verilator lint_on UNUSEDSIGNAL */
 
   //data ports
   input      [n  :0] d_i,        //encoded code word input
@@ -128,12 +130,12 @@ module ecc_dec #(
 // Functions
 //---------------------------------------------------------
 function integer calculate_m(input integer k);
-  integer m;
+  integer m_local;
 begin
-  m=1;
-  while (2**m < m+k+1) m++;
+  m_local=1;
+  while (2**m_local < m_local+k+1) m_local++;
 
-  calculate_m = m;
+  calculate_m = m_local;
 end
 endfunction //calculate_m
 
@@ -177,13 +179,15 @@ begin
     bit_idx=0; //information bit vector index
     for (cw_idx=1; cw_idx<=n; cw_idx++) //codeword index
       if (2**$clog2(cw_idx) != cw_idx)
+        /* verilator lint_off UNUSEDSIGNAL */
         extract_q[bit_idx++] = cw[cw_idx];
+        /* verilator lint_on UNUSEDSIGNAL */
 end
 endfunction //extract_q
 
 
-function is_power_of_2(input int n);
-    is_power_of_2 = (n & (n-1)) == 0;
+function is_power_of_2(input [m:1] n_local);
+    is_power_of_2 = (n_local & (n_local-1)) == 0;
 endfunction
 
 
@@ -240,7 +244,7 @@ assign syndrome = calculate_syndrome(d);
 //Step 4: Generate intermediate registers (if any)
 generate
   if (LATENCY > 1)
-  begin
+  begin : gen_inter_reg_latency_g1
       always @(posedge clk_i or negedge rst_ni)
         if (!rst_ni)
         begin
@@ -256,7 +260,7 @@ generate
         end
   end
   else
-  begin
+  begin : gen_inter_reg_latency_0
       assign d_reg        = d;
       assign parity_reg   = parity;
       assign syndrome_reg = syndrome;
@@ -276,8 +280,8 @@ assign sb_fix =  parity_reg & |information_error(syndrome_reg);
 
 //Step 8: Generate output registers (if required)
 generate
-  if (LATENCY > 0) //
-  begin //Generate output registers
+  if (LATENCY > 0) 
+  begin : gen_output_reg_latency_g0 //Generate output registers
       always @(posedge clk_i or negedge rst_ni)
         if (!rst_ni)
         begin
@@ -296,8 +300,9 @@ generate
             sb_fix_o   <= sb_fix;
         end
   end
+
   else
-  begin //No output registers
+  begin : gen_output_reg_latency_0//No output registers
       always_comb
       begin
           q_o        = q;

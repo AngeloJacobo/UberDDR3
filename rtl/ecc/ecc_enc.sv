@@ -116,12 +116,12 @@ module ecc_enc #(
 function integer calculate_m;
   input integer k;
 
-  integer m;
+  integer m_local;
 begin
-  m=1;
-  while (2**m < m+k+1) m++;
+  m_local=1;
+  while (2**m_local < m_local+k+1) m_local++;
 
-  calculate_m = m;
+  calculate_m = m_local;
 end
 endfunction //calculate_m
 
@@ -139,8 +139,10 @@ begin
 
     bit_idx=0; //information vector bit index
     for (cw_idx=1; cw_idx<=n; cw_idx++)
-      if (2**$clog2(cw_idx) != cw_idx)
+      if (2**$clog2(cw_idx) != cw_idx) 
+        /* verilator lint_off UNUSEDSIGNAL */
         store_dbits_in_codeword[cw_idx] = d[bit_idx++];
+        /* verilator lint_on UNUSEDSIGNAL */
 end
 endfunction //store_dbits_in_codeword
 
