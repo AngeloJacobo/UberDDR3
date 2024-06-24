@@ -1,6 +1,6 @@
 # run verilator lint
 echo -e "\e[32mRun Verilator Lint:\e[0m"
-verilator --lint-only rtl/ddr3_controller.v -Irtl/ -Wall
+verilator --lint-only rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv -Irtl/ -Wall
 echo "DONE!"
     
 
@@ -9,7 +9,7 @@ echo ""
 echo ""
 echo -e "\e[32mRun Yosys Compile:\e[0m"
 yosys -q -p "
-    read_verilog -sv ./rtl/ddr3_controller.v;
+    read_verilog -sv ./rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv;
     synth -top ddr3_controller"
 
 # run iverilog compile
