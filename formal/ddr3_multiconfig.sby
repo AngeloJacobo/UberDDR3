@@ -1,11 +1,17 @@
 [tasks]
-prf2lanes_83MHz   prf opt_2lanes   opt_83MHz    opt_with_ODELAY
-prf4lanes_83MHz   prf opt_4lanes   opt_83MHz    opt_with_ODELAY
-prf8lanes_83MHz   prf opt_8lanes   opt_83MHz    opt_with_ODELAY
-prf2lanes_100MHz  prf opt_2lanes   opt_100MHz   opt_with_ODELAY
-prf4lanes_100MHz  prf opt_4lanes   opt_100MHz   opt_with_ODELAY
-prf8lanes_100MHz  prf opt_8lanes   opt_100MHz   opt_with_ODELAY
-prf_no_ODELAY     prf opt_8lanes   opt_100MHz   opt_no_ODELAY 
+prf2lanes_83MHz             prf  opt_2lanes   opt_83MHz    opt_with_ODELAY
+prf4lanes_83MHz             prf  opt_4lanes   opt_83MHz    opt_with_ODELAY
+prf8lanes_83MHz             prf  opt_8lanes   opt_83MHz    opt_with_ODELAY  opt_WB_ERR
+prf2lanes_100MHz            prf  opt_2lanes   opt_100MHz   opt_with_ODELAY  opt_WB_ERR
+prf4lanes_100MHz            prf  opt_4lanes   opt_100MHz   opt_with_ODELAY
+prf8lanes_100MHz            prf  opt_8lanes   opt_100MHz   opt_with_ODELAY
+prf_no_ODELAY               prf  opt_8lanes   opt_100MHz   opt_no_ODELAY 
+prf2lanes_83MHz_ECC_2       prf  opt_2lanes   opt_83MHz    opt_with_ODELAY  opt_ECC_2
+prf8lanes_100MHz_ECC_2      prf  opt_8lanes   opt_100MHz   opt_no_ODELAY    opt_ECC_2 
+prf8lanes_100MHz_ECC_2_err  prf  opt_8lanes   opt_100MHz   opt_with_ODELAY  opt_ECC_2  opt_WB_ERR
+prf2lanes_83MHz_ECC_1       prf  opt_2lanes   opt_83MHz    opt_with_ODELAY  opt_ECC_1
+prf8lanes_100MHz_ECC_1      prf  opt_8lanes   opt_100MHz   opt_no_ODELAY    opt_ECC_1 
+prf8lanes_100MHz_ECC_1_err  prf  opt_8lanes   opt_100MHz   opt_with_ODELAY  opt_ECC_1  opt_WB_ERR
 
 [options]
 prf: mode prove
@@ -17,36 +23,52 @@ prf: smtbmc
 [script]
 read -formal ddr3_controller.v
 read -formal fwb_slave.v
+read -formal ecc_dec.sv
+read -formal ecc_enc.sv
 
 --pycode-begin--
-cmd = "hierarchy -top ddr3_controller"
 
 # Number of Lanes
 if "opt_2lanes" in  tags:
-    cmd += " -chparam LANES 2"
+    cmd = "chparam -set LANES 2 ddr3_controller\n"
 elif "opt_4lanes" in tags:
-    cmd += " -chparam LANES 4"
+    cmd = "chparam -set LANES 4 ddr3_controller\n"
 elif "opt_8lanes" in tags:
-    cmd += " -chparam LANES 8"
+    cmd = "chparam -set LANES 8 ddr3_controller\n"
 else:
-    cmd += " -chparam LANES 8"
+    cmd = "chparam -set LANES 8 ddr3_controller\n"
 
 # Clock period
 if "opt_83MHz" in tags:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 12000"
-    cmd += " -chparam DDR3_CLK_PERIOD 3000"
+    cmd += "chparam -set CONTROLLER_CLK_PERIOD 12000 ddr3_controller\n"
+    cmd += "chparam -set DDR3_CLK_PERIOD 3000 ddr3_controller\n"
 elif "opt_100MHz" in tags:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 10000"
-    cmd += " -chparam DDR3_CLK_PERIOD 2500"
+    cmd += "chparam -set CONTROLLER_CLK_PERIOD 10000 ddr3_controller\n"
+    cmd += "chparam -set DDR3_CLK_PERIOD 2500 ddr3_controller\n"
 else:
-    cmd += " -chparam CONTROLLER_CLK_PERIOD 10000"
-    cmd += " -chparam DDR3_CLK_PERIOD 2500"
+    cmd += "chparam -set CONTROLLER_CLK_PERIOD 10000 ddr3_controller\n"
+    cmd += "chparam -set DDR3_CLK_PERIOD 2500 ddr3_controller\n"
 
 # ODELAY support
 if "opt_with_ODELAY" in tags:
-    cmd += " -chparam ODELAY_SUPPORTED 1"
+    cmd += "chparam -set ODELAY_SUPPORTED 1 ddr3_controller\n"
 elif "opt_no_ODELAY" in tags:
-    cmd += " -chparam ODELAY_SUPPORTED 0"
+    cmd += "chparam -set ODELAY_SUPPORTED 0 ddr3_controller\n"
+
+# ECC 
+if "opt_ECC_2" in  tags:
+    cmd += "chparam -set ECC_ENABLE 2 ddr3_controller\n"
+elif "opt_ECC_1" in tags:
+    cmd += "chparam -set ECC_ENABLE 1 ddr3_controller\n"
+else:
+    cmd += "chparam -set ECC_ENABLE 0 ddr3_controller\n"
+
+# Wishbone Error
+if "opt_WB_ERR" in  tags:
+    cmd += "chparam -set WB_ERROR 1 ddr3_controller\n"
+else:
+    cmd += "chparam -set WB_ERROR 0 ddr3_controller\n"
+
 output(cmd)
 --pycode-end--
 
@@ -55,4 +77,6 @@ prep -top ddr3_controller
 [files]
 ./rtl/ddr3_controller.v
 ./formal/fwb_slave.v
+./rtl/ecc/ecc_dec.sv
+./rtl/ecc/ecc_enc.sv
 
