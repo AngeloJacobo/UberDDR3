@@ -1,3 +1,7 @@
+# Clean files
+rm -rf formal/ddr3*prf*
+rm -rf formal/ddr3_singleconfig
+
 # run verilator lint
 echo -e "\e[32mRun Verilator Lint:\e[0m"
 verilator --lint-only rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv -Irtl/ -Wall
