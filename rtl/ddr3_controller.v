@@ -66,6 +66,7 @@ module ddr3_controller #(
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
+                   WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
@@ -93,8 +94,9 @@ module ddr3_controller #(
         // Wishbone outputs
         output reg o_wb_stall, //1 = busy, cannot accept requests
         output wire o_wb_ack, //1 = read/write request has completed
-        output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-        output wire[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
+        output wire o_wb_err, //1 = Error due to ECC double bit error (fixed to 0 if WB_ERROR = 0)
+        output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        output reg[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
         //
         // Wishbone 2 (PHY) inputs
         input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -302,7 +304,8 @@ module ddr3_controller #(
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  
     //plus 10 controller clocks for possible bus latency and the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
-    localparam ECC_INFORMATION_BITS = max_information_bits(wb_data_bits);
+    localparam ECC_INFORMATION_BITS = (ECC_ENABLE == 2)? max_information_bits(wb_data_bits) : max_information_bits(wb_data_bits/8);
+
     
     /*********************************************************************************************************************************************/
    
@@ -484,10 +487,10 @@ module ddr3_controller #(
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data (since different lanes might not be aligned with each other and needs to be retrieved at a different time)
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
     reg[wb_data_bits - 1:0] o_wb_data_q_q;
-    reg o_wb_ack_q;
-    reg[AUX_WIDTH-1:0] o_aux_q;
-    reg o_wb_ack_q_uncalibrated;
-    wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
+    reg[wb_data_bits - 1:0] o_wb_data_uncalibrated;
+    reg o_wb_ack_q = 0;
+    reg o_wb_err_q;
+    reg o_wb_ack_uncalibrated = 0;
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
     (* mark_debug = "true" *) reg calib_stb = 0;
     reg[wb_sel_bits-1:0] calib_sel = 0;
@@ -537,8 +540,11 @@ module ddr3_controller #(
     reg[wb_addr_bits-1:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
     reg[31:0] write_test_address_counter = 0;
     reg[31:0] correct_read_data = 0, wrong_read_data = 0;
+    /* verilator lint_off UNDRIVEN */
     wire sb_err_o;
     wire db_err_o;
+    wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
+    /* verilator lint_on UNDRIVEN */
         
     // initial block for all regs
     initial begin
@@ -1265,6 +1271,10 @@ module ddr3_controller #(
             write_dqs <= 0;
             write_dq_q <= 0;
             write_dq <= 0;
+            if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                o_wb_ack_q <= 0;
+                o_wb_ack_uncalibrated <= 0;
+            end
             for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= 0;
             end
@@ -1419,30 +1429,43 @@ module ddr3_controller #(
                 end
             end
             if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin // added latency of 1 clock cycle for decoding the ECC
-                o_wb_data_q_q <= o_wb_data_q_decoded;
-                o_wb_ack_q <= o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
-                o_wb_ack_q_uncalibrated <= o_wb_ack_read_q[0][0];
-                o_aux_q <= o_wb_ack_read_q[0][AUX_WIDTH:1];
+                o_wb_data <= o_wb_data_q_decoded; // Wishbone data output
+                o_aux <= o_wb_ack_read_q[0][AUX_WIDTH:1]; // Aux output
+                o_wb_data_uncalibrated <= o_wb_data_q[index_wb_data]; // Data is not ECC decoded when not yet done calibration
+                o_wb_ack_uncalibrated <= o_wb_ack_read_q[0][0] && state_calibrate != DONE_CALIBRATE; // ack used during calibration
+                o_wb_ack_q <= o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE && i_wb_cyc; // ack used during normal operation
+                o_wb_err_q <= db_err_o; // flag Wishbone error due to double bit error
             end
        end
     end
 
     generate
         if(ECC_ENABLE == 0) begin: ecc_disabled_wishbone_out
-            assign o_wb_data_q_decoded = o_wb_data_q[index_wb_data];
             always @* begin
-                o_wb_data_q_q = o_wb_data_q_decoded;
-                o_wb_ack_q = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
-                o_wb_ack_q_uncalibrated = o_wb_ack_read_q[0][0];
-                o_aux_q = o_wb_ack_read_q[0][AUX_WIDTH:1];
+                o_wb_data = o_wb_data_q[index_wb_data]; // Wishbone data output
+                o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; // Aux output
+                o_wb_data_uncalibrated = o_wb_data; // wishbone data is also used when not yet done calibration
+                o_wb_ack_uncalibrated = o_wb_ack_read_q[0][0] && state_calibrate != DONE_CALIBRATE; // ack used during calibration
+                o_wb_ack_q = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE; // ack used during normal operation
+                o_wb_err_q = 0; // no wishbone error when ECC is disabled
             end
         end
     endgenerate
 
-    // WIshbone Outputs
-    assign o_wb_data = o_wb_data_q_q;
-    assign o_wb_ack = o_wb_ack_q;
-    assign o_aux = o_aux_q;
+    generate
+        if (WB_ERROR == 0) begin: wb_err_disabled
+            assign o_wb_ack = o_wb_ack_q;
+            assign o_wb_err = 1'b0; // no Wishbone error if WB_ERROR == 0
+        end
+        else begin : wb_err_enabled
+            // Wishbone B4 doc:
+            // RULE 3.45
+            // If a SLAVE supports the [ERR_O] or [RTY_O] signals, then the SLAVE MUST NOT assert
+            // more than one of the following signals at any time: [ACK_O], [ERR_O] or [RTY_O].
+            assign o_wb_ack = !o_wb_err_q && o_wb_ack_q ;
+            assign o_wb_err = o_wb_err_q && o_wb_ack_q; 
+        end
+    endgenerate
 
     // DQ/DQS IO tristate control logic
     always @(posedge i_controller_clk) begin
@@ -1834,8 +1857,8 @@ module ddr3_controller #(
 //                        state_calibrate <= READ_DATA;
 //                      end   
                                  
-           READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
-                         read_data_store <= o_wb_data_q[index_wb_data]; // read data on address 0 
+           READ_DATA: if({o_aux, o_wb_ack_uncalibrated}== {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
+                         read_data_store <= o_wb_data_uncalibrated; // read data on address 0 
                          calib_stb <= 0;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index[lane] <= 0;
@@ -2147,7 +2170,13 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         if(ECC_ENABLE == 0) begin : ecc_enable_0_correct_data
             assign correct_data = {wb_sel_bits{check_test_address_counter[7:0]}};
         end
-        if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin : ecc_enable_1_2_correct_data
+        else if(ECC_ENABLE == 1) begin : ecc_enable_1_correct_data
+            wire[wb_data_bits-1:0] correct_data_orig;
+
+            assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
+            assign correct_data = {{(wb_data_bits-ECC_INFORMATION_BITS*8){1'b0}} , correct_data_orig[ECC_INFORMATION_BITS*8 - 1 : 0]}; //only ECC_INFORMATION_BITS are valid in o_wb_data
+        end
+        else if(ECC_ENABLE == 2) begin : ecc_enable_2_correct_data
             wire[wb_data_bits-1:0] correct_data_orig;
 
             assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
@@ -2165,7 +2194,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         else begin
             reset_from_test <= 0;
             if(state_calibrate != DONE_CALIBRATE) begin          
-                if ( (o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd3} || o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd5}) && o_wb_ack_q_uncalibrated ) begin
+                if ( (o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd3} || o_aux == {{(AUX_WIDTH-3){1'b0}}, 3'd5}) && o_wb_ack_uncalibrated ) begin
                     if(o_wb_data == correct_data) begin
                         correct_read_data <= correct_read_data + 1;
                     end
@@ -2569,6 +2598,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             assign stage1_data_encoded = stage1_data;
             assign stage1_data_processed = stage1_data_encoded;
         end
+        
         else if (ECC_ENABLE == 2) begin : sideband_ECC_per_8_bursts
             /* verilator lint_off PINCONNECTEMPTY */
             ecc_enc #(
@@ -2606,8 +2636,54 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 .db_err_o(db_err_o),   //double bit error detected
                 .sb_fix_o()    //repaired error in the information bits
             );
-            /* verilator lint_on PINCONNECTEMPTY */
             assign o_wb_data_q_decoded[wb_data_bits - 1 : ECC_INFORMATION_BITS] = 0;
+        end
+
+        // ECC per burst. If x16 DDR3, then every 16 bits will have ECC parity bits.
+        else if(ECC_ENABLE == 1) begin : sideband_ECC_per_burst
+            wire[7:0] sb_err;
+            wire[7:0] db_err;
+            genvar index_enc;
+            // 8 encoders to add ECC bits per burst
+            for(index_enc = 0; index_enc < 8 ;  index_enc = index_enc + 1) begin
+                ecc_enc #(
+                    .K(ECC_INFORMATION_BITS), //Information bit vector size
+                    .P0_LSB(0) //0: p0 is located at MSB
+                               //1: p0 is located at LSB
+                ) ecc_enc_inst (
+                    .d_i(stage1_data[ECC_INFORMATION_BITS*index_enc +: ECC_INFORMATION_BITS]),    //information bit vector input
+                    .q_o(stage1_data_encoded[DQ_BITS*LANES*index_enc +: DQ_BITS*LANES]),  //encoded data word output
+                    .p_o(),      //parity vector output
+                    .p0_o()      //extended parity bit
+                );
+
+                ecc_dec #(
+                    .K(ECC_INFORMATION_BITS), //Information bit vector size
+                    .LATENCY(0), //0: no latency (combinatorial design)
+                                        //1: registered outputs
+                                        //2: registered inputs+outputs
+                    .P0_LSB(0) //0: p0 is located at MSB
+                                //1: p0 is located at LSB
+                ) ecc_dec_inst (
+                    //clock/reset ports (if LATENCY > 0)
+                    .rst_ni(1'b1),     //asynchronous reset
+                    .clk_i(1'b0),      //clock input
+                    .clkena_i(1'b0),   //clock enable input
+                    //data ports
+                    .d_i(o_wb_data_q[index_wb_data][DQ_BITS*LANES*index_enc +: DQ_BITS*LANES]),        //encoded code word input
+                    .q_o(o_wb_data_q_decoded[ECC_INFORMATION_BITS*index_enc +: ECC_INFORMATION_BITS]),        //information bit vector output
+                    .syndrome_o(), //syndrome vector output
+                    //flags
+                    .sb_err_o(sb_err[index_enc]),   //single bit error detected
+                    .db_err_o(db_err[index_enc]),   //double bit error detected
+                    .sb_fix_o()    //repaired error in the information bits
+                );
+                /* verilator lint_on PINCONNECTEMPTY */
+            end
+            assign o_wb_data_q_decoded[wb_data_bits - 1 : ECC_INFORMATION_BITS*8] = 0;
+            assign stage1_data_processed = initial_calibration_done? stage1_data_encoded : stage1_data;
+            assign sb_err_o = |sb_err;
+            assign db_err_o = |db_err;
         end
     endgenerate
 
@@ -2633,7 +2709,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
         $display("ECC_ENABLE = %0d", ECC_ENABLE);
         $display("ECC_INFORMATION_BITS = %0d", ECC_INFORMATION_BITS);
-
+        $display("WB_ERROR = %0d", WB_ERROR);
+        
         $display("\nCONTROLLER LOCALPARAMS:\n-----------------------------");
         $display("wb_addr_bits = %0d", wb_addr_bits);
         $display("wb_data_bits = %0d", wb_data_bits);
@@ -2785,8 +2862,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         localparam F_MAX_STALL = max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1 + PRECHARGE_TO_ACTIVATE_DELAY + 1 + max(ACTIVATE_TO_WRITE_DELAY,ACTIVATE_TO_READ_DELAY) + 1 ;
                                     //worst case delay (Precharge -> Activate-> R/W)
                                     //add 1 to each delay since they end at zero
-        localparam F_MAX_ACK_DELAY = F_MAX_STALL + (READ_ACK_PIPE_WIDTH + 2); //max_stall + size of shift_reg_read_pipe_q + o_wb_ack_read_q (assume to be two via read_pipe_max) 
-
+        localparam F_MAX_ACK_DELAY = F_MAX_STALL + (READ_ACK_PIPE_WIDTH + 2) + (ECC_ENABLE == 1 || ECC_ENABLE == 2); //max_stall + size of shift_reg_read_pipe_q + o_wb_ack_read_q (assume to be two via read_pipe_max) 
+        // plus 1 since ECC adds 1 clock latency before ACK 
         (*keep*) wire[3:0] f_max_stall, f_max_ack_delay;
         assign f_max_stall = F_MAX_STALL;
         assign f_max_ack_delay = F_MAX_ACK_DELAY;
@@ -3393,10 +3470,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         
         
-        wire[3:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count, f_stall_count;
+        wire[3:0] f_nreqs, f_nacks, f_outstanding;
+        wire[3:0] f_ackwait_count, f_stall_count;
         wire[3:0] f_nreqs_2, f_nacks_2, f_outstanding_2;
-        reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
-        reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1:0];
+        reg[READ_ACK_PIPE_WIDTH+1+(ECC_ENABLE == 1 || ECC_ENABLE == 2):0] f_ack_pipe_after_stage2;
+        reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1+(ECC_ENABLE == 1 || ECC_ENABLE == 2):0];
+        // 1 more pipeline stage will be added when ECC_ENABLE is 1 or 2
         integer f_ack_pipe_marker;
 
         integer f_sum_of_pending_acks = 0;
@@ -3414,26 +3493,54 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 for(f_index_1 = 0; f_index_1 < 2; f_index_1 = f_index_1 + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
                     f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[f_index_1][0] + 0;
                 end
-                
+                if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_uncalibrated + o_wb_ack_q;
+                end
+
+                if(o_wb_ack_uncalibrated) begin
+                    assert(state_calibrate != DONE_CALIBRATE);
+                end
+                if(o_wb_ack_q) begin
+                    assert(state_calibrate == DONE_CALIBRATE);
+                end
+
                 //the remaining o_wb_ack_read_q (>2) should stay zero at
                 //all instance
                 for(f_index_1 = 2; f_index_1 < MAX_ADDED_READ_ACK_DELAY ; f_index_1 = f_index_1 + 1) begin
                     assert(o_wb_ack_read_q[f_index_1] == 0);
+                end
+                if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1+1] = {o_aux,(o_wb_ack_uncalibrated || o_wb_ack_q)};
                 end
                 f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1] = o_wb_ack_read_q[0]; //last stage of f_aux_ack_pipe_after_stage2 is also the last ack stage
                 f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH] = o_wb_ack_read_q[1];
                 for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH; f_index_1 = f_index_1 + 1) begin
                     f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - f_index_1] = shift_reg_read_pipe_q[f_index_1];
                 end
-                f_ack_pipe_after_stage2 = {
-                    o_wb_ack_read_q[0][0], 
-                    o_wb_ack_read_q[1][0], 
-                    shift_reg_read_pipe_q[0][0], 
-                    shift_reg_read_pipe_q[1][0],
-                    shift_reg_read_pipe_q[2][0],
-                    shift_reg_read_pipe_q[3][0],
-                    shift_reg_read_pipe_q[4][0]
+
+                if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                    f_ack_pipe_after_stage2 = {
+                        (o_wb_ack_uncalibrated || o_wb_ack_q),
+                        o_wb_ack_read_q[0][0], 
+                        o_wb_ack_read_q[1][0], 
+                        shift_reg_read_pipe_q[0][0], 
+                        shift_reg_read_pipe_q[1][0],
+                        shift_reg_read_pipe_q[2][0],
+                        shift_reg_read_pipe_q[3][0],
+                        shift_reg_read_pipe_q[4][0]
                     };
+                end
+                else begin
+                    f_ack_pipe_after_stage2 = {
+                        o_wb_ack_read_q[0][0], 
+                        o_wb_ack_read_q[1][0], 
+                        shift_reg_read_pipe_q[0][0], 
+                        shift_reg_read_pipe_q[1][0],
+                        shift_reg_read_pipe_q[2][0],
+                        shift_reg_read_pipe_q[3][0],
+                        shift_reg_read_pipe_q[4][0]
+                    };
+                end
 
                 if(f_ackwait_count > F_MAX_STALL) begin
                     assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
@@ -3458,10 +3565,13 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     assert(f_outstanding == 0 || !i_wb_cyc); 
                     assert(f_sum_of_pending_acks <= 3);
 
-                    if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
-                        assert(o_wb_ack_read_q[0] == {0, 1'b1}); //if sum of pending acks > 1 then the first two will be write and have aux of 0, while the last will have aux of 1 (read)
+                    // if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
+                    //     assert(o_wb_ack_read_q[0] == {0, 1'b1}); 
+                    // end
+                    if((f_sum_of_pending_acks > 1) && o_wb_ack_uncalibrated) begin //if sum of pending acks > 1 then the first two will be write and have aux of 0, while the last will have aux of 1 (read)
+                        assert(o_aux == 0);
+                        assert(o_wb_ack_uncalibrated == 1);
                     end
-
                     f_ack_pipe_marker = 0;
                     for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH + 2; f_index_1 = f_index_1 + 1) begin //check each ack stage starting from last stage
                         if(f_aux_ack_pipe_after_stage2[f_index_1][0]) begin //if ack is high
@@ -4002,7 +4112,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             .i_wb_ack(o_wb_ack),
             .i_wb_stall(o_wb_stall),
             .i_wb_idata(o_wb_data),
-            .i_wb_err(1'b0),
+            .i_wb_err(o_wb_err),
             // Some convenience output parameters
             .f_nreqs(f_nreqs), 
             .f_nacks(f_nacks),
@@ -4144,4 +4254,3 @@ module mini_fifo #(
 endmodule
 
 `endif
-
