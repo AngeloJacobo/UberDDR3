@@ -78,7 +78,8 @@ module ddr3_controller #(
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
                 cmd_len = 4 + 3 + BA_BITS + ROW_BITS,
-                lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES)
+                lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES),
+    parameter[1:0] row_bank_col = 1 // memory address mapping: 0 {bank, row, col} , 1 = {row, bank, col} , 2 = {bank[2:1]. row, bank[0], col} 
     ) 
     (
         input wire i_controller_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
@@ -878,18 +879,48 @@ module ddr3_controller #(
                 stage1_aux <= i_aux; //aux ID for AXI compatibility
                 stage1_we <= i_wb_we; //write-enable
                 stage1_dm <= i_wb_sel; //byte selection
-                stage1_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
-                stage1_bank <=  i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
-                stage1_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                //stage1_next_bank will not increment unless stage1_next_col
-                //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
-                //precharge and activate will happen only at the end of the
-                //current column with a margin dictated by
-                //MARGIN_BEFORE_ANTICIPATE  
-                /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
-                //anticipated next row and bank to be accessed 
-                /* verilator lint_on WIDTH */
+
+                if(row_bank_col == 1) begin // memory address mapping: {row, bank, col}
+                    stage1_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS - $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_bank <=  i_wb_addr[ (BA_BITS + COL_BITS - $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //bank_address
+                    stage1_col <= { i_wb_addr[ (COL_BITS- $clog2(serdes_ratio*2)-1) : 0 ], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_bank will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                end
+                else if(row_bank_col == 0) begin // memory address mapping: {bank, row, col}
+                    stage1_bank <=  i_wb_addr[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
+                    stage1_row <= i_wb_addr[ (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_row will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank, stage1_next_row} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                end
+                else if(row_bank_col == 2) begin // memory address mapping: {bank[2:1], row, bank[0], col}
+                    stage1_bank[2:1] <=  i_wb_addr[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2) + 1)]; //bank_address
+                    stage1_row <= i_wb_addr[ (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) : (COL_BITS - $clog2(serdes_ratio*2) + 1) ]; //row_address
+                    stage1_bank[0] <= i_wb_addr[COL_BITS - $clog2(serdes_ratio*2)];
+                    stage1_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_bank will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. This will overwrap every two banks
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank[2:1], stage1_next_row, stage1_next_bank[0]} <= wb_addr_plus_anticipate >> (COL_BITS - $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                end
                 stage1_data <= i_wb_data;
             end
             // request from calibrate FSM will be accepted here
@@ -898,12 +929,48 @@ module ddr3_controller #(
                 stage1_we <= calib_we; //write-enable
                 stage1_dm <= calib_sel;
                 stage1_aux <= calib_aux; //aux ID for AXI compatibility
-                stage1_col <= { calib_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
-                stage1_bank <= calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
-                stage1_row <= calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
-                /* verilator lint_on WIDTH */
+
+                if(row_bank_col == 1) begin // memory address mapping: {row, bank, col}
+                    stage1_row <= calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS - $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_bank <=  calib_addr[ (BA_BITS + COL_BITS - $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //bank_address
+                    stage1_col <= { calib_addr[ (COL_BITS- $clog2(serdes_ratio*2)-1) : 0 ], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (8-burst word-aligned)
+                    //stage1_next_bank will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_row , stage1_next_bank} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                end
+                else if(row_bank_col == 0) begin // memory address mapping: {bank, row, col}
+                    stage1_bank <=  calib_addr[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
+                    stage1_row <= calib_addr[ (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_col <= { calib_addr[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (8-burst word-aligned)
+                    //stage1_next_row will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank, stage1_next_row} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                end
+                else if(row_bank_col == 2) begin // memory address mapping: {bank[2:1], row, bank[0], col}
+                    stage1_bank[2:1] <=  calib_addr[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2) + 1)]; //bank_address
+                    stage1_row <= calib_addr[ (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) : (COL_BITS - $clog2(serdes_ratio*2) + 1) ]; //row_address
+                    stage1_bank[0] <= calib_addr[COL_BITS - $clog2(serdes_ratio*2)];
+                    stage1_col <= { calib_addr[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_row will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. This will overwrap every two banks
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank[2:1], stage1_next_row, stage1_next_bank[0]} <= wb_addr_plus_anticipate >> (COL_BITS - $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                end
                 stage1_data <= calib_data;
             end
             
@@ -2717,7 +2784,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("wb_sel_bits  = %0d", wb_sel_bits);
         $display("wb2_sel_bits = %0d", wb2_sel_bits);
         $display("DQ_BITS = %0d", DQ_BITS);
-
+        $display("row_bank_col = %0d", row_bank_col);
+        
         $display("\nCOMMAND SLOTS:\n-----------------------------");
         $display("READ_SLOT = %0d", READ_SLOT);
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
@@ -3233,8 +3301,17 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                        f_read_data_col = {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}; //column address must match 
                        assert(cmd_d[WRITE_SLOT][CMD_ADDRESS_START:0] == f_read_data_col);
 
-                       f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
-                       assert(cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
+                        if(row_bank_col == 1) begin // address mapping {row, bank,col}
+                            f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 0) begin // address mapping {bank, row, col}
+                            f_read_data_bank = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 2) begin // address mapping {bank[2:1], row, bank[0], col}
+                            f_read_data_bank[0] = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]; //bank must match 
+                            f_read_data_bank[2:1] = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]; //bank must match 
+                        end
+                        assert(cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
 
                        `ifdef TEST_DATA
                            f_read_data_aux = f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]; //UAX ID must match 
@@ -3259,8 +3336,18 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                        assert(f_bank_status[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == 1'b1); //the bank that will be read must initially be active 
                        f_read_data_col = {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}; //column address must match 
                        assert(cmd_d[READ_SLOT][CMD_ADDRESS_START:0] == f_read_data_col);
+                        
+                        if(row_bank_col == 1) begin // address mapping {row, bank,col}
+                            f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 0) begin // address mapping {bank, row, col}
+                            f_read_data_bank = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 2) begin // address mapping {bank[2:1], row, bank[0], col}
+                            f_read_data_bank[0] = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]; //bank must match 
+                            f_read_data_bank[2:1] = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]; //bank must match 
+                        end
 
-                       f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
                        assert(cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
 
                        `ifdef TEST_DATA
@@ -3318,28 +3405,78 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         always @* begin
             if(!f_empty && !f_full) begin //make assertion when there is only 1 data on the pipe
                 if(stage1_pending) begin //request is still on stage1
-                    assert(stage1_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                    assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    if(row_bank_col == 1) begin
+                        assert(stage1_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 0) begin
+                        assert(stage1_bank == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 2) begin
+                        assert(stage1_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage1_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
                     assert(stage1_we == f_read_data[0]); //i_wb_we must be high
                 end
                 if(stage2_pending) begin //request is now on stage2
-                    assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    if(row_bank_col == 1) begin
+                        assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 0) begin
+                        assert(stage2_bank == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 2) begin
+                        assert(stage2_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage2_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
                     assert(stage2_we == f_read_data[0]); //i_wb_we must be high
                 end
             end
             if(f_full) begin //both stages have request
                 //stage2 is the request on the tip of the fifo
-                assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                assert(stage2_we == f_read_data[0]); //i_wb_we must be high
-                //stage1 is the request on the other element of the fifo
-                //(since the fifo only has 2 elements, the other element that
-                //is not the tip will surely be the 2nd request that is being
-                //handles by stage1)
-                assert(stage1_bank == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                assert(stage1_we == f_read_data_next[0]); //i_wb_we must be high
+                if(row_bank_col == 1) begin
+                    assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be high
+                    //stage1 is the request on the other element of the fifo
+                    //(since the fifo only has 2 elements, the other element that
+                    //is not the tip will surely be the 2nd request that is being
+                    //handles by stage1)
+                    assert(stage1_bank == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage1_we == f_read_data_next[0]); //i_wb_we must be high
+                end
+                else if(row_bank_col == 0) begin
+                    assert(stage2_bank == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be high
+                    //stage1 is the request on the other element of the fifo
+                    //(since the fifo only has 2 elements, the other element that
+                    //is not the tip will surely be the 2nd request that is being
+                    //handles by stage1)
+                    assert(stage1_bank == f_read_data_next[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage1_we == f_read_data_next[0]); //i_wb_we must be high
+                end
+                else if(row_bank_col == 2) begin
+                    assert(stage2_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                    assert(stage2_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be high
+                    //stage1 is the request on the other element of the fifo
+                    //(since the fifo only has 2 elements, the other element that
+                    //is not the tip will surely be the 2nd request that is being
+                    //handles by stage1)
+                    assert(stage1_bank[0] == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                    assert(stage1_bank[2:1] == f_read_data_next[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                    assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage1_we == f_read_data_next[0]); //i_wb_we must be high
+                end
             end
         end
         
