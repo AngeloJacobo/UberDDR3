@@ -8,7 +8,7 @@ module ecc_formal;
         integer m;
         begin
             m=1;
-            while (2**m < m+k+1) m++;
+            while (2**m < m+k+1) m=m+1;
             calculate_m = m;
         end
     endfunction
@@ -67,6 +67,7 @@ module ecc_formal;
             q_o_enc_corrupted = q_o_enc;
             if(corrupted == 1) begin 
                 q_o_enc_corrupted[corrupted_bit1] = !q_o_enc_corrupted[corrupted_bit1]; //corrupt 1 random bit
+                assume(corrupted_bit1 != (K+calculate_m(K))); //
             end
             else if (corrupted == 2) begin // flip 2 bits
                 q_o_enc_corrupted[corrupted_bit1] = !q_o_enc_corrupted[corrupted_bit1]; //corrupt 2 random bits 
@@ -80,7 +81,8 @@ module ecc_formal;
         // main contract of this design
         always @* begin
             // if no corrupted bits, then decoded info must be equal to original info, and error flags should be low
-            if(corrupted == 0 || corrupted == 3) begin
+            // OR there is 1 corrupted bit but its the MSB p0 that is corrupted 
+            if( (corrupted == 0 || corrupted == 3) || ( (corrupted == 1) && (corrupted_bit1 == (K+calculate_m(K))) ) ) begin
                 assert(d_i == q_o_dec);
                 assert(!sb_err_o);
                 assert(!db_err_o);
