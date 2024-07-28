@@ -64,7 +64,7 @@ module ddr3_dimm_micron_sim;
  localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
             DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
-            ECC_ENABLE = 1; // ECC enable
+            ECC_ENABLE = 0; // ECC enable
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -162,7 +162,8 @@ ddr3_top #(
     .MICRON_SIM(1), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
     .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 if ODELAYE2 is supported
     .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone for debugging is needed 
-    .ECC_ENABLE(ECC_ENABLE)
+    .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
+    .WB_ERROR(1) // set to 1 to support Wishbone error (asserts at ECC double bit error)
     ) ddr3_top
     (
         //clock and reset
@@ -262,36 +263,50 @@ ddr3_top #(
  `endif
     reg[ddr3_top.ddr3_controller_inst.wb_data_bits-1:0] orig_phy_data;
     // Force change for ECC tests
-    generate
-        if(ECC_ENABLE == 2) begin
-            always @(ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1]) begin
-                if(ddr3_top.ddr3_controller_inst.initial_calibration_done) begin
-                    orig_phy_data = ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1];
-                    for(index = 0; index < 8; index = index + 1) begin
-                        orig_phy_data[8*BYTE_LANES*index] = 1'b0;
-                    end
-                    force ddr3_top.ddr3_controller_inst.o_phy_data = orig_phy_data; 
-                end
-                else begin
-                    release ddr3_top.ddr3_controller_inst.o_phy_data;
-                end
-            end
-        end
-        else if(ECC_ENABLE == 1) begin
-            always @(ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1]) begin
-                if(ddr3_top.ddr3_controller_inst.initial_calibration_done) begin
-                    orig_phy_data = ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1];
-                    for(index = 0; index < 8; index = index + 1) begin
-                        orig_phy_data[8*BYTE_LANES*index] = 1'b0;
-                    end
-                    force ddr3_top.ddr3_controller_inst.o_phy_data = orig_phy_data; 
-                end
-                else begin
-                    release ddr3_top.ddr3_controller_inst.o_phy_data;
-                end
-            end
-        end
-    endgenerate
+    // Uncommented since there is ECC_TEST parameter inside ddr3_controller to test ECC
+//    generate
+//        if(ECC_ENABLE == 2) begin
+//            always @(ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1]) begin
+//                if(ddr3_top.ddr3_controller_inst.initial_calibration_done) begin
+//                    orig_phy_data = ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1];
+//                    orig_phy_data[0] = 1'b0; // replace bit 0 with 0
+//                    force ddr3_top.ddr3_controller_inst.o_phy_data = orig_phy_data; 
+//                end
+//                else begin
+//                    release ddr3_top.ddr3_controller_inst.o_phy_data;
+//                end
+//            end
+//        end
+//        else if(ECC_ENABLE == 1) begin
+//            always @(ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1]) begin
+//                if(ddr3_top.ddr3_controller_inst.initial_calibration_done) begin
+//                    orig_phy_data = ddr3_top.ddr3_controller_inst.stage2_data[ddr3_top.ddr3_controller_inst.STAGE2_DATA_DEPTH-1];
+//                    for(index = 0; index < 8; index = index + 1) begin
+//                        orig_phy_data[8*BYTE_LANES*index] = 1'b0; // replace LSB of EVERY burst
+//                    end
+//                    force ddr3_top.ddr3_controller_inst.o_phy_data = orig_phy_data; 
+//                end
+//                else begin
+//                    release ddr3_top.ddr3_controller_inst.o_phy_data;
+//                end
+//            end
+//        end
+//        else if(ECC_ENABLE == 3) begin
+//            always @(ddr3_top.ddr3_controller_inst.stage1_data) begin
+//                if(ddr3_top.ddr3_controller_inst.initial_calibration_done) begin
+//                    orig_phy_data = ddr3_top.ddr3_controller_inst.stage1_data;
+//                    //corrupt last bit to zero of the encoded data (non-ECC data)
+//                    for(index = 0; index < ddr3_top.ddr3_controller_inst.wb_data_bits/64; index = index + 1) begin
+//                        orig_phy_data[64*index+2] = 1'b0; // replace second to LSB of EVERY 64 bit blocks
+//                    end
+//                    force ddr3_top.ddr3_controller_inst.stage1_data_encoded = orig_phy_data; 
+//                end
+//                else begin
+//                    release ddr3_top.ddr3_controller_inst.stage1_data_encoded;
+//                end
+//            end
+//        end
+//    endgenerate
     reg[511:0] write_data = 0, expected_read_data = 0;
     integer address = 0, read_address = 0, address_inner = 0;
     integer start_address = 0, start_read_address;
@@ -300,6 +315,7 @@ ddr3_top #(
     integer number_of_injected_errors = 0;
     integer number_of_op = 0;
     integer time_started = 0;
+    integer average_1, average_2, average_3, average_4;
     localparam MAX_READS = (2**COL_BITS)*(2**BA_BITS + 1)/8; //1 row = 2**(COL_BITS) addresses/8 burst = 128 words per row. Times 8 to pass all 8 banks
       initial begin
         //toggle reset for 1 slow clk 
@@ -359,7 +375,14 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        
+        while(i_wb_stb) begin
+           @(posedge i_controller_clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
+        end
+        #1000_000; //rest here
+            
+            
         //Read sequentially
         address <= start_address;
         #1; //just to make sure the non-blocking are assignments are all over
@@ -379,12 +402,14 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        /*while(i_wb_stb) begin
+        while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
-        end*/
-
+        end
+        #1000_000; //rest here
+        
+        average_1 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 1: FIRST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
        // #100_000;
@@ -424,6 +449,12 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
+        while(i_wb_stb) begin
+           @(posedge i_controller_clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
+        end
+        #1000_000; //rest here
         
         // Read sequentially
         address <= start_address;
@@ -444,18 +475,21 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        /*while(i_wb_stb) begin
+        while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
-        end*/
+        end
+        #1000_000; //rest here
+        
+        average_2 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 1: MIDDLE ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         //#100_000;
 
 
          // write to last row (then go back to first row)
-        start_address <= ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
+        start_address <= ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS - (ECC_ENABLE == 3)) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
         #1; //just to make sure the non-blocking are assignments are all over
         address <= start_address; 
         number_of_op <= 0; 
@@ -484,6 +518,13 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
+        // turn off strobe
+        while(i_wb_stb) begin
+           @(posedge i_controller_clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
+        end
+        #1000_000; //rest here
         
         // Read sequentially
         address <= start_address;
@@ -504,11 +545,20 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
-        /*while(i_wb_stb) begin
+        while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
-        end*/
+        end
+        // turn off strobe
+//        @(posedge i_controller_clk) begin
+//           if(!i_wb_stb || !o_wb_stall) begin
+//                i_wb_stb <= 0;
+//            end
+//        end
+          #1000_000; //rest here
+        
+        average_3 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 1: LAST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         //#100_000;
@@ -544,6 +594,13 @@ ddr3_top #(
             end
             #1; //just to make sure the non-blocking are assignments are all over
         end
+        // turn off strobe
+        while(i_wb_stb) begin
+           @(posedge i_controller_clk) begin
+               if (!o_wb_stall) i_wb_stb <= 1'b0;
+          end
+        end
+        #1000_000; //rest here
         
         // Read sequentially
         // Read the random words written at the random addresses
@@ -564,11 +621,20 @@ ddr3_top #(
                 end
             end
         end
+//        // turn off strobe
+//        @(posedge i_controller_clk) begin
+//           if(!i_wb_stb || !o_wb_stall) begin
+//                i_wb_stb <= 0;
+//            end
+//        end
+//        #1000_000; //rest here
+        
         while(i_wb_stb) begin
            @(posedge i_controller_clk) begin
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
+        average_4 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 2: RANDOM\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
             
@@ -648,7 +714,7 @@ ddr3_top #(
         
         while(read_address < start_read_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
            @(posedge i_controller_clk);
-           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux == 0) begin
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
@@ -674,7 +740,7 @@ ddr3_top #(
         read_address = start_read_address;
         while(read_address < start_read_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
            @(posedge i_controller_clk);
-           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux == 0) begin
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
@@ -696,11 +762,11 @@ ddr3_top #(
            end
         end
         
-        start_read_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
+        start_read_address = ((2**COL_BITS)*(2**ROW_BITS)*(2**BA_BITS-(ECC_ENABLE == 3)) - (2**COL_BITS)*(2**BA_BITS))*($bits(ddr3_top.i_wb_data)/32)/8; //start at the last row
         read_address = start_read_address;
         while(read_address < start_read_address + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
            @(posedge i_controller_clk);
-           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux == 0) begin
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
@@ -726,7 +792,7 @@ ddr3_top #(
         read_address = random_start;
         while(read_address < random_start + MAX_READS*($bits(ddr3_top.i_wb_data)/32)) begin
            @(posedge i_controller_clk);
-           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux == 0) begin
+           if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
                     expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
                 end
