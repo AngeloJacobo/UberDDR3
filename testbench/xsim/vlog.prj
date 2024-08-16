@@ -1,0 +1,15 @@
+verilog xil_defaultlib --include "../" \
+"../../rtl/ddr3_controller.v" \
+"../../rtl/ddr3_phy.v" \
+"../../rtl/ddr3_top.v" \
+
+sv xil_defaultlib --include "../" \
+"../ddr3.sv" \
+"../../rtl/ecc/ecc_dec.sv" \
+"../../rtl/ecc/ecc_enc.sv" \
+"../ddr3_dimm_micron_sim.sv" \
+"../ddr3_module.sv" \
+
+verilog xil_defaultlib "glbl.v"
+
+nosort

@@ -138,12 +138,14 @@
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
         .BYTE_LANES(8), //number of DDR3 modules to be controlled
-        .AUX_WIDTH(4), //width of aux line (must be >= 4) 
+        .AUX_WIDTH(16), //width of aux line (must be >= 4) 
         .WB2_ADDR_BITS(32), //width of 2nd wishbone address bus 
         .WB2_DATA_BITS(32), //width of 2nd wishbone data bus
         .MICRON_SIM(0), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
         .ODELAY_SUPPORTED(1), //set to 1 when ODELAYE2 is supported
-        .SECOND_WISHBONE(0) //set to 1 if 2nd wishbone is needed 
+        .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone is needed 
+        .ECC_ENABLE(0), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
+        .WB_ERROR(0) // set to 1 to support Wishbone error (asserts at ECC double bit error)
         ) ddr3_top
         (
             //clock and reset

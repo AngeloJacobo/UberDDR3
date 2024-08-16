@@ -1,6 +1,10 @@
+# Clean files
+rm -rf formal/ddr3*prf*
+rm -rf formal/ddr3_singleconfig
+
 # run verilator lint
 echo -e "\e[32mRun Verilator Lint:\e[0m"
-verilator --lint-only rtl/ddr3_controller.v -Irtl/ -Wall
+verilator --lint-only rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv -Irtl/ -Wall
 echo "DONE!"
     
 
@@ -9,7 +13,7 @@ echo ""
 echo ""
 echo -e "\e[32mRun Yosys Compile:\e[0m"
 yosys -q -p "
-    read_verilog -sv ./rtl/ddr3_controller.v;
+    read_verilog -sv ./rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv;
     synth -top ddr3_controller"
 
 # run iverilog compile
@@ -23,14 +27,24 @@ echo
 
 # run symbiyosys 
 echo ""
+echo -e "\e[32mRun Symbiyosys Formal Verification: ECC\e[0m"
+echo "---------------------------------------"
+sby -f formal/ecc.sby
+
+echo ""
 echo -e "\e[32mRun Symbiyosys Formal Verification: Single Configuration\e[0m"
 echo "---------------------------------------"
 sby -f formal/ddr3_singleconfig.sby
 
 echo ""
-echo -e "\e[32mRun Symbiyosys Formal Verification: Multiple Configurations\e[0m"
+echo -e "\e[32mRun Symbiyosys Formal Verification: Multiple Configurations (DEFAULT)\e[0m"
 echo "---------------------------------------"
-sby -f formal/ddr3_multiconfig.sby
+sby -f formal/ddr3_multiconfig_default.sby
+
+echo ""
+echo -e "\e[32mRun Symbiyosys Formal Verification: Multiple Configurations (ECC)\e[0m"
+echo "---------------------------------------"
+sby -f formal/ddr3_multiconfig_ecc.sby
 
 
 # ANSI color codes
@@ -53,3 +67,14 @@ for folder in formal/ddr3*/ ; do
     fi
 done
 
+# Iterate over folders inside 'ecc/'
+for folder in formal/ecc/ ; do
+    # Check if the 'PASS' file exists in the folder
+    if [[ -e "${folder}PASS" ]]; then
+        # Print the folder name and 'PASS' in green
+        echo -e "${folder}: ${GREEN}PASS${NC}"
+    else
+        # Print the folder name and 'FAIL' in red
+        echo -e "${folder}: ${RED}FAIL${NC}"
+    fi
+done

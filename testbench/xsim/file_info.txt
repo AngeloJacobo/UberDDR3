@@ -1,0 +1,9 @@
+ddr3_controller.v,verilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ddr3_controller.v,incdir="../"
+ddr3_phy.v,verilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ddr3_phy.v,incdir="../"
+ddr3_top.v,verilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ddr3_top.v,incdir="../"
+ddr3.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/testbench/ddr3.sv,incdir="../"
+ddr3.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/testbench/ddr3_module.sv,incdir="../"
+ecc_dec.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ecc/ecc_dec.sv,incdir="../"
+ecc_enc.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ecc/ecc_enc.sv,incdir="../"
+ddr3_dimm_micron_sim.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv,incdir="../"
+glbl.v,Verilog,xil_defaultlib,glbl.v

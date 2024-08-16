@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="64,090.179 ns"></ZoomStartTime>
-      <ZoomEndTime time="64,220.813 ns"></ZoomEndTime>
-      <Cursor1Time time="64,130.000 ns"></Cursor1Time>
+      <ZoomStartTime time="749.583 ns"></ZoomStartTime>
+      <ZoomEndTime time="6,229.584 ns"></ZoomEndTime>
+      <Cursor1Time time="1,130.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="268"></NameColumnWidth>
-      <ValueColumnWidth column_width="66"></ValueColumnWidth>
+      <NameColumnWidth column_width="272"></NameColumnWidth>
+      <ValueColumnWidth column_width="129"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="44" />
+   <WVObjectSize size="47" />
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Clocks and Reset</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -48,6 +48,18 @@
       <obj_property name="label">Calibration</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/\sideband_ECC_per_8_bursts.ecc_dec_inst /sb_err">
+      <obj_property name="ElementShortName">sb_err</obj_property>
+      <obj_property name="ObjectShortName">sb_err</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/\sideband_ECC_per_8_bursts.ecc_dec_inst /db_err">
+      <obj_property name="ElementShortName">db_err</obj_property>
+      <obj_property name="ObjectShortName">db_err</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/initial_calibration_done">
+      <obj_property name="ElementShortName">initial_calibration_done</obj_property>
+      <obj_property name="ObjectShortName">initial_calibration_done</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/calibration_state">
       <obj_property name="ElementShortName">calibration_state[319:0]</obj_property>
       <obj_property name="ObjectShortName">calibration_state[319:0]</obj_property>
@@ -71,12 +83,10 @@
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs">
       <obj_property name="ElementShortName">io_ddr3_dqs[1:0]</obj_property>
       <obj_property name="ObjectShortName">io_ddr3_dqs[1:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/idelay_dqs">
       <obj_property name="ElementShortName">idelay_dqs[1:0]</obj_property>
       <obj_property name="ObjectShortName">idelay_dqs[1:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/lane">
       <obj_property name="ElementShortName">lane[0:0]</obj_property>

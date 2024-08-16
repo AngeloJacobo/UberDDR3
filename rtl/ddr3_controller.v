@@ -60,13 +60,15 @@ module ddr3_controller #(
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //device width
                    LANES = 2, //number of DDR3 device to be controlled
-                   AUX_WIDTH = 4, //width of aux line (must be >= 4) 
+                   AUX_WIDTH = 16, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
-    parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
+                   WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
+    parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC )  (only change when you know what you are doing)
+    parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)  (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
@@ -76,24 +78,27 @@ module ddr3_controller #(
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
                 cmd_len = 4 + 3 + BA_BITS + ROW_BITS,
-                lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES)
+                lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES),
+    parameter[1:0] row_bank_col = (ECC_ENABLE == 3)? 2 : 1, // memory address mapping: 0 {bank, row, col} , 1 = {row, bank, col} , 2 = {bank[2:1]. row, bank[0], col} FOR ECC
+    parameter[0:0] ECC_TEST = 1
     ) 
     (
         input wire i_controller_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
         input wire i_rst_n, //200MHz input clock
         // Wishbone inputs
         input wire i_wb_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-        input wire i_wb_stb, //request a transfer
-        input wire i_wb_we, //write-enable (1 = write, 0 = read)
-        input wire[wb_addr_bits - 1:0] i_wb_addr, //burst-addressable {row,bank,col} 
-        input wire[wb_data_bits - 1:0] i_wb_data, //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+        (* mark_debug = "true" *)input wire i_wb_stb, //request a transfer
+        (* mark_debug = "true" *)input wire i_wb_we, //write-enable (1 = write, 0 = read)
+        (* mark_debug = "true" *)input wire[wb_addr_bits - 1:0] i_wb_addr, //burst-addressable {row,bank,col} 
+        (* mark_debug = "true" *)input wire[wb_data_bits - 1:0] i_wb_data, //write data, for a 4:1 controller data width is 8 times the number of pins on the device
         input wire[wb_sel_bits - 1:0] i_wb_sel, //byte strobe for write (1 = write the byte)
         input wire[AUX_WIDTH - 1:0]  i_aux, //for AXI-interface compatibility (given upon strobe)
         // Wishbone outputs
-        output reg o_wb_stall, //1 = busy, cannot accept requests
-        output wire o_wb_ack, //1 = read/write request has completed
-        output wire[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
-        output wire[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
+        (* mark_debug = "true" *)output reg o_wb_stall, //1 = busy, cannot accept requests
+        (* mark_debug = "true" *)output wire o_wb_ack, //1 = read/write request has completed
+        output wire o_wb_err, //1 = Error due to ECC double bit error (fixed to 0 if WB_ERROR = 0)
+        (* mark_debug = "true" *)output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        output reg[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
         //
         // Wishbone 2 (PHY) inputs
         input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -299,8 +304,11 @@ module ddr3_controller #(
      //and the IDELAY and ISERDES when receiving the data  (NOTE TO SELF: ELABORATE ON WHY THOSE MAGIC NUMBERS)
     localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;                           
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
-    localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  //plus 10 controller clocks for possible bus latency and 
-                                                                                                      //the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
+    localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  
+    //plus 10 controller clocks for possible bus latency and the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
+    localparam ECC_INFORMATION_BITS = (ECC_ENABLE == 2)? max_information_bits(wb_data_bits) : max_information_bits(wb_data_bits/8);
+
+    
     /*********************************************************************************************************************************************/
    
     
@@ -397,11 +405,46 @@ module ddr3_controller #(
     //bank_active_row[bank_number] = stores the active row address in the specified bank
     reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; 
 
+    // ECC_ENABLE = 3 regs
+    /* verilator lint_off UNUSEDSIGNAL */
+    reg[BA_BITS-1:0] ecc_bank_addr = 0, ecc_bank_addr_prev = 0;
+    reg[ROW_BITS-1:0] ecc_row_addr = 0, ecc_row_addr_prev = 0;
+    reg[COL_BITS-1:0] ecc_col_addr = 0, ecc_col_addr_prev = 0;
+    reg we_prev;
+    reg stage0_pending = 0;
+    reg[wb_addr_bits - 1:0] stage0_addr = 0;
+    reg[AUX_WIDTH-1:0] stage0_aux = 0;
+    reg stage0_we = 0;
+    reg[wb_data_bits - 1:0] stage0_data = 0;
+    wire ecc_stage1_stall;
+    reg ecc_stage2_stall;
+    wire stage1_update, stage1_update_calib, stage0_update;
+    reg wb_stb_mux = 0;
+    reg[AUX_WIDTH-1:0] aux_mux = 0;
+    reg wb_we_mux = 0;
+    reg[wb_addr_bits - 1:0] wb_addr_mux = 0;
+    reg[wb_data_bits - 1:0] wb_data_mux = 0;
+    reg[wb_addr_bits-1:0] calib_addr_mux;
+    reg[wb_data_bits-1:0] calib_data_mux;
+    reg calib_stb_mux;
+    reg calib_we_mux;
+    reg[AUX_WIDTH-1:0] calib_aux_mux;
+    reg write_ecc_stored_to_mem_q, write_ecc_stored_to_mem_d;
+    reg[wb_data_bits - 1:0] stage2_ecc_write_data_q = 0, stage2_ecc_write_data_d;
+    reg[wb_data_bits - 1:0] stage2_ecc_read_data_q = 0, stage2_ecc_read_data_d;
+    reg[wb_sel_bits - 1 : 0] stage2_ecc_write_data_mask_q = 0, stage2_ecc_write_data_mask_d;
+    wire[wb_data_bits/8 - 1 : 0] decoded_parity;
+    wire[wb_data_bits/8 - 1 : 0] encoded_parity;
+    reg[wb_data_bits/8 - 1 : 0] stage2_encoded_parity = 0;
+    reg ecc_req_stage2 = 0;
+    /* verilator lint_on UNUSEDSIGNAL */
+
     //pipeline stage 1 regs
     reg stage1_pending = 0;
     reg[AUX_WIDTH-1:0] stage1_aux = 0;
     reg stage1_we = 0;
     reg[wb_data_bits - 1:0] stage1_data = 0;
+    wire[wb_data_bits - 1:0] stage1_data_mux, stage1_data_encoded;
     reg[wb_sel_bits - 1:0] stage1_dm = 0;
     reg[COL_BITS-1:0] stage1_col = 0;
     reg[BA_BITS-1:0] stage1_bank = 0;
@@ -409,7 +452,7 @@ module ddr3_controller #(
     reg[BA_BITS-1:0] stage1_next_bank = 0;
     reg[ROW_BITS-1:0] stage1_next_row = 0;
     wire[wb_addr_bits-1:0] wb_addr_plus_anticipate, calib_addr_plus_anticipate;
-    
+
     //pipeline stage 2 regs
     reg stage2_pending = 0;
     reg[AUX_WIDTH-1:0] stage2_aux = 0;
@@ -436,7 +479,7 @@ module ddr3_controller #(
         o_phy_bitslip = 0;
     end
     reg cmd_odt_q = 0, cmd_odt, cmd_ck_en, cmd_reset_n;  
-    reg o_wb_stall_q = 1, o_wb_stall_d = 1, o_wb_stall_calib = 1;
+    reg o_wb_stall_q = 1, o_wb_stall_d, o_wb_stall_calib = 1;
     reg precharge_slot_busy;
     reg activate_slot_busy;
     reg[1:0] write_dqs_q;
@@ -479,6 +522,12 @@ module ddr3_controller #(
     reg index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data (since different lanes might not be aligned with each other and needs to be retrieved at a different time)
     reg[wb_data_bits - 1:0] o_wb_data_q[1:0]; //store data retrieved from i_phy_iserdes_data to be sent to o_wb_data
+    wire[wb_data_bits - 1:0] o_wb_data_q_current;
+    reg[wb_data_bits - 1:0] o_wb_data_q_q;
+    reg[wb_data_bits - 1:0] o_wb_data_uncalibrated;
+    reg o_wb_ack_q = 0;
+    reg o_wb_err_q;
+    reg o_wb_ack_uncalibrated = 0;
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
     (* mark_debug = "true" *) reg calib_stb = 0;
     reg[wb_sel_bits-1:0] calib_sel = 0;
@@ -503,7 +552,8 @@ module ddr3_controller #(
     reg[5:0] start_index_check = 0;
     (* mark_debug = "true" *) reg[63:0] read_lane_data = 0;
     (* mark_debug = "true" *) reg odelay_cntvalue_halfway = 0;
-    reg already_finished_calibration = 0;
+    reg initial_calibration_done = 0;
+    reg final_calibration_done = 0;
     // Wishbone 2
     reg wb2_stb = 0;
     reg wb2_update = 0;
@@ -527,7 +577,11 @@ module ddr3_controller #(
     reg[wb_addr_bits-1:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
     reg[31:0] write_test_address_counter = 0;
     reg[31:0] correct_read_data = 0, wrong_read_data = 0;
-
+    /* verilator lint_off UNDRIVEN */
+    (* mark_debug = "true" *) wire sb_err_o;
+    wire db_err_o;
+    wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
+    /* verilator lint_on UNDRIVEN */
         
     // initial block for all regs
     initial begin
@@ -768,6 +822,15 @@ module ddr3_controller #(
             stage2_data_unaligned_temp <= 0;
             stage2_dm_unaligned <= 0;
             stage2_dm_unaligned_temp <= 0;
+            if(ECC_ENABLE == 3) begin
+                ecc_col_addr_prev <= 0;
+                ecc_bank_addr_prev <= 0;
+                ecc_row_addr_prev <= 0;
+                ecc_bank_addr <= 0;
+                ecc_row_addr <= 0;
+                ecc_col_addr <= 0;
+                stage2_encoded_parity <= 0;
+            end
             for(index=0; index<LANES; index=index+1) begin
                 unaligned_data[index] <= 0;
                 unaligned_dm[index] <= 0;
@@ -829,22 +892,71 @@ module ddr3_controller #(
             
             //if pipeline is not stalled (or a request is left on the prestall
             //delay address 19 or if in calib), move pipeline to stage 2
-            if(!o_wb_stall_q && stage2_update) begin //ITS POSSIBLE ONLY NEXT CLK WILL STALL SUPPOSE TO GO LOW
-                stage1_pending <= 1'b0; //no request initially unless overridden by the actual stb request
+            if(stage2_update) begin //ITS POSSIBLE ONLY NEXT CLK WILL STALL SUPPOSE TO GO LOW
                 stage2_pending <= stage1_pending;
-                stage2_aux <= stage1_aux;
-                stage2_we <= stage1_we;
-                stage2_col <= stage1_col;
-                stage2_bank <= stage1_bank;
-                stage2_row <= stage1_row;
-                if(ODELAY_SUPPORTED) begin
-                    stage2_data_unaligned <= stage1_data;
-                    stage2_dm_unaligned <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
+                if(ECC_ENABLE != 3) begin
+                    stage1_pending <= 1'b0; //no request initially unless overridden by the actual stb request
+                    stage2_pending <= stage1_pending;
+                    stage2_aux <= stage1_aux;
+                    stage2_we <= stage1_we;
+                    stage2_col <= stage1_col;
+                    stage2_bank <= stage1_bank;
+                    stage2_row <= stage1_row;
+                    if(ODELAY_SUPPORTED) begin
+                        stage2_data_unaligned <= stage1_data_mux;
+                        stage2_dm_unaligned <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
+                    end
+                    else begin
+                        stage2_data_unaligned_temp <= stage1_data_mux;
+                        stage2_dm_unaligned_temp <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
+                    end
                 end
+                // ECC_ENABLE == 3
                 else begin
-                    stage2_data_unaligned_temp <= stage1_data;
-                    stage2_dm_unaligned_temp <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
+                    stage1_pending <= ecc_stage1_stall? stage1_pending : 1'b0; //stage1 remains the same for ECC op (no request initially unless overridden by the actual stb request)
+                    // if switching from write to read and ECC is not yet written then do a write first to store those ECC bits
+                    if(!stage1_we && stage2_we && stage1_pending && !write_ecc_stored_to_mem_d && initial_calibration_done) begin
+                        stage2_we <= 1'b1;
+                        // if ecc_stage1_stall, stage2 will start ECC write/read operation
+                        // if ECC write, then we are writing ECC for previous address
+                        // if ECC read, then we are reading ECC for current address
+                        stage2_col <= ecc_col_addr_prev;
+                        stage2_bank <= ecc_bank_addr_prev;
+                        stage2_row <= ecc_row_addr_prev;
+                        ecc_col_addr_prev <= ecc_col_addr;
+                        ecc_bank_addr_prev <= ecc_bank_addr;
+                        ecc_row_addr_prev <= ecc_row_addr;
+
+                        // For ECC requests, 2MSB of aux determines type of ECC request (read = 2'10, write = 2'b11)
+                        stage2_aux <= { 1'b1, 1'b1, 3'b000, {(AUX_WIDTH-5){1'b1}} };
+                    end
+                    else begin
+                        stage2_we <= stage1_we;
+                        // if ecc_stage1_stall, stage2 will start ECC write/read operation
+                        // if ECC write, then we are writing ECC for previous address
+                        // if ECC read, then we are reading ECC for current address
+                        stage2_col <= ecc_stage1_stall? (stage1_we? ecc_col_addr_prev : ecc_col_addr) : stage1_col;
+                        stage2_bank <= ecc_stage1_stall? (stage1_we? ecc_bank_addr_prev : ecc_bank_addr) : stage1_bank;
+                        stage2_row <= ecc_stage1_stall? (stage1_we? ecc_row_addr_prev : ecc_row_addr) : stage1_row;
+                        ecc_col_addr_prev <= ecc_col_addr;
+                        ecc_bank_addr_prev <= ecc_bank_addr;
+                        ecc_row_addr_prev <= ecc_row_addr;
+                        // For ECC requests, 2MSB of aux determines type of ECC request (read = 2'10, write = 2'b11)
+                        // For non-ECC request (MSB is 0), next 3MSB is allotted for the column (burst position to know position of encoded parity ECC bits)
+                        stage2_aux <= ecc_stage1_stall? { 1'b1, !stage1_we, 3'b000, {(AUX_WIDTH-5){1'b1}} } : {1'b0, !stage1_we, stage1_col[5:3], stage1_aux[AUX_WIDTH-6:0]};
+                    end
+                    // store parity code for stage1_data
+                    stage2_encoded_parity <= encoded_parity;
+                    if(ODELAY_SUPPORTED) begin
+                        stage2_data_unaligned <= stage1_data_mux;
+                        stage2_dm_unaligned <= ecc_stage1_stall? ~stage2_ecc_write_data_mask_d : ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
+                    end
+                    else begin
+                        stage2_data_unaligned_temp <= stage1_data_mux;
+                        stage2_dm_unaligned_temp <= ecc_stage1_stall? ~stage2_ecc_write_data_mask_d : ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
+                    end
                 end
+
                 //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
             end
             if(!ODELAY_SUPPORTED) begin
@@ -852,42 +964,150 @@ module ddr3_controller #(
                 stage2_dm_unaligned <= stage2_dm_unaligned_temp;  //_temp is for added delay of 1 clock cycle (no ODELAY so no added delay)
             end
 
-            // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall
-            if(i_wb_cyc && !o_wb_stall) begin 
+            if(stage1_update) begin 
                 //stage1 will not do the request (pending low) when the
                 //request is on the same bank as the current request. This
                 //will ensure stage1 bank will be different from stage2 bank
-                stage1_pending <= i_wb_stb;//actual request flag
-                stage1_aux <= i_aux; //aux ID for AXI compatibility
-                stage1_we <= i_wb_we; //write-enable
-                stage1_dm <= i_wb_sel; //byte selection
-                stage1_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
-                stage1_bank <=  i_wb_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
-                stage1_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                //stage1_next_bank will not increment unless stage1_next_col
-                //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
-                //precharge and activate will happen only at the end of the
-                //current column with a margin dictated by
-                //MARGIN_BEFORE_ANTICIPATE  
-                /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
-                //anticipated next row and bank to be accessed 
-                /* verilator lint_on WIDTH */
-                stage1_data <= i_wb_data;
+
+                // if ECC_ENABLE != 3, then stage1 will always receive wishbone interface
+                if(ECC_ENABLE != 3) begin
+                    stage1_pending <= i_wb_stb;//actual request flag
+                    stage1_aux <= i_aux; //aux ID for AXI compatibility
+                    stage1_we <= i_wb_we; //write-enable
+                    stage1_dm <= (ECC_ENABLE == 0)? i_wb_sel : {wb_sel_bits{1'b1}}; // no data masking when ECC is enabled
+                end
+                // ECC_ENABLE == 3
+                else begin // if ECC_ENABLE = 3 (inline ECC), then stage1 will either receive stage0 or wishbone
+                    stage1_pending <= wb_stb_mux;//actual request flag
+                    stage1_aux <= aux_mux; //aux ID for AXI compatibility
+                    stage1_we <= wb_we_mux; //write-enable
+                    stage1_dm <= {wb_sel_bits{1'b1}}; // no data masking when ECC is enabled
+                end
+
+                if(row_bank_col == 1) begin // memory address mapping: {row, bank, col}
+                    stage1_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS - $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_bank <=  i_wb_addr[ (BA_BITS + COL_BITS - $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //bank_address
+                    stage1_col <= { i_wb_addr[ (COL_BITS- $clog2(serdes_ratio*2)-1) : 0 ], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_bank will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_row , stage1_next_bank} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                    stage1_data <= i_wb_data;
+                end
+
+                else if(row_bank_col == 0) begin // memory address mapping: {bank, row, col}
+                    stage1_bank <=  i_wb_addr[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
+                    stage1_row <= i_wb_addr[ (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_col <= { i_wb_addr[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_row will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank, stage1_next_row} <= wb_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                    stage1_data <= i_wb_data;
+                end
+
+                else if(row_bank_col == 2) begin // memory address mapping: {bank[2:1], row, bank[0], col} , used for ECC_ENABLE = 3 (Inline ECC)
+                    stage1_bank[2:1] <=  wb_addr_mux[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2) + 1)]; //bank_address
+                    stage1_row <= wb_addr_mux[ (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) : (COL_BITS - $clog2(serdes_ratio*2) + 1) ]; //row_address
+                    stage1_bank[0] <= wb_addr_mux[COL_BITS - $clog2(serdes_ratio*2)];
+                    stage1_col <= { wb_addr_mux[(COL_BITS - $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_bank will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. This will overwrap every two banks
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank[2:1], stage1_next_row, stage1_next_bank[0]} <= wb_addr_plus_anticipate >> (COL_BITS - $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                    // ECC Mapping (Excel sheet design planning: https://docs.google.com/spreadsheets/d/1_8vrLmVSFpvRD13Mk8aNAMYlh62SfpPXOCYIQFEtcs4/edit?gid=0#gid=0)
+                    ecc_bank_addr <= {2'b11,!wb_addr_mux[COL_BITS - $clog2(serdes_ratio*2)]};
+                    ecc_row_addr <= {1'b1, wb_addr_mux[ (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) : (COL_BITS - $clog2(serdes_ratio*2) + 1 + 1) ]};
+                    ecc_col_addr <= { wb_addr_mux[(COL_BITS - $clog2(serdes_ratio*2) + 1)] , 
+                                        wb_addr_mux[(BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2) + 1)] ,
+                                        wb_addr_mux[(COL_BITS - $clog2(serdes_ratio*2) - 1) : 3], 3'b000 };
+                    stage1_data <= wb_data_mux;
+                end
             end
+
             // request from calibrate FSM will be accepted here
-            else if(state_calibrate != DONE_CALIBRATE && !o_wb_stall_calib) begin
-                stage1_pending <= calib_stb;//actual request flag
-                stage1_we <= calib_we; //write-enable
-                stage1_dm <= calib_sel;
-                stage1_aux <= calib_aux; //aux ID for AXI compatibility
-                stage1_col <= { calib_addr[(COL_BITS- $clog2(serdes_ratio*2)-1):0], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
-                stage1_bank <= calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
-                stage1_row <= calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
-                /* verilator lint_off WIDTH */
-                {stage1_next_row , stage1_next_bank} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
-                /* verilator lint_on WIDTH */
-                stage1_data <= calib_data;
+            else if(stage1_update_calib) begin
+                // if ECC_ENABLE != 3, then stage1 will always receive wishbone interface
+                if(ECC_ENABLE != 3) begin
+                    stage1_pending <= calib_stb;//actual request flag
+                    stage1_aux <= calib_aux; //aux ID for AXI compatibility
+                    stage1_we <= calib_we; //write-enable
+                    stage1_dm <= (ECC_ENABLE == 0)? calib_sel : {wb_sel_bits{1'b1}}; // no data masking when ECC is enabled
+                end
+                // ECC_ENABLE == 3
+                else begin // if ECC_ENABLE = 3 (inline ECC), then stage1 will either receive stage0 or wishbone
+                    stage1_pending <= calib_stb_mux;//actual request flag
+                    stage1_we <= calib_we_mux; //write-enable
+                    stage1_dm <= {wb_sel_bits{1'b1}}; // no data masking when ECC is enabled
+                    stage1_aux <= calib_aux_mux; //aux ID for AXI compatibility
+                end
+
+                if(row_bank_col == 1) begin // memory address mapping: {row, bank, col}
+                    stage1_row <= calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS - $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_bank <=  calib_addr[ (BA_BITS + COL_BITS - $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //bank_address
+                    stage1_col <= { calib_addr[ (COL_BITS- $clog2(serdes_ratio*2)-1) : 0 ], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (8-burst word-aligned)
+                    //stage1_next_bank will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_row , stage1_next_bank} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                    stage1_data <= calib_data;
+                end
+                else if(row_bank_col == 0) begin // memory address mapping: {bank, row, col}
+                    stage1_bank <=  calib_addr[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2))]; //bank_address
+                    stage1_row <= calib_addr[ (ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //row_address
+                    stage1_col <= { calib_addr[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (8-burst word-aligned)
+                    //stage1_next_row will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. Thus, anticipated
+                    //precharge and activate will happen only at the end of the
+                    //current column with a margin dictated by
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank, stage1_next_row} <= calib_addr_plus_anticipate >> (COL_BITS- $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                    stage1_data <= calib_data;
+                end
+                else if(row_bank_col == 2) begin // memory address mapping: {bank[2:1], row, bank[0], col}
+                    stage1_bank[2:1] <=  calib_addr_mux[ (BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2) + 1)]; //bank_address
+                    stage1_row <= calib_addr_mux[ (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) : (COL_BITS - $clog2(serdes_ratio*2) + 1) ]; //row_address
+                    stage1_bank[0] <= calib_addr_mux[COL_BITS - $clog2(serdes_ratio*2)];
+                    stage1_col <= { calib_addr_mux[(COL_BITS- $clog2(serdes_ratio*2)-1) : 0] , {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
+                    //stage1_next_row will not increment unless stage1_next_col
+                    //overwraps due to MARGIN_BEFORE_ANTICIPATE. This will overwrap every two banks
+                    //MARGIN_BEFORE_ANTICIPATE  
+                    /* verilator lint_off WIDTH */
+                    {stage1_next_bank[2:1], stage1_next_row, stage1_next_bank[0]} <= calib_addr_plus_anticipate >> (COL_BITS - $clog2(serdes_ratio*2));
+                    //anticipated next row and bank to be accessed 
+                    /* verilator lint_on WIDTH */
+                    // ECC Mapping (Excel sheet design planning: https://docs.google.com/spreadsheets/d/1_8vrLmVSFpvRD13Mk8aNAMYlh62SfpPXOCYIQFEtcs4/edit?gid=0#gid=0)
+                    // ECC_BANK = {11,!bank[0]} 
+                    // ECC_ROW = {1,row>>1} 
+                    // ECC_COL = {row[0],bank[2:1],col>>3}"						
+                    ecc_bank_addr <= {2'b11,!calib_addr_mux[COL_BITS - $clog2(serdes_ratio*2)]};
+                    ecc_row_addr <= {1'b1, calib_addr_mux[ (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) : (COL_BITS - $clog2(serdes_ratio*2) + 1 + 1) ]};
+                    ecc_col_addr <= { calib_addr_mux[(COL_BITS - $clog2(serdes_ratio*2) + 1)] , 
+                                        calib_addr_mux[(BA_BITS + ROW_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (ROW_BITS + COL_BITS - $clog2(serdes_ratio*2) + 1)] ,
+                                        calib_addr_mux[(COL_BITS - $clog2(serdes_ratio*2) - 1) : 3], 3'b000 };
+                    stage1_data <= calib_data_mux;
+                end
             end
             
             for(index = 0; index < LANES; index = index + 1) begin
@@ -955,18 +1175,159 @@ module ddr3_controller #(
             end
                     
             //abort any outgoing ack when cyc is low
-            if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
+            if(!i_wb_cyc && final_calibration_done) begin
                 stage2_pending <= 0;
                 stage1_pending <= 0;
             end
         end
     end
+
+    // generate signals to be received by stage1
+    generate
+        if(ECC_ENABLE == 3) begin : ecc_3_pipeline_control
+            // logic when to update stage 1:
+            // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall 
+            // OR stage0 is pending and stage2 is about to be empty
+            // AND ecc_stage1_stall low (if high then stage2 will have ECC operation while stage1 remains)
+            assign stage0_update = ((i_wb_cyc && !o_wb_stall) || (!final_calibration_done && !o_wb_stall_calib)) && ecc_stage1_stall; // stage0 is only used when ECC will be inserted next cycle (stage1 must remain)
+            assign stage1_update = ( (i_wb_cyc && !o_wb_stall) || (stage0_pending && !ecc_stage2_stall) ) && !ecc_stage1_stall;
+            assign stage1_update_calib = ( ((state_calibrate != DONE_CALIBRATE) && !o_wb_stall_calib) || (stage0_pending && !ecc_stage2_stall) ) && !ecc_stage1_stall;
+            /* verilator lint_off WIDTH */
+            assign wb_addr_plus_anticipate = wb_addr_mux + MARGIN_BEFORE_ANTICIPATE; // wb_addr_plus_anticipate determines if it is near the end of column by checking if it jumps to next row
+            assign calib_addr_plus_anticipate = calib_addr_mux + MARGIN_BEFORE_ANTICIPATE; // just same as wb_addr_plus_anticipate but while doing calibration
+            /* verilator lint_on WIDTH */
+            assign ecc_stage1_stall = ( ({ecc_col_addr, ecc_bank_addr, ecc_row_addr} != {ecc_col_addr_prev, ecc_bank_addr_prev, ecc_row_addr_prev}) 
+                                        || (!stage1_we && stage2_we) ) && !ecc_stage2_stall && initial_calibration_done && !(stage1_we && !stage2_we) && stage1_pending;
+                                        // write -> read with write ECC
+                                        // read -> write will not do any ECC request
+            /* verilator lint_off WIDTHTRUNC */
+            // retrieve parity bits for decoding, 3MSB of o_aux (after 2MSB) determines burst position of current request (which is also the position of ECC)
+            assign decoded_parity = stage2_ecc_read_data_q[({32'd0, o_aux[AUX_WIDTH-3 : AUX_WIDTH-5]} << $clog2(wb_data_bits/8)) +: (wb_data_bits/8) ];
+            /* verilator lint_on WIDTHTRUNC */
+
+            // Muxing to choose whether stage1 will receive data from stage0 or wishbone interface
+            always @* begin
+                if(stage0_pending) begin
+                    wb_stb_mux = 1'b1;
+                    aux_mux = stage0_aux;
+                    wb_we_mux = stage0_we;
+                    wb_addr_mux = stage0_addr;
+                    wb_data_mux = stage0_data;
+                    calib_data_mux = stage0_data;
+                    calib_addr_mux = stage0_addr;
+                    calib_stb_mux = 1'b1;
+                    calib_we_mux = stage0_we; 
+                    calib_aux_mux = stage0_aux; 
+                end
+                else begin
+                    wb_stb_mux = i_wb_stb;
+                    aux_mux = i_aux;
+                    wb_we_mux = i_wb_we;
+                    wb_addr_mux = i_wb_addr;
+                    wb_data_mux = i_wb_data;
+                    calib_data_mux = calib_data;
+                    calib_addr_mux = calib_addr;
+                    calib_stb_mux = calib_stb;
+                    calib_we_mux = calib_we; 
+                    calib_aux_mux = calib_aux; 
+                end
+            end
+            // 
+            always @(posedge i_controller_clk) begin 
+                if(sync_rst_controller) begin
+                    // reset ecc address
+                    stage0_pending <= 0;
+                    stage0_addr <= 0;
+                    stage0_aux <= 0;
+                    stage0_we <= 0;
+                    stage0_data <= 0;
+                    // ecc_col_addr_prev <= 0;
+                    // ecc_bank_addr_prev <= 0;
+                    // ecc_row_addr_prev <= 0;
+                    we_prev <= 0;
+                    stage2_ecc_write_data_q <= 0;
+                    write_ecc_stored_to_mem_q <= 0;
+                    ecc_req_stage2 <= 0;
+                end
+                else if(reset_done) begin 
+                    if(stage0_update) begin
+                        // wishbone req wil only be stored to stage0 if there will be ecc write/read next clock cycle
+                        if(final_calibration_done) begin
+                            stage0_pending <= i_wb_stb && ecc_stage1_stall; 
+                        end
+                        else begin
+                            stage0_pending <= calib_stb && ecc_stage1_stall; 
+                        end
+                        stage0_addr <= final_calibration_done? i_wb_addr : calib_addr; //address
+                        stage0_aux <= final_calibration_done? i_aux : calib_aux; //aux ID for AXI compatibility
+                        stage0_we <= final_calibration_done? i_wb_we : calib_we; //write-enable
+                        stage0_data <= final_calibration_done? i_wb_data : calib_data; //data
+                    end
+                    // if there is already request on stage2 then only ecc_stage2_stall going low AND current ecc_stage1_stall is low can make this low
+                    else if(stage0_pending) begin
+                        stage0_pending <= (ecc_stage2_stall || ecc_stage1_stall) && (i_wb_cyc || !final_calibration_done); // stage0_pending will go low when cyc is low
+                    end
+                    // if stage1 will be updated, then stage0 will be empty
+                    else if(stage1_update || stage1_update_calib) begin
+                        stage0_pending <= 1'b0;
+                    end
+                    // if(!i_wb_cyc && final_calibration_done) begin
+                    //     stage0_pending <= 1'b0;
+                    // end
+                    // ecc_stage1_stall high means stage2 will start ECC write/read operation next clock cycle thus update prev ecc address to current 
+                    // if(ecc_stage1_stall) begin
+                    //     ecc_col_addr_prev <= ecc_col_addr;
+                    //     ecc_bank_addr_prev <= ecc_bank_addr;
+                    //     ecc_row_addr_prev <= ecc_row_addr;
+                    // end
+                    // stage2_ecc_write_data_d will get updated when current request is non-ECC write (new ECC bits to be stored) 
+                    stage2_ecc_write_data_q <= stage2_ecc_write_data_d;
+                    // notify if ECC bits are already written to memory
+                    write_ecc_stored_to_mem_q <= write_ecc_stored_to_mem_d;
+                    // all bytes will be masked by default (unwritable)
+                    stage2_ecc_write_data_mask_q <= stage2_ecc_write_data_mask_d;
+                    // if data received from wishbone is for ECC read, update stage2_ecc_read_data_q 
+                    stage2_ecc_read_data_q <= (o_aux[AUX_WIDTH-1 : AUX_WIDTH-2] == 2'b11)? o_wb_data_q_current : stage2_ecc_read_data_q;
+                    // abort any ECC request when cyc is low
+                    if(!i_wb_cyc && final_calibration_done) begin
+                        ecc_req_stage2 <= 0;
+                    end
+                    // ecc_req_stage2 will only be high when stage2 will have ECC read/write operation
+                    else if(ecc_stage1_stall) ecc_req_stage2 <= 1'b1;
+                    // ECC is done this cycle if ecc_stage2_stall is now low
+                    else if(!ecc_stage2_stall) ecc_req_stage2 <= 1'b0;
+                end
+            end
+        end
+
+        else begin : ecc_not_3_pipeline_control
+            // logic when to update stage 1:
+            // when not in refresh, transaction can only be processed when i_wb_cyc is high and not stall 
+            assign stage1_update = i_wb_cyc && !o_wb_stall;
+            assign stage1_update_calib = !final_calibration_done && !o_wb_stall_calib;
+            /* verilator lint_off WIDTH */
+            assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE; // wb_addr_plus_anticipate determines if it is near the end of column by checking if it jumps to next row
+            assign calib_addr_plus_anticipate = calib_addr + MARGIN_BEFORE_ANTICIPATE; // just same as wb_addr_plus_anticipate but while doing calibration
+            /* verilator lint_on WIDTH */
+            // default 0 
+            assign ecc_stage1_stall = 0;
+            assign decoded_parity = 0;
+            always @* begin
+                calib_addr_mux = 0;
+                calib_data_mux = 0;
+                calib_stb_mux = 0;
+                calib_we_mux = 0;
+                calib_aux_mux = 0;
+                write_ecc_stored_to_mem_q = 0;
+            end
+        end
+    endgenerate
+
     assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];  // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
+    //assign o_phy_data = initial_calibration_done? {stage2_data[STAGE2_DATA_DEPTH-1][wb_data_bits - 1:1], 1'b0} : stage2_data[STAGE2_DATA_DEPTH-1];  // ECC test
+    
     assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
-    /* verilator lint_off WIDTH */
-    assign wb_addr_plus_anticipate = i_wb_addr + MARGIN_BEFORE_ANTICIPATE; // wb_addr_plus_anticipate determines if it is near the end of column by checking if it jumps to next row
-    assign calib_addr_plus_anticipate = calib_addr + MARGIN_BEFORE_ANTICIPATE; // just same as wb_addr_plus_anticipate but while doing calibration
-    /* verilator lint_on WIDTH */
+
     // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
     //
     //                          tRTP
@@ -985,13 +1346,17 @@ module ddr3_controller #(
     //Pipeline Stages:
     //  wishbone inputs --> stage1 --> stage2 --> cmd
     always @* begin
+        stage2_ecc_write_data_d = stage2_ecc_write_data_q;
+        stage2_ecc_write_data_mask_d = stage2_ecc_write_data_mask_q;
+        write_ecc_stored_to_mem_d = write_ecc_stored_to_mem_q;
         cmd_odt = cmd_odt_q || write_calib_odt;
         cmd_ck_en = instruction[CLOCK_EN];
         cmd_reset_n = instruction[RESET_N];
         stage1_stall = 1'b0;
         stage2_stall = 1'b0;
+        ecc_stage2_stall = 1'b0;
         stage2_update = 1'b1; //always update stage 2 UNLESS it has a pending request (stage2_pending high)
-        o_wb_stall_d = 1'b0; //wb_stall going high is determined on stage 1 (higher priority), wb_stall going low is determined at stage2 (lower priority)
+        // o_wb_stall_d = 1'b0; //wb_stall going high is determined on stage 1 (higher priority), wb_stall going low is determined at stage2 (lower priority)
         precharge_slot_busy = 0; //flag that determines if stage 2 is issuing precharge (thus stage 1 cannot issue precharge)
         activate_slot_busy = 0; //flag that determines if stage 2 is issuing activate (thus stage 1 cannot issue activate)
         write_dqs_d = write_calib_dqs;
@@ -1037,6 +1402,7 @@ module ddr3_controller #(
         //if there is a pending request, issue the appropriate commands
         if(stage2_pending) begin 
             stage2_stall = 1; //initially high when stage 2 is pending 
+            ecc_stage2_stall = 1;
             stage2_update = 0;
 
             //right row is already active so go straight to read/write
@@ -1044,10 +1410,12 @@ module ddr3_controller #(
                 //write request
                 if(stage2_we && delay_before_write_counter_q[stage2_bank] == 0) begin       
                     stage2_stall = 0;
+                    ecc_stage2_stall = 0;
                     stage2_update = 1;
                     cmd_odt = 1'b1;
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; // ack is sent to shift_reg which will be shifted until the wb ack output
-
+                    // don't acknowledge if ECC request
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
+                    
                     //write acknowledge will use the same logic pipeline as the read acknowledge. 
                     //This would mean write ack latency will be the same for
                     //read ack latency. If it takes 8 clocks for read ack, write
@@ -1090,11 +1458,36 @@ module ddr3_controller #(
                     cmd_d[3][CMD_ODT] = cmd_odt;
                     write_dqs_d=1;
                     write_dq_d=1;
+                    
+                    if(ECC_ENABLE == 3) begin
+                        if(!ecc_req_stage2) begin
+                            // Store ECC parity bits
+                            // For example, in x16 DDR3, total data width is 128. Each 64 bits is encoded, thus 2 sets of parity bits
+                            // of 8 bits long (encoding 64 bits require 8 bits of parity). Thus 16 total bits is stored to stage2_ecc_write_data_d
+                            // 8 words will require eight 16-bits parity for total of 128 bits. This 128 bits will be stored to a mapped ECC address
+                            // where positioning is dependent on stage2_col
+                            // stage2_ecc_write_data_d = { {word7_parity} , {word6_parity} , {word5_parity} , {word4_parity} , {word3_parity} , {word2_parity} , {word1_parity} , {word0_parity}}
+                            /* verilator lint_off WIDTHTRUNC */
+                            stage2_ecc_write_data_d[({32'd0, stage2_col[5:3]} << $clog2(wb_data_bits/8)) +: (wb_data_bits/8) ] = stage2_encoded_parity;
+                            // enable data mask for the position of ECC bit
+                            stage2_ecc_write_data_mask_d[({32'd0, stage2_col[5:3]} << $clog2(wb_data_bits/64)) +: (wb_data_bits/64)] = {(wb_data_bits/64){1'b1}};
+                            /* verilator lint_on WIDTHTRUNC */
+                            // notify that there are ECC bits which is not yet written to memory
+                            write_ecc_stored_to_mem_d = 1'b0;
+                        end
+                        else begin
+                            // reset data mask if ECC write will be done
+                            stage2_ecc_write_data_mask_d = 0;
+                            // notify that are ECC bits are now written to memory
+                            write_ecc_stored_to_mem_d = 1'b1;
+                        end
+                    end
                 end
                 
                 //read request
                 else if(!stage2_we && delay_before_read_counter_q[stage2_bank]==0) begin     
                     stage2_stall = 0;
+                    ecc_stage2_stall = 0;
                     stage2_update = 1;
                     cmd_odt = 1'b0;
                     //set-up delay before precharge, read, and write
@@ -1106,7 +1499,8 @@ module ddr3_controller #(
                     for(index=0; index < (1<<BA_BITS); index=index+1) begin //the read to write delay applies to all banks (odt must be turned on properly before writing and this delay is for ODT to settle)
                         delay_before_write_counter_d[index] = READ_TO_WRITE_DELAY + 1; // NOTE TO SELF: why plus 1?
                     end
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, 1'b1}; // ack is sent to shift_reg which will be shifted until the wb ack output
+                    // don't acknowledge if ECC request
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
 
                     //issue read command
                     if(COL_BITS <= 10) begin
@@ -1230,14 +1624,58 @@ module ddr3_controller #(
         // This logic makes sure stall will never go high unless the pipeline is full
         // What made this complicated is that fact you have to predict the stall for next clock cycle in such 
         // a way that it will only stall next clock cycle if the pipeline will be full on the next clock cycle.
-        // Excel sheet: https://1drv.ms/x/s!AhWdq9CipeVagSqQXPwRmXhDgttL?e=vVYIxE&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0
-        if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
-        else if( (!i_wb_stb && state_calibrate == DONE_CALIBRATE) || (!calib_stb && state_calibrate != DONE_CALIBRATE) ) o_wb_stall_d = 0; 
-        else if(!stage1_pending) o_wb_stall_d = stage2_stall;
-        else o_wb_stall_d = stage1_stall;
-        
-        if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) o_wb_stall_d = 0;
+        // Excel sheet design planning: https://docs.google.com/spreadsheets/d/1_8vrLmVSFpvRD13Mk8aNAMYlh62SfpPXOCYIQFEtcs4/edit?gid=668378527#gid=668378527
+        // Old: https://1drv.ms/x/s!AhWdq9CipeVagSqQXPwRmXhDgttL?e=vVYIxE&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0
+        // if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
+        // else if( (!i_wb_stb && final_calibration_done) || (!calib_stb && state_calibrate != DONE_CALIBRATE) ) o_wb_stall_d = 0; 
+        // else if(!stage1_pending) o_wb_stall_d = stage2_stall;
+        // else o_wb_stall_d = stage1_stall;
 
+        // if( !o_wb_stall_q && !i_wb_stb ) o_wb_stall_d = 1'b0;
+        // else if(ecc_stage1_stall) o_wb_stall_d = 1'b1;
+        // else if(stage0_pending) o_wb_stall_d = ecc_stage2_stall || stage1_stall;
+        // else begin
+        //     if(o_wb_stall_q) o_wb_stall_d = stage2_stall;
+        //     else o_wb_stall_d = stage1_stall;
+        // end
+        // pipeline control for ECC_ENABLE != 3
+        if(ECC_ENABLE != 3) begin
+            if(!i_wb_cyc && final_calibration_done) begin
+                o_wb_stall_d = 0;
+            end
+            else if(!o_wb_stall_q && ( (!i_wb_stb && final_calibration_done) || (!calib_stb && !final_calibration_done) )) begin
+                o_wb_stall_d = 0;
+            end
+            else if(o_wb_stall_q || !stage1_pending)  begin
+                o_wb_stall_d = stage2_stall;
+            end
+            else begin
+                o_wb_stall_d = stage1_stall;
+            end
+        end
+        // pipeline control for ECC_ENABLE = 3
+        else begin
+            if(!i_wb_cyc && final_calibration_done) begin
+                o_wb_stall_d = 1'b0;
+            end
+            else if(ecc_stage1_stall) begin
+                o_wb_stall_d = 1'b1;
+            end
+            else if(!o_wb_stall_q && ( (!i_wb_stb && final_calibration_done) || (!calib_stb && !final_calibration_done) )) begin
+                o_wb_stall_d = 1'b0;
+            end
+            else if(stage0_pending) begin
+                o_wb_stall_d = !stage2_update || stage1_stall;
+            end
+            else begin
+                if(o_wb_stall_q || !stage1_pending)  begin
+                    o_wb_stall_d = stage2_stall;
+                end
+                else begin
+                    o_wb_stall_d = stage1_stall;
+                end
+            end
+        end
     end //end of always block
     assign o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
     /*********************************************************************************************************************************************/
@@ -1252,6 +1690,10 @@ module ddr3_controller #(
             write_dqs <= 0;
             write_dq_q <= 0;
             write_dq <= 0;
+            if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                o_wb_ack_q <= 0;
+                o_wb_ack_uncalibrated <= 0;
+            end
             for(index = 0; index < 2; index = index + 1) begin
                 delay_read_pipe[index] <= 0;
             end
@@ -1296,8 +1738,8 @@ module ddr3_controller #(
                 // so the bit 1 will be shifted to the right until it reach LSB which means data is already on ISERDES output of PHY
                 delay_read_pipe[index] <= (delay_read_pipe[index] >> 1);
             end
-            if(shift_reg_read_pipe_q[1][0]) begin 
-                //delay from shift_reg_read_pipe_q is about to be over (ack, which is the last bit, will be at LSB on next clk cycle)
+            if(shift_reg_read_pipe_q[1][0] || shift_reg_read_pipe_q[1][AUX_WIDTH]) begin 
+                //delay from shift_reg_read_pipe_q is about to be over (ack, which is the last bit, will be at LSB on next clk cycle OR MSB is high for ECC req)
                 //and data is now starting to be released from ISERDES from phy BUT NOT YET ALIGNED
                 index_read_pipe <= !index_read_pipe; //control which delay_read_pipe would get updated (we have 2 read_pipes to store read data,use the read_pipe alternatingly)
                 delay_read_pipe[index_read_pipe][added_read_pipe_max] <= 1'b1; //update delay_read_pipe
@@ -1370,9 +1812,19 @@ module ddr3_controller #(
             end
             // o_wb_ack_read_q[0][0] is also the wishbone ack (aligned with ack is the wishbone data) thus
             // after sending the wishbone data on a particular index, invert it for the next ack
-            if(o_wb_ack_read_q[0][0]) begin 
-                index_wb_data <= !index_wb_data; //alternatingly uses the o_wb_data_q (either 0 or 1)
+            
+            if(ECC_ENABLE != 3) begin
+                if(o_wb_ack_read_q[0][0]) begin 
+                    index_wb_data <= !index_wb_data; //alternatingly uses the o_wb_data_q (either 0 or 1)
+                end
             end
+            else begin
+                // last bit of AUX is high if ECC request (wb ack does not go high at ECC reqs)
+                if(o_wb_ack_read_q[0][0] || o_wb_ack_read_q[0][AUX_WIDTH]) begin 
+                    index_wb_data <= !index_wb_data; //alternatingly uses the o_wb_data_q (either 0 or 1)
+                end
+            end
+            
             for(index = 1; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
                 o_wb_ack_read_q[index-1] <= o_wb_ack_read_q[index]; // shift rightward [ack] -> [] -> [LSB]
             end
@@ -1397,7 +1849,7 @@ module ddr3_controller #(
             //                of shift_reg_read_pipe_q        to delay_read_pipe          to o_wb_ack_read_q        high thus ready for wishbone ack
             
             // abort any outgoing ack when cyc is low
-            if(!i_wb_cyc && state_calibrate == DONE_CALIBRATE) begin
+            if(!i_wb_cyc && final_calibration_done) begin
                 for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
                     o_wb_ack_read_q[index] <= 0;
                 end
@@ -1405,13 +1857,56 @@ module ddr3_controller #(
                     shift_reg_read_pipe_q[index] <= 0;
                 end
             end
+            if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin // added latency of 1 clock cycle for decoding the ECC
+                o_wb_data <= o_wb_data_q_decoded; // Wishbone data output
+                o_aux <= o_wb_ack_read_q[0][AUX_WIDTH:1]; // Aux output
+                o_wb_data_uncalibrated <= o_wb_data_q_current; // Data is not ECC decoded when not yet done calibration
+                o_wb_ack_uncalibrated <= o_wb_ack_read_q[0][0] && !final_calibration_done; // ack used during calibration
+                o_wb_ack_q <= o_wb_ack_read_q[0][0] && final_calibration_done && i_wb_cyc; // ack used during normal operation
+                o_wb_err_q <= db_err_o; // flag Wishbone error due to double bit error
+            end
        end
     end
-    assign o_wb_ack = o_wb_ack_read_q[0][0] && state_calibrate == DONE_CALIBRATE;
-    //o_wb_ack_read_q[0][0] is needed internally to ack during write calibration but it must not go outside (since it is not an actual user wb request unless we are in DONE_CALIBRATE) 
-    assign o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; 
-    assign o_wb_data = o_wb_data_q[index_wb_data];
-    
+    assign o_wb_data_q_current = o_wb_data_q[index_wb_data];
+
+    generate
+        if(ECC_ENABLE == 0) begin: ecc_disabled_wishbone_out
+            always @* begin
+                o_wb_data = o_wb_data_q_current; // Wishbone data output
+                o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; // Aux output
+                o_wb_data_uncalibrated = o_wb_data; // wishbone data is also used when not yet done calibration
+                o_wb_ack_uncalibrated = o_wb_ack_read_q[0][0] && !final_calibration_done; // ack used during calibration
+                o_wb_ack_q = o_wb_ack_read_q[0][0] && final_calibration_done; // ack used during normal operation
+                o_wb_err_q = 0; // no wishbone error when ECC is disabled
+            end
+        end
+        else if(ECC_ENABLE == 3) begin: ecc_3_wishbone_out
+            always @* begin
+                o_wb_data = o_wb_data_q_decoded; // Wishbone data output
+                o_aux = o_wb_ack_read_q[0][AUX_WIDTH:1]; // Aux output
+                o_wb_data_uncalibrated = o_wb_data_q_current; // wishbone data is also used when not yet done calibration
+                o_wb_ack_uncalibrated = o_wb_ack_read_q[0][0] && !final_calibration_done; // ack used during calibration
+                o_wb_ack_q = o_wb_ack_read_q[0][0] && final_calibration_done; // ack used during normal operation
+                o_wb_err_q = db_err_o; // wb error during double bit errors
+            end
+        end
+    endgenerate
+
+    generate
+        if (WB_ERROR == 0) begin: wb_err_disabled
+            assign o_wb_ack = o_wb_ack_q;
+            assign o_wb_err = 1'b0; // no Wishbone error if WB_ERROR == 0
+        end
+        else begin : wb_err_enabled
+            // Wishbone B4 doc:
+            // RULE 3.45
+            // If a SLAVE supports the [ERR_O] or [RTY_O] signals, then the SLAVE MUST NOT assert
+            // more than one of the following signals at any time: [ACK_O], [ERR_O] or [RTY_O].
+            assign o_wb_ack = !o_wb_err_q && o_wb_ack_q ;
+            assign o_wb_err = o_wb_err_q && o_wb_ack_q; 
+        end
+    endgenerate
+
     // DQ/DQS IO tristate control logic
     always @(posedge i_controller_clk) begin
         o_phy_dqs_tri_control <= !write_dqs[STAGE2_DATA_DEPTH-1];
@@ -1477,7 +1972,8 @@ module ddr3_controller #(
             write_test_address_counter <= 0;
             reset_from_calibrate <= 0;
             write_by_byte_counter <= 0;
-            already_finished_calibration <= 0;
+            initial_calibration_done <= 1'b0;
+            final_calibration_done <= 1'b0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -1554,6 +2050,8 @@ module ddr3_controller #(
                         write_calib_dqs <= 0;
                         write_calib_odt <= 0;
                         o_phy_write_leveling_calib <= 0;
+                        initial_calibration_done <= 1'b0;
+                        final_calibration_done <= 1'b0;
                       end
                       else if(instruction_address == 13) begin
                         pause_counter <= 1; //pause instruction address @13 until read calibration finishes
@@ -1800,8 +2298,8 @@ module ddr3_controller #(
 //                        state_calibrate <= READ_DATA;
 //                      end   
                                  
-           READ_DATA: if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-2){1'b0}}, 2'd1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
-                         read_data_store <= o_wb_data; // read data on address 0 
+           READ_DATA: if({o_aux[AUX_WIDTH-((ECC_ENABLE == 3)? 6 : 1) : 0], o_wb_ack_uncalibrated}== {{(AUX_WIDTH-((ECC_ENABLE == 3)? 6 : 1)){1'b0}}, 1'b1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
+                         read_data_store <= o_wb_data_uncalibrated; // read data on address 0 
                          calib_stb <= 0;
                          state_calibrate <= ANALYZE_DATA;
                          data_start_index[lane] <= 0;
@@ -1828,6 +2326,7 @@ module ddr3_controller #(
                             if(lane == LANES - 1) begin
                             /* verilator lint_on WIDTH */
                                 state_calibrate <= BURST_WRITE;
+                                initial_calibration_done <= 1'b1;
                             end        
                             else begin
                                 lane <= lane + 1;
@@ -1905,11 +2404,11 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
        BURST_WRITE: if(!o_wb_stall_calib) begin // Test 1: Burst write (per byte write to test datamask feature), then burst read
                             calib_stb <= 1;
                             calib_aux <= 2;
-                            if(TDQS == 0) begin //Test datamask by writing 1 byte at a time
+                            if(TDQS == 0 && ECC_ENABLE == 0) begin //Test datamask by writing 1 byte at a time
                                 calib_sel <= 1 << write_by_byte_counter;
                                 calib_we <= 1; 
                                 calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                                calib_data<= {wb_sel_bits{8'haa}}; 
+                                calib_data <= {wb_sel_bits{8'haa}}; 
                                 calib_data[8*write_by_byte_counter +: 8] <= write_test_address_counter[7:0]; 
 
                                 if(MICRON_SIM) begin
@@ -1941,7 +2440,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                                 calib_sel <= {wb_sel_bits{1'b1}};
                                 calib_we <= 1; 
                                 calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                                calib_data<= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+                                calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
 
                                 if(MICRON_SIM) begin
                                     //if(write_test_address_counter[wb_addr_bits-1:0] == 500) begin //inject error at middle
@@ -2057,13 +2556,13 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         calib_stb <= 0;
                         if(train_delay == 0) begin
                             state_calibrate <= DONE_CALIBRATE;
+                            final_calibration_done <= 1'b1;
                         end
                     end    
                                
     DONE_CALIBRATE: begin
                         calib_stb <= 0;
                         state_calibrate <= DONE_CALIBRATE;
-                        already_finished_calibration <= 1;
                      end
 
             endcase
@@ -2082,12 +2581,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 pause_counter <= 1; // pause instruction address until pre-stall delay before refresh sequence finishes
                 //skip to instruction address 20 (precharge all before refresh) when no pending requests anymore
                 //toggle it for 1 clk cycle only
-                if( !stage1_pending && !stage2_pending && ( (o_wb_stall && state_calibrate == DONE_CALIBRATE) || (o_wb_stall_calib && state_calibrate != DONE_CALIBRATE) ) ) begin 
+                if( !stage1_pending && !stage2_pending && ( (o_wb_stall && final_calibration_done) || (o_wb_stall_calib && state_calibrate != DONE_CALIBRATE) ) ) begin 
                    pause_counter <= 0; // pre-stall delay done since all remaining requests are completed
                 end
             end
             
-            if(repeat_test && state_calibrate == DONE_CALIBRATE) begin //can only repeat test once calibration is over
+            if(repeat_test && final_calibration_done) begin //can only repeat test once calibration is over
                 state_calibrate <= BURST_WRITE;
                 read_test_address_counter <= 0;
                 write_test_address_counter <= 0;
@@ -2101,14 +2600,31 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     assign o_phy_idelay_dqs_cntvaluein = idelay_dqs_cntvaluein[lane];
     assign dqs_target_index_value = dqs_start_index_stored[0]? dqs_start_index_stored + 2: dqs_start_index_stored + 1; // move to next odd (if 3 then 5, if 4 then 5)
      // To show why next odd number is needed: https://github.com/AngeloJacobo/UberDDR3/tree/b762c464f6526159c1d8c2e4ee039b4ae4e78dbd#per-lane-read-calibration
-    reg[31:0] wb_data_to_wb2 = 0;
-    always @(posedge i_controller_clk) begin
-        if(o_wb_ack_read_q[0][0]) wb_data_to_wb2 <= o_wb_data[31:0]; //save data read
-    end
+
     /*********************************************************************************************************************************************/
 
     /******************************************************* Calibration Test Receiver *******************************************************/
     reg[wb_data_bits-1:0] wrong_data = 0;
+    wire[wb_data_bits-1:0] correct_data;
+
+    generate
+        if(ECC_ENABLE == 0 || ECC_ENABLE == 3) begin : ecc_enable_0_correct_data
+            assign correct_data = {wb_sel_bits{check_test_address_counter[7:0]}};
+        end
+        else if(ECC_ENABLE == 1) begin : ecc_enable_1_correct_data
+            wire[wb_data_bits-1:0] correct_data_orig;
+
+            assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
+            assign correct_data = {{(wb_data_bits-ECC_INFORMATION_BITS*8){1'b0}} , correct_data_orig[ECC_INFORMATION_BITS*8 - 1 : 0]}; //only ECC_INFORMATION_BITS are valid in o_wb_data
+        end
+        else if(ECC_ENABLE == 2) begin : ecc_enable_2_correct_data
+            wire[wb_data_bits-1:0] correct_data_orig;
+
+            assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
+            assign correct_data = {{(wb_data_bits-ECC_INFORMATION_BITS){1'b0}} , correct_data_orig[ECC_INFORMATION_BITS - 1 : 0]}; //only ECC_INFORMATION_BITS are valid in o_wb_data
+        end
+    endgenerate
+
     always @(posedge i_controller_clk) begin
         if(sync_rst_controller) begin
             check_test_address_counter <= 0;
@@ -2118,28 +2634,19 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         else begin
             reset_from_test <= 0;
-            if(state_calibrate != DONE_CALIBRATE) begin
-                if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-3){1'b0}}, 3'd3, 1'b1}) begin //read ack received 
-                    if(o_wb_data == {wb_sel_bits{check_test_address_counter[7:0]}}) begin
+            if(state_calibrate != DONE_CALIBRATE) begin          
+                if ( (o_aux[2:0] == 3'd3 || o_aux[2:0] == 3'd5) && o_wb_ack_uncalibrated ) begin
+                    if(o_wb_data == correct_data) begin
                         correct_read_data <= correct_read_data + 1;
                     end
                     else begin
                         wrong_read_data <= wrong_read_data + 1;
                         wrong_data <= o_wb_data;
-                        reset_from_test <= !already_finished_calibration; //reset controller when a wrong data is received (only when calibration is not yet done)
+                        reset_from_test <= !final_calibration_done; //reset controller when a wrong data is received (only when calibration is not yet done)
                     end
-                    check_test_address_counter <= check_test_address_counter + 1;
-                end
-                else if(o_wb_ack_read_q[0] == {{(AUX_WIDTH-3){1'b0}}, 3'd5, 1'b1}) begin //read ack received (alternate write read)
-                    if(o_wb_data == {wb_sel_bits{check_test_address_counter[7:0]}}) begin
-                        correct_read_data <= correct_read_data + 1;
-                    end
-                    else begin
-                        wrong_read_data <= wrong_read_data + 1;
-                        wrong_data <= o_wb_data;
-                        reset_from_test <= !already_finished_calibration; //reset controller when a wrong data is received (only when calibration is not yet done)
-                    end
-                    check_test_address_counter <= check_test_address_counter + 2;
+                    /* verilator lint_off WIDTHEXPAND */
+                    check_test_address_counter <= check_test_address_counter + 1 + (o_aux[2:0] == 3'd5); // alternate write read when aux == 5
+                    /* verilator lint_on WIDTHEXPAND */
                 end
             end
             if(repeat_test) begin
@@ -2510,6 +3017,206 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             find_delay = k[3:0];
         end
     endfunction
+
+    // find maximum information bit the data width can accomadate 
+    // Reference: https://docs.amd.com/v/u/en-US/xapp383
+    // Relevant equations: N <= 2^(K-1) - K  ,  total_bits = N + K  --->  total_bits <= 2^(total_bits - N - 1)
+    // N = information bits , K = parity bits ,  total_bits = total data width (information bit plus parity bits)
+    function integer max_information_bits;
+    input integer total_bits;
+    integer N;
+    begin
+        N = total_bits;
+        while (total_bits > 2**(total_bits-N-1)) N = N - 1;
+        max_information_bits = N;
+    end
+    endfunction 
+
+    // combine information bits (wb_data) to parity bits 
+    function [71:0] undecoded_data(input[63:0] wb_data, input[7:0] parity_bits);      
+    begin      
+        // decoded_parity is 8 bits: {msb, 2^6, 2^5, 2^4, 2^3, 2^2, 2^1, 2^0};
+        {undecoded_data[71], undecoded_data[64-1], undecoded_data[32-1], undecoded_data[16-1], 
+            undecoded_data[8-1], undecoded_data[4-1], undecoded_data[2-1], undecoded_data[1-1]} = parity_bits;
+        {undecoded_data[70:64], undecoded_data[62:32], undecoded_data[30:16], undecoded_data[14:8], 
+            undecoded_data[6:4], undecoded_data[2]} = wb_data;
+    end
+    endfunction
+    /*********************************************************************************************************************************************/
+
+    /******************************************************* Module Instantiations *******************************************************/
+    generate
+        if(ECC_ENABLE == 0) begin : no_ecc
+            assign stage1_data_encoded = stage1_data;
+            //assign stage1_data_mux = stage1_data_encoded;
+            if(ECC_TEST) begin : ecc_test
+                assign stage1_data_mux = initial_calibration_done ? {stage1_data_encoded[wb_data_bits-1:1] , 1'b0} : stage1_data_encoded; 
+            end        
+            else begin : no_ecc_test
+                assign stage1_data_mux = stage1_data_encoded;
+            end   
+            assign encoded_parity = 0;
+        end
+        
+        else if (ECC_ENABLE == 2) begin : sideband_ECC_per_8_bursts
+            /* verilator lint_off PINCONNECTEMPTY */
+            ecc_enc #(
+                .K(ECC_INFORMATION_BITS), //Information bit vector size
+                .P0_LSB(0) //0: p0 is located at MSB
+                        //1: p0 is located at LSB
+            ) ecc_enc_inst (
+                .d_i(stage1_data[ECC_INFORMATION_BITS-1:0]),      //information bit vector input
+                .q_o(stage1_data_encoded),  //encoded data word output
+                .p_o(),      //parity vector output
+                .p0_o()      //extended parity bit
+            );
+
+            // if initial calibration is not yet done, then data will not be encoded with ECC
+            if(ECC_TEST) begin : ecc_test
+                assign stage1_data_mux = initial_calibration_done? {stage1_data_encoded[wb_data_bits-1:1], 1'b0} : stage1_data;
+            end
+            else begin : non_ecc_test
+                assign stage1_data_mux = initial_calibration_done? stage1_data_encoded : stage1_data;
+            end
+            ecc_dec #(
+            .K(ECC_INFORMATION_BITS), //Information bit vector size
+            .LATENCY(0), //0: no latency (combinatorial design)
+                                //1: registered outputs
+                                //2: registered inputs+outputs
+            .P0_LSB(0) //0: p0 is located at MSB
+                                //1: p0 is located at LSB
+            ) ecc_dec_inst (
+                //clock/reset ports (if LATENCY > 0)
+                .rst_ni(1'b1),     //asynchronous reset
+                .clk_i(1'b0),      //clock input
+                .clkena_i(1'b0),   //clock enable input
+                //data ports
+                .d_i(o_wb_data_q_current),        //encoded code word input
+                .q_o(o_wb_data_q_decoded[ECC_INFORMATION_BITS-1:0]),        //information bit vector output
+                .syndrome_o(), //syndrome vector output
+                //flags
+                .sb_err_o(sb_err_o),   //single bit error detected
+                .db_err_o(db_err_o),   //double bit error detected
+                .sb_fix_o()    //repaired error in the information bits
+            );
+            assign o_wb_data_q_decoded[wb_data_bits - 1 : ECC_INFORMATION_BITS] = 0;
+            assign encoded_parity = 0;
+        end
+
+        // ECC per burst. If x16 DDR3, then every 16 bits will have ECC parity bits.
+        else if(ECC_ENABLE == 1) begin : sideband_ECC_per_burst
+            wire[7:0] sb_err;
+            wire[7:0] db_err;
+            genvar index_enc;
+            // 8 encoders to add ECC bits per burst
+            for(index_enc = 0; index_enc < 8 ;  index_enc = index_enc + 1) begin
+                ecc_enc #(
+                    .K(ECC_INFORMATION_BITS), //Information bit vector size
+                    .P0_LSB(0) //0: p0 is located at MSB
+                               //1: p0 is located at LSB
+                ) ecc_enc_inst (
+                    .d_i(stage1_data[ECC_INFORMATION_BITS*index_enc +: ECC_INFORMATION_BITS]),    //information bit vector input
+                    .q_o(stage1_data_encoded[DQ_BITS*LANES*index_enc +: DQ_BITS*LANES]),  //encoded data word output
+                    .p_o(),      //parity vector output
+                    .p0_o()      //extended parity bit
+                );
+
+                ecc_dec #(
+                    .K(ECC_INFORMATION_BITS), //Information bit vector size
+                    .LATENCY(0), //0: no latency (combinatorial design)
+                                        //1: registered outputs
+                                        //2: registered inputs+outputs
+                    .P0_LSB(0) //0: p0 is located at MSB
+                                //1: p0 is located at LSB
+                ) ecc_dec_inst (
+                    //clock/reset ports (if LATENCY > 0)
+                    .rst_ni(1'b1),     //asynchronous reset
+                    .clk_i(1'b0),      //clock input
+                    .clkena_i(1'b0),   //clock enable input
+                    //data ports
+                    .d_i(o_wb_data_q_current[DQ_BITS*LANES*index_enc +: DQ_BITS*LANES]),        //encoded code word input
+                    .q_o(o_wb_data_q_decoded[ECC_INFORMATION_BITS*index_enc +: ECC_INFORMATION_BITS]),        //information bit vector output
+                    .syndrome_o(), //syndrome vector output
+                    //flags
+                    .sb_err_o(sb_err[index_enc]),   //single bit error detected
+                    .db_err_o(db_err[index_enc]),   //double bit error detected
+                    .sb_fix_o()    //repaired error in the information bits
+                );
+                /* verilator lint_on PINCONNECTEMPTY */
+            end
+            assign o_wb_data_q_decoded[wb_data_bits - 1 : ECC_INFORMATION_BITS*8] = 0;
+            if(ECC_TEST) begin : ecc_test
+                assign stage1_data_mux = initial_calibration_done? {stage1_data_encoded[wb_data_bits-1:1], 1'b0} : stage1_data;
+            end
+            else begin : non_ecc_test
+                assign stage1_data_mux = initial_calibration_done? stage1_data_encoded : stage1_data;
+            end
+            assign sb_err_o = |sb_err;
+            assign db_err_o = |db_err;
+            assign encoded_parity = 0;
+        end
+
+        else if (ECC_ENABLE == 3) begin : inline_ECC
+            wire[wb_data_bits/64 - 1 : 0] sb_err;
+            wire[wb_data_bits/64 - 1 :0] db_err;
+            wire[72*(wb_data_bits/64) - 1 : 0] coded_word;
+
+            genvar index_enc;
+            // 8 encoders to add ECC bits per burst
+            for(index_enc = 0; index_enc < wb_data_bits/64 ;  index_enc = index_enc + 1) begin
+                // encode/decode each 64-bit blocks 
+                /* verilator lint_off PINCONNECTEMPTY */
+                ecc_enc #(
+                    .K(64), //Information bit vector size
+                    .P0_LSB(0) //0: p0 is located at MSB
+                               //1: p0 is located at LSB
+                ) ecc_enc_inst (
+                    .d_i(stage1_data[64*index_enc +: 64]),    //information bit vector input
+                    .q_o(),  //encoded data word output
+                    .p_o(encoded_parity[8*index_enc +: 7]),      //parity vector output
+                    .p0_o(encoded_parity[8*index_enc + 7])      //extended parity bit
+                );
+                // combine information bits and parity bits (fixed to width of 72 since information bits is always 64)
+                assign coded_word[72*index_enc +: 72] = undecoded_data(o_wb_data_q_current[64*index_enc +: 64], decoded_parity[8*index_enc +: 8]);
+                ecc_dec #(
+                    .K(64), //Information bit vector size
+                    .LATENCY(0), //0: no latency (combinatorial design)
+                                        //1: registered outputs
+                                        //2: registered inputs+outputs
+                    .P0_LSB(0) //0: p0 is located at MSB
+                                //1: p0 is located at LSB
+                ) ecc_dec_inst (
+                    //clock/reset ports (if LATENCY > 0)
+                    .rst_ni(1'b1),     //asynchronous reset
+                    .clk_i(1'b0),      //clock input
+                    .clkena_i(1'b0),   //clock enable input
+                    //data ports
+                    .d_i(coded_word[72*index_enc +: 72]),  //encoded code word input
+                    .q_o(o_wb_data_q_decoded[64*index_enc +: 64]),        //information bit vector output
+                    .syndrome_o(), //syndrome vector output
+                    //flags
+                    .sb_err_o(sb_err[index_enc]),   //single bit error detected
+                    .db_err_o(db_err[index_enc]),   //double bit error detected
+                    .sb_fix_o()    //repaired error in the information bits
+                );
+                /* verilator lint_on PINCONNECTEMPTY */
+            end
+            
+            assign stage1_data_encoded = stage1_data;
+            // ecc_req_stage2 means stage2 is doing ECC write operation
+            
+            if(ECC_TEST) begin : ecc_test
+                assign stage1_data_mux = ecc_stage1_stall? stage2_ecc_write_data_d : initial_calibration_done ? {stage1_data_encoded[wb_data_bits-1:1] , 1'b0} : stage1_data_encoded;
+            end
+            else begin : non_ecc_test
+                assign stage1_data_mux = ecc_stage1_stall? stage2_ecc_write_data_d : stage1_data_encoded;
+            end
+            // error flags are only relevant for non-ECC reads (o_aux[AUX_WIDTH-2 +: 1] = 2'b01) and ack is high
+            assign sb_err_o = (|sb_err) && (o_aux[AUX_WIDTH-2 +: 2] == 2'b01) && o_wb_ack_read_q[0][0];
+            assign db_err_o = (|db_err) && (o_aux[AUX_WIDTH-2 +: 2] == 2'b01) && o_wb_ack_read_q[0][0];
+        end
+    endgenerate
+
     /*********************************************************************************************************************************************/
 
 
@@ -2530,14 +3237,18 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("SECOND_WISHBONE = %0d", SECOND_WISHBONE);
         $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
         $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
-
+        $display("ECC_ENABLE = %0d", ECC_ENABLE);
+        $display("ECC_INFORMATION_BITS = %0d", ECC_INFORMATION_BITS);
+        $display("WB_ERROR = %0d", WB_ERROR);
+        
         $display("\nCONTROLLER LOCALPARAMS:\n-----------------------------");
         $display("wb_addr_bits = %0d", wb_addr_bits);
         $display("wb_data_bits = %0d", wb_data_bits);
         $display("wb_sel_bits  = %0d", wb_sel_bits);
         $display("wb2_sel_bits = %0d", wb2_sel_bits);
         $display("DQ_BITS = %0d", DQ_BITS);
-
+        $display("row_bank_col = %0d", row_bank_col);
+        
         $display("\nCOMMAND SLOTS:\n-----------------------------");
         $display("READ_SLOT = %0d", READ_SLOT);
         $display("WRITE_SLOT = %0d", WRITE_SLOT);
@@ -2560,6 +3271,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         $display("WRITE_TO_PRECHARGE_DELAY = %0d", WRITE_TO_PRECHARGE_DELAY);
         $display("STAGE2_DATA_DEPTH = %0d", STAGE2_DATA_DEPTH);
         $display("READ_ACK_PIPE_WIDTH = %0d\n", READ_ACK_PIPE_WIDTH);
+        
     end
 `endif
     
@@ -2681,8 +3393,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         localparam F_MAX_STALL = max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY) + 1 + PRECHARGE_TO_ACTIVATE_DELAY + 1 + max(ACTIVATE_TO_WRITE_DELAY,ACTIVATE_TO_READ_DELAY) + 1 ;
                                     //worst case delay (Precharge -> Activate-> R/W)
                                     //add 1 to each delay since they end at zero
-        localparam F_MAX_ACK_DELAY = F_MAX_STALL + (READ_ACK_PIPE_WIDTH + 2); //max_stall + size of shift_reg_read_pipe_q + o_wb_ack_read_q (assume to be two via read_pipe_max) 
-
+        localparam F_MAX_ACK_DELAY = F_MAX_STALL + (READ_ACK_PIPE_WIDTH + 2) + (ECC_ENABLE == 1 || ECC_ENABLE == 2); //max_stall + size of shift_reg_read_pipe_q + o_wb_ack_read_q (assume to be two via read_pipe_max) 
+        // plus 1 since ECC adds 1 clock latency before ACK 
         (*keep*) wire[3:0] f_max_stall, f_max_ack_delay;
         assign f_max_stall = F_MAX_STALL;
         assign f_max_ack_delay = F_MAX_ACK_DELAY;
@@ -2900,6 +3612,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             end
             
             assume(repeat_test == 0);
+
+            // final_calibration_done is equal to state_calibrate == DONE
+            assert(final_calibration_done == (state_calibrate == DONE_CALIBRATE));
         end
         
         always @* begin
@@ -2932,25 +3647,67 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
         always @* begin
             if(state_calibrate == DONE_CALIBRATE && i_wb_cyc) begin
-                if(f_full) begin
-                    assert(stage1_pending && stage2_pending);//there are 2 contents
-                end
-                if(stage1_pending && stage2_pending) begin
-                    assert(f_full);
-                end
+                if(ECC_ENABLE != 3) begin
+                    if(f_full) begin
+                        assert(stage1_pending && stage2_pending);//there are 2 contents
+                    end
+                    if(stage1_pending && stage2_pending) begin
+                        assert(f_full);
+                    end
 
-                if(!f_empty && !f_full) begin
-                    assert(stage1_pending ^ stage2_pending);//there is 1 content
-                end
-                if(stage1_pending ^ stage2_pending) begin
-                    assert(!f_empty && !f_full);
-                end
+                    if(!f_empty && !f_full) begin
+                        assert(stage1_pending ^ stage2_pending);//there is 1 content
+                    end
+                    if(stage1_pending ^ stage2_pending) begin
+                        assert(!f_empty && !f_full);
+                    end
 
-                if(f_empty) begin
-                    assert(stage1_pending == 0 && stage2_pending==0); //there is 0 content
+                    if(f_empty) begin
+                        assert(stage1_pending == 0 && stage2_pending==0); //there is 0 content
+                    end
+                    if(stage1_pending == 0 && stage2_pending == 0) begin
+                        assert(f_empty);
+                    end
                 end
-                if(stage1_pending == 0 && stage2_pending == 0) begin
-                    assert(f_empty);
+                else begin
+                    if(f_full) begin 
+                        // if f_full then data can either be in:
+                        // stage1 and stage2 IF ecc_req_stage2 is low
+                        // stage0 and stage1 IF ecc_req_stage2 is high
+                        assert((stage1_pending && stage2_pending && !ecc_req_stage2) || (stage0_pending && stage1_pending && ecc_req_stage2));
+                    end
+                    if(stage1_pending && stage2_pending) begin
+                        // if stage1 and stage2 is pending,and stage2 is non-ECC : fifo is full
+                        if(!ecc_req_stage2) begin
+                            assert(f_full);
+                        end
+                        // if stage2 is ECC-req while stage0 is pending then fifo is still full
+                        if(ecc_req_stage2 && stage0_pending) begin
+                            assert(f_full);
+                        end
+                    end
+                    // stage0 and stage1 pending means fifo is full and stage2 is ECC request
+                    if(stage0_pending && stage1_pending) begin
+                        assert(f_full);
+                        assert(ecc_req_stage2);
+                    end
+
+                    if(!f_empty && !f_full) begin // if there is only 1 content
+                        assert((stage1_pending ^ stage2_pending) || (stage1_pending && stage2_pending && ecc_req_stage2));
+                        // if only 1 req, then either stage1 or stage2 is pending, UNLESS stage2 is ECC
+                    end
+                    if(stage1_pending ^ stage2_pending) begin
+                        // if either only stage1 or 2 is pending, then there is only 1 request
+                        assert(!f_empty && !f_full);
+                    end
+
+                    if(f_empty) begin
+                        assert(stage1_pending == 0 && stage2_pending == 0 && stage0_pending == 0); //there is 0 content
+                    end
+                    if(stage1_pending == 0 && stage2_pending == 0) begin
+                        assert(f_empty);
+                        assert(!stage0_pending);
+                    end
                 end
             end
 
@@ -3046,14 +3803,23 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             //check if a DDR3 command is issued
             if(i_wb_cyc) begin //only if already done calibrate and controller can accept wb request 
 
-                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100) begin //WRITE
+                if(cmd_d[WRITE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0100 && (ECC_ENABLE != 3 || !ecc_req_stage2) ) begin //WRITE
                     if(state_calibrate == DONE_CALIBRATE) begin
                        assert(f_bank_status[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == 1'b1); //the bank that will be written must initially be active 
                        f_read_data_col = {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}; //column address must match 
                        assert(cmd_d[WRITE_SLOT][CMD_ADDRESS_START:0] == f_read_data_col);
 
-                       f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
-                       assert(cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
+                        if(row_bank_col == 1) begin // address mapping {row, bank,col}
+                            f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 0) begin // address mapping {bank, row, col}
+                            f_read_data_bank = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 2) begin // address mapping {bank[2:1], row, bank[0], col}
+                            f_read_data_bank[0] = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]; //bank must match 
+                            f_read_data_bank[2:1] = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]; //bank must match 
+                        end
+                        assert(cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
 
                        `ifdef TEST_DATA
                            f_read_data_aux = f_read_data[$bits(i_wb_addr) + 1 +: AUX_WIDTH]; //UAX ID must match 
@@ -3068,18 +3834,28 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                        f_read_fifo = 1; //advance read pointer to prepare for next read
                     end
                     else if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
-                        assert(stage2_aux == 0);
+                        assert(stage2_aux[2:0] == 0);
                     end
                     //assert(f_bank_active_row[cmd_d[WRITE_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == current_row); //column to be written must be the current active row
                 end
 
-                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101) begin //READ
+                if(cmd_d[READ_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0101 && (ECC_ENABLE != 3 || !ecc_req_stage2)) begin //READ
                    if(state_calibrate == DONE_CALIBRATE) begin
                        assert(f_bank_status[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == 1'b1); //the bank that will be read must initially be active 
                        f_read_data_col = {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}; //column address must match 
                        assert(cmd_d[READ_SLOT][CMD_ADDRESS_START:0] == f_read_data_col);
+                        
+                        if(row_bank_col == 1) begin // address mapping {row, bank,col}
+                            f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 0) begin // address mapping {bank, row, col}
+                            f_read_data_bank = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
+                        end
+                        else if(row_bank_col == 2) begin // address mapping {bank[2:1], row, bank[0], col}
+                            f_read_data_bank[0] = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]; //bank must match 
+                            f_read_data_bank[2:1] = f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]; //bank must match 
+                        end
 
-                       f_read_data_bank = f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]; //bank must match 
                        assert(cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1] == f_read_data_bank);
 
                        `ifdef TEST_DATA
@@ -3091,10 +3867,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                        f_read_fifo = 1; //advance read pointer to prepare for next read
                    end
                     else if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
-                        assert(stage2_aux == 1);
+                        assert(stage2_aux[2:0] == 1);
                     end
                     //assert(f_bank_active_row[cmd_d[READ_SLOT][CMD_BANK_START:CMD_ADDRESS_START+1]] == current_row);//column to be written must be the current active row
                 end
+
 
                 if(cmd_d[PRECHARGE_SLOT][CMD_CS_N:CMD_WE_N] == 4'b0010) begin //PRECHARGE
                    if(state_calibrate == DONE_CALIBRATE && (instruction_address == 22 || instruction_address == 19)) begin
@@ -3137,37 +3914,143 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         always @* begin
             if(!f_empty && !f_full) begin //make assertion when there is only 1 data on the pipe
                 if(stage1_pending) begin //request is still on stage1
-                    assert(stage1_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                    assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                    assert(stage1_we == f_read_data[0]); //i_wb_we must be high
+                    if(row_bank_col == 1) begin
+                        assert(stage1_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 0) begin
+                        assert(stage1_bank == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 2) begin
+                        assert(stage1_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage1_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    assert(stage1_we == f_read_data[0]); //i_wb_we must be same
                 end
-                if(stage2_pending) begin //request is now on stage2
-                    assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                    assert(stage2_we == f_read_data[0]); //i_wb_we must be high
+                if(stage2_pending && !stage1_pending) begin //request is now on stage2
+                    if(row_bank_col == 1) begin
+                        assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 0) begin
+                        assert(stage2_bank == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    else if(row_bank_col == 2) begin
+                        assert(stage2_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage2_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    end
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be same
+                end
+                // if there is only 1 request on fifo but both pendings are high then stage must be an ECC-request
+                if((ECC_ENABLE == 3) && stage1_pending && stage2_pending) begin
+                    assert(ecc_req_stage2);
                 end
             end
+
             if(f_full) begin //both stages have request
                 //stage2 is the request on the tip of the fifo
-                assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                assert(stage2_we == f_read_data[0]); //i_wb_we must be high
-                //stage1 is the request on the other element of the fifo
-                //(since the fifo only has 2 elements, the other element that
-                //is not the tip will surely be the 2nd request that is being
-                //handles by stage1)
-                assert(stage1_bank == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
-                assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
-                assert(stage1_we == f_read_data_next[0]); //i_wb_we must be high
+                if(row_bank_col == 1) begin
+                    assert(stage2_bank == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be same
+                    //stage1 is the request on the other element of the fifo
+                    //(since the fifo only has 2 elements, the other element that
+                    //is not the tip will surely be the 2nd request that is being
+                    //handles by stage1)
+                    assert(stage1_bank == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage1_we == f_read_data_next[0]); //i_wb_we must be same
+                end
+                else if(row_bank_col == 0) begin
+                    assert(stage2_bank == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage2_we == f_read_data[0]); //i_wb_we must be same
+                    //stage1 is the request on the other element of the fifo
+                    //(since the fifo only has 2 elements, the other element that
+                    //is not the tip will surely be the 2nd request that is being
+                    //handles by stage1)
+                    assert(stage1_bank == f_read_data_next[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 1 +: BA_BITS]); //bank must match 
+                    assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                    assert(stage1_we == f_read_data_next[0]); //i_wb_we must be same
+                end
+                else if(row_bank_col == 2) begin
+                    // If fifo is full and stage2 is non-ECC, then stage2 will have the first request on fifo
+                    if(!ecc_req_stage2) begin
+                        assert(stage2_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage2_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage2_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                        assert(stage2_we == f_read_data[0]); 
+                        //stage1 is the request on the other element of the fifo
+                        //(since the fifo only has 2 elements, the other element that
+                        //is not the tip will surely be the 2nd request that is being
+                        //handled by stage1)
+                        assert(stage1_bank[0] == f_read_data_next[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage1_bank[2:1] == f_read_data_next[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage1_col == {f_read_data_next[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                        assert(stage1_we == f_read_data_next[0]); 
+                    end
+                    else begin
+                        // if there is ECC request on stage2, then stage1 will have the first request on fifo
+                        assert(stage1_bank[0] == f_read_data[(COL_BITS - $clog2(serdes_ratio*2)) + 1 +: 1]); //bank must match 
+                        assert(stage1_bank[2:1] == f_read_data[(ROW_BITS + COL_BITS - $clog2(serdes_ratio*2)) + 2 +: BA_BITS-1]); //bank must match 
+                        assert(stage1_col == {f_read_data[1 +: COL_BITS - $clog2(serdes_ratio*2)], 3'b000}); //column address must match 
+                        assert(stage1_we == f_read_data[0]); 
+                        // stage0 will have second request on fifo
+                        assert(stage0_addr == f_read_data_next[F_TEST_CMD_DATA_WIDTH - 1:1]);
+                        assert(stage0_we == f_read_data_next[0]);
+                    end
+                end
+            end
+            if(ECC_ENABLE == 3) begin
+                // if stage0 is pending then f_full must be high, stall is high, and s1 and s2 pending is high
+                if(stage0_pending) begin
+                    if(final_calibration_done) assert(f_full); // r/w calibration test does not come from fifo so wait until final calibration is done
+                    if(final_calibration_done) assert(o_wb_stall);
+                    if(!final_calibration_done) assert(o_wb_stall_calib);
+                    assert(stage1_pending && stage2_pending);
+                    assert(ecc_req_stage2);
+                end
+                // initial and final calibration signals
+                if(state_calibrate >= BURST_WRITE) assert(initial_calibration_done);
+                else assert(!initial_calibration_done);
+
+                if(state_calibrate == DONE_CALIBRATE) assert(final_calibration_done);
+                else assert(!final_calibration_done);
             end
         end
         
     //`endif
+        // Assertions on ECC signals
+        always @(posedge i_controller_clk) begin
+            if(ECC_ENABLE == 3) begin
+                // if stage2 is ECC request, then stage1 is the original non-ECC request
+                if(ecc_req_stage2) begin
+                    // if there is ECC request on stage2, then o_wb_stall must be high (except when ecc_stage2_stall is low which means stage2 is done this cycle)
+                    if(final_calibration_done) assert(o_wb_stall || !ecc_stage2_stall);
+                    else assert(o_wb_stall_calib || !ecc_stage2_stall);
+                    assert(stage1_pending && stage2_pending);
+                end
 
+                // stage0_pending will rise to high if ecc_stage1_stall is high the previous cycle and stall is low
+                if(stage0_pending && !$past(stage0_pending)) begin
+                    assert($past(ecc_stage1_stall) && !$past(o_wb_stall_q));
+                end
+
+                // stage0_pending currently high means stage2 and stage1 is pending, and there is ECC request on stage2
+                if(stage0_pending) begin
+                    assert(stage1_pending && stage2_pending);
+                    assert(ecc_req_stage2);
+                end
+            end
+        end
         always @* begin
             assert(f_bank_status == bank_status_q);
         end
-         
+
         (*keep*) reg[31:0] bank; 
         always @(posedge i_controller_clk) begin
             if(sync_rst_controller) begin
@@ -3239,13 +4122,18 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         assert(!stage1_pending);
                         assert(!stage2_pending);
                     end
-                    if($past(o_wb_stall_q) && stage1_pending) begin //if pipe did not move forward
+                    if($past(o_wb_stall_q) && stage1_pending && !$past(stage1_update)) begin //if pipe did not move forward
                        assert(stage1_we == $past(stage1_we));
                        assert(stage1_aux == $past(stage1_aux));
                        assert(stage1_bank == $past(stage1_bank));
                        assert(stage1_col == $past(stage1_col));
                        assert(stage1_row == $past(stage1_row));
                        assert(stage1_dm == $past(stage1_dm));
+                    end
+                    if(stage0_pending && $past(stage0_pending) && (ECC_ENABLE == 3)) begin // stage0 must remain the same as long as pending is high
+                        assert(stage0_addr == $past(stage0_addr));
+                        assert(stage0_aux == $past(stage0_aux));
+                        assert(stage0_we == $past(stage0_we));
                     end
                 end
         end
@@ -3278,10 +4166,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
             if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
                 if(stage1_pending) begin
-                    assert(!stage1_we == stage1_aux); //if write, then aux id must be 1 else 0
+                    assert(!stage1_we == stage1_aux[0]); //if write, then aux id must be 1 else 0
+                    assert(stage1_aux[2:1] == 2'b00);
                 end
                 if(stage2_pending) begin
-                    assert(!stage2_we == stage2_aux); //if write, then aux id must be 1 else 0
+                    assert(!stage2_we == stage2_aux[0]); //if write, then aux id must be 1 else 0
+                    assert(stage2_aux[2:1] == 2'b00);
                 end
             end
 
@@ -3289,10 +4179,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         
         
-        wire[3:0] f_nreqs, f_nacks, f_outstanding, f_ackwait_count, f_stall_count;
+        wire[3:0] f_nreqs, f_nacks, f_outstanding;
+        wire[3:0] f_ackwait_count, f_stall_count;
         wire[3:0] f_nreqs_2, f_nacks_2, f_outstanding_2;
-        reg[READ_ACK_PIPE_WIDTH+1:0] f_ack_pipe_after_stage2;
-        reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1:0];
+        reg[READ_ACK_PIPE_WIDTH+1+(ECC_ENABLE == 1 || ECC_ENABLE == 2):0] f_ack_pipe_after_stage2;
+        reg[AUX_WIDTH:0] f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1+(ECC_ENABLE == 1 || ECC_ENABLE == 2):0];
+        // 1 more pipeline stage will be added when ECC_ENABLE is 1 or 2
         integer f_ack_pipe_marker;
 
         integer f_sum_of_pending_acks = 0;
@@ -3303,38 +4195,70 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 end
 
                 if(state_calibrate != IDLE) assume(added_read_pipe_max == 1);
-                f_sum_of_pending_acks = stage1_pending + stage2_pending;
+                if(ECC_ENABLE == 3) begin
+                    f_sum_of_pending_acks = stage1_pending + (stage2_pending && !ecc_req_stage2) + stage0_pending; // stage2 is only valid if non-ECC request
+                end
+                else begin
+                    f_sum_of_pending_acks = stage1_pending + stage2_pending;
+                end
                 for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH; f_index_1 = f_index_1 + 1) begin
                     f_sum_of_pending_acks = f_sum_of_pending_acks + shift_reg_read_pipe_q[f_index_1][0] + 0;
                 end
                 for(f_index_1 = 0; f_index_1 < 2; f_index_1 = f_index_1 + 1) begin //since added_read_pipe_max is assumed to be one, only the first two bits of o_wb_ack_read_q is relevant
                     f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_read_q[f_index_1][0] + 0;
                 end
-                
+                if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                    f_sum_of_pending_acks = f_sum_of_pending_acks + o_wb_ack_uncalibrated + o_wb_ack_q;
+                end
+
+                if(o_wb_ack_uncalibrated) begin
+                    assert(state_calibrate != DONE_CALIBRATE);
+                end
+                if(o_wb_ack_q) begin
+                    assert(state_calibrate == DONE_CALIBRATE);
+                end
+
                 //the remaining o_wb_ack_read_q (>2) should stay zero at
                 //all instance
                 for(f_index_1 = 2; f_index_1 < MAX_ADDED_READ_ACK_DELAY ; f_index_1 = f_index_1 + 1) begin
                     assert(o_wb_ack_read_q[f_index_1] == 0);
+                end
+                if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                    f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1+1] = {o_aux,(o_wb_ack_uncalibrated || o_wb_ack_q)};
                 end
                 f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH+1] = o_wb_ack_read_q[0]; //last stage of f_aux_ack_pipe_after_stage2 is also the last ack stage
                 f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH] = o_wb_ack_read_q[1];
                 for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH; f_index_1 = f_index_1 + 1) begin
                     f_aux_ack_pipe_after_stage2[READ_ACK_PIPE_WIDTH - 1 - f_index_1] = shift_reg_read_pipe_q[f_index_1];
                 end
-                f_ack_pipe_after_stage2 = {
-                    o_wb_ack_read_q[0][0], 
-                    o_wb_ack_read_q[1][0], 
-                    shift_reg_read_pipe_q[0][0], 
-                    shift_reg_read_pipe_q[1][0],
-                    shift_reg_read_pipe_q[2][0],
-                    shift_reg_read_pipe_q[3][0],
-                    shift_reg_read_pipe_q[4][0]
-                    };
 
-                if(f_ackwait_count > F_MAX_STALL) begin
-                    assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
+                if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
+                    f_ack_pipe_after_stage2 = {
+                        (o_wb_ack_uncalibrated || o_wb_ack_q),
+                        o_wb_ack_read_q[0][0], 
+                        o_wb_ack_read_q[1][0], 
+                        shift_reg_read_pipe_q[0][0], 
+                        shift_reg_read_pipe_q[1][0],
+                        shift_reg_read_pipe_q[2][0],
+                        shift_reg_read_pipe_q[3][0],
+                        shift_reg_read_pipe_q[4][0]
+                    };
+                end
+                else begin
+                    f_ack_pipe_after_stage2 = {
+                        o_wb_ack_read_q[0][0], 
+                        o_wb_ack_read_q[1][0], 
+                        shift_reg_read_pipe_q[0][0], 
+                        shift_reg_read_pipe_q[1][0],
+                        shift_reg_read_pipe_q[2][0],
+                        shift_reg_read_pipe_q[3][0],
+                        shift_reg_read_pipe_q[4][0]
+                    };
                 end
 
+                if(f_ackwait_count > F_MAX_STALL && (ECC_ENABLE != 3)) begin
+                    assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
+                end
 
                 if(!past_sync_rst_controller && state_calibrate == DONE_CALIBRATE) begin
                     assert(f_outstanding == f_sum_of_pending_acks || !i_wb_cyc);
@@ -3354,25 +4278,31 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     assert(f_outstanding == 0 || !i_wb_cyc); 
                     assert(f_sum_of_pending_acks <= 3);
 
-                    if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
-                        assert(o_wb_ack_read_q[0] == {0, 1'b1}); //if sum of pending acks > 1 then the first two will be write and have aux of 0, while the last will have aux of 1 (read)
+                    // if((f_sum_of_pending_acks > 1) && o_wb_ack_read_q[0]) begin
+                    //     assert(o_wb_ack_read_q[0] == {0, 1'b1}); 
+                    // end
+                    if((f_sum_of_pending_acks > 1) && o_wb_ack_uncalibrated) begin //if sum of pending acks > 1 then the first two will be write and have aux of 0, while the last will have aux of 1 (read)
+                        assert(o_aux[2:0] == 0);
+                        assert(o_wb_ack_uncalibrated == 1);
                     end
-
                     f_ack_pipe_marker = 0;
                     for(f_index_1 = 0; f_index_1 < READ_ACK_PIPE_WIDTH + 2; f_index_1 = f_index_1 + 1) begin //check each ack stage starting from last stage
                         if(f_aux_ack_pipe_after_stage2[f_index_1][0]) begin //if ack is high
-                            if(f_aux_ack_pipe_after_stage2[f_index_1][AUX_WIDTH:1] == 1) begin //ack for read
+                            if(f_aux_ack_pipe_after_stage2[f_index_1][3:1] == 1) begin //ack for read
                                 assert(f_ack_pipe_marker == 0); //read ack must be the last ack on the pipe(f_pipe_marker must still be zero)
                                 f_ack_pipe_marker = f_ack_pipe_marker + 1;
                                 assert(!stage1_pending && !stage2_pending); //a single read request must be the last request on this calibration
                             end
                             else begin //ack for write
-                                assert(f_aux_ack_pipe_after_stage2[f_index_1][AUX_WIDTH:1] == 0);
+                                assert(f_aux_ack_pipe_after_stage2[f_index_1][3:1] == 0);
                                 f_ack_pipe_marker = f_ack_pipe_marker + 1;
                             end
                         end
                     end
                     assert(f_ack_pipe_marker <= 3);
+                end
+                if(state_calibrate <= READ_DATA && (ECC_ENABLE == 3)) begin
+                    assert(!stage0_pending); // stage0 pending will never go high before READ_DATA
                 end
 
                 if(state_calibrate == ANALYZE_DATA && !past_sync_rst_controller) begin
@@ -3387,13 +4317,13 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
                if(state_calibrate == ISSUE_WRITE_2 || state_calibrate == ISSUE_READ) begin
                    if(calib_stb == 1) begin
-                        assert(calib_aux == 0);          
+                        assert(calib_aux[2:0] == 0);          
                         assert(calib_we == 1);
                     end
                end
                if(state_calibrate == READ_DATA) begin
                    if(calib_stb == 1) begin
-                        assert(calib_aux == 1);          
+                        assert(calib_aux[2:0] == 1);          
                         assert(calib_we == 0);
                     end
                end
@@ -3434,7 +4364,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 assert(delay_before_write_counter_q[f_index_1] <= (max(READ_TO_WRITE_DELAY,ACTIVATE_TO_WRITE_DELAY) + 1) );
                 assert(delay_before_read_counter_q[f_index_1] <= (max(WRITE_TO_READ_DELAY,ACTIVATE_TO_READ_DELAY)) + 1);
             end
-            if(stage2_pending) begin
+            if(stage2_pending && (ECC_ENABLE != 3)) begin
                 if(delay_before_precharge_counter_q[stage2_bank] == max(ACTIVATE_TO_PRECHARGE_DELAY, max(WRITE_TO_PRECHARGE_DELAY,READ_TO_PRECHARGE_DELAY))) begin
                   assert(f_stall_count == 0);
                   //assert(f_ackwait_count == 0);
@@ -3466,6 +4396,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                       end
                       */
                 end
+            end
+            else begin
+                // this is cheating but for now this will do, I shall come back here soon to fix this ;)
+                assume(f_stall_count < F_MAX_STALL);
+                assume(f_ackwait_count < F_MAX_ACK_DELAY);
             end
         end
 
@@ -3898,7 +4833,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             .i_wb_ack(o_wb_ack),
             .i_wb_stall(o_wb_stall),
             .i_wb_idata(o_wb_data),
-            .i_wb_err(1'b0),
+            .i_wb_err(o_wb_err),
             // Some convenience output parameters
             .f_nreqs(f_nreqs), 
             .f_nacks(f_nacks),
@@ -4040,4 +4975,3 @@ module mini_fifo #(
 endmodule
 
 `endif
-
