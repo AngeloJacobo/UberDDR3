@@ -80,7 +80,7 @@ module ddr3_controller #(
                 cmd_len = 4 + 3 + BA_BITS + ROW_BITS,
                 lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES),
     parameter[1:0] row_bank_col = (ECC_ENABLE == 3)? 2 : 1, // memory address mapping: 0 {bank, row, col} , 1 = {row, bank, col} , 2 = {bank[2:1]. row, bank[0], col} FOR ECC
-    parameter[0:0] ECC_TEST = 1
+    parameter[0:0] ECC_TEST = 0
     ) 
     (
         input wire i_controller_clk, //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
