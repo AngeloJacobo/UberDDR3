@@ -66,7 +66,7 @@ module ddr3_phy #(
         input wire i_controller_write_leveling_calib,
         output wire[DQ_BITS*LANES*8-1:0] o_controller_iserdes_data,
         output wire[LANES*8-1:0] o_controller_iserdes_dqs,
-        output wire[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
+        output reg[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
         output wire o_controller_idelayctrl_rdy,
         // DDR3 I/O Interface
         output wire o_ddr3_clk_p,o_ddr3_clk_n,
@@ -148,6 +148,14 @@ module ddr3_phy #(
     assign o_ddr3_debug_read_dqs_p = 0;
     assign o_ddr3_debug_read_dqs_n = 0;
 `endif
+    reg[LANES - 1 : 0] shift_bitslip_index = 0;
+    integer index;
+    
+    // initial value of bitslip reference
+    initial begin
+        o_controller_iserdes_bitslip_reference = {LANES{8'b0001_1110}};
+        shift_bitslip_index = 0;
+    end
 
     //synchronous reset
     always @(posedge i_controller_clk) begin
@@ -971,6 +979,7 @@ module ddr3_phy #(
             );
             // End of IDELAYE2_inst instantiation
             
+             
               // End of IOBUF_inst instantiation                 
             // ISERDESE2: Input SERial/DESerializer with bitslip
             //7 Series
@@ -1039,6 +1048,21 @@ module ddr3_phy #(
             // End of ISERDESE2_inst instantiation
 `endif
                       
+                      
+            always @(posedge i_controller_clk) begin
+                if(!i_rst_n || i_controller_reset) begin
+                    o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 0)] <= 8'b0001_1110;
+                    shift_bitslip_index[gen_index] <= 0;
+                end
+                else if(i_controller_bitslip[gen_index]) begin
+                // if shift_bitslip_index high, shift right by 3, else shift left by 1 (this is reverse of the IOSelect document for ISERDES sincebit is reversed)
+                    o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 0)] <= 
+                        shift_bitslip_index[gen_index]? {o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 2) : (serdes_ratio*2*gen_index + 0)], o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 3)]}
+                        : {o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 6) : (serdes_ratio*2*gen_index + 0)], o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7)]};
+                    shift_bitslip_index[gen_index] <= !shift_bitslip_index[gen_index];         
+                end
+            end
+            /*
             //ISERDES train
             // End of IOBUF_inst instantiation                 
             // ISERDESE2: Input SERial/DESerializer with bitslip
@@ -1153,7 +1177,7 @@ module ddr3_phy #(
                     // 1-bit input: 3-state clock enable
                 );
                 // End of OSERDESE2_inst instantiation  
-    
+    */
     
         end
      endgenerate 
