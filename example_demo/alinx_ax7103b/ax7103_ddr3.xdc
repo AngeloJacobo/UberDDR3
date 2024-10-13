@@ -9,6 +9,9 @@ set_property BITSTREAM.CONFIG.CONFIGRATE 50 [current_design]
 create_clock -period 5 [get_ports sys_clk_p]
 set_property PACKAGE_PIN R4 [get_ports sys_clk_p]
 set_property IOSTANDARD DIFF_SSTL15 [get_ports sys_clk_p]
+
+set_property PACKAGE_PIN T4 [get_ports sys_clk_n]
+set_property IOSTANDARD DIFF_SSTL15 [get_ports sys_clk_n]
 ##############reset key define########################
 set_property PACKAGE_PIN J21 [get_ports i_rst_n] 
 set_property IOSTANDARD LVCMOS33 [get_ports i_rst_n]
@@ -341,19 +344,19 @@ set_property IOSTANDARD LVCMOS15 [get_ports {ddr3_reset_n}]
 set_property PACKAGE_PIN W6 [get_ports {ddr3_reset_n}]
 
 # PadFunction: IO_L14P_T2_SRCC_34 
-set_property SLEW FAST [get_ports {ddr3_cke[0]}]
-set_property IOSTANDARD SSTL15 [get_ports {ddr3_cke[0]}]
-set_property PACKAGE_PIN T5 [get_ports {ddr3_cke[0]}]
+set_property SLEW FAST [get_ports {ddr3_cke}]
+set_property IOSTANDARD SSTL15 [get_ports {ddr3_cke}]
+set_property PACKAGE_PIN T5 [get_ports {ddr3_cke}]
 
 # PadFunction: IO_L14N_T2_SRCC_34 
-set_property SLEW FAST [get_ports {ddr3_odt[0]}]
-set_property IOSTANDARD SSTL15 [get_ports {ddr3_odt[0]}]
-set_property PACKAGE_PIN U5 [get_ports {ddr3_odt[0]}]
+set_property SLEW FAST [get_ports {ddr3_odt}]
+set_property IOSTANDARD SSTL15 [get_ports {ddr3_odt}]
+set_property PACKAGE_PIN U5 [get_ports {ddr3_odt}]
 
 # PadFunction: IO_L8P_T1_34 
-set_property SLEW FAST [get_ports {ddr3_cs_n[0]}]
-set_property IOSTANDARD SSTL15 [get_ports {ddr3_cs_n[0]}]
-set_property PACKAGE_PIN AB3 [get_ports {ddr3_cs_n[0]}]
+set_property SLEW FAST [get_ports {ddr3_cs_n}]
+set_property IOSTANDARD SSTL15 [get_ports {ddr3_cs_n}]
+set_property PACKAGE_PIN AB3 [get_ports {ddr3_cs_n}]
 
 # PadFunction: IO_L4N_T0_35 
 set_property SLEW FAST [get_ports {ddr3_dm[0]}]
@@ -424,14 +427,14 @@ set_property IOSTANDARD DIFF_SSTL15 [get_ports {ddr3_dqs_n[3]}]
 set_property PACKAGE_PIN P4 [get_ports {ddr3_dqs_n[3]}]
 
 # PadFunction: IO_L3P_T0_DQS_34 
-set_property SLEW FAST [get_ports {ddr3_ck_p[0]}]
-set_property IOSTANDARD DIFF_SSTL15 [get_ports {ddr3_ck_p[0]}]
-set_property PACKAGE_PIN R3 [get_ports {ddr3_ck_p[0]}]
+set_property SLEW FAST [get_ports {ddr3_ck_p}]
+set_property IOSTANDARD DIFF_SSTL15 [get_ports {ddr3_ck_p}]
+set_property PACKAGE_PIN R3 [get_ports {ddr3_ck_p}]
 
 # PadFunction: IO_L3N_T0_DQS_34 
-set_property SLEW FAST [get_ports {ddr3_ck_n[0]}]
-set_property IOSTANDARD DIFF_SSTL15 [get_ports {ddr3_ck_n[0]}]
-set_property PACKAGE_PIN R2 [get_ports {ddr3_ck_n[0]}]
+set_property SLEW FAST [get_ports {ddr3_ck_n}]
+set_property IOSTANDARD DIFF_SSTL15 [get_ports {ddr3_ck_n}]
+set_property PACKAGE_PIN R2 [get_ports {ddr3_ck_n}]
 
 
 
