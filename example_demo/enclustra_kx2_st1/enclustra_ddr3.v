@@ -37,7 +37,7 @@
 
    module enclustra_ddr3
 	(
-	input wire i_clk, 
+	input wire i_clk200_p, i_clk200_n, 
 	input wire i_rst_n,
 	// DDR3 I/O Interface
     output wire ddr3_clk_p, ddr3_clk_n,
@@ -57,9 +57,17 @@
 	input wire rx,
 	output wire tx,
 	//Debug LEDs
-	output wire[2:0] led
+	output wire[3:0] led
     );
+    wire sys_clk_200MHz;
      
+    IBUFDS sys_clk_ibufgds
+    (
+        .O(sys_clk_200MHz),
+        .I(i_clk200_p),
+        .IB(i_clk200_n)
+    );
+
      wire i_controller_clk, i_ddr3_clk, i_ref_clk;
      wire m_axis_tvalid;
      wire rx_empty;
@@ -74,10 +82,11 @@
      reg[7:0] i_wb_data;
      reg[7:0] i_wb_addr;
      // o_debug1 taps on value of state_calibrate (can be traced inside ddr3_controller module)
-     assign led[0] = !(o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
-     assign led[1] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
-     assign led[2] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
-     
+     assign led[0] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
+     assign led[1] = !(o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
+     assign led[2] = !(o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
+     assign led[3] = !(o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
+
     always @(posedge i_controller_clk) begin
         begin
             i_wb_stb <= 0;
@@ -101,39 +110,71 @@
     end
      
     wire clk_locked;
+    wire i_ddr3_clk_90;
     clk_wiz clk_wiz_inst
     (
     // Clock out ports
-    .clk_out1(i_controller_clk), //100 Mhz
-    .clk_out2(i_ddr3_clk), // 400 MHz
+    .clk_out1(i_controller_clk), //83.333 Mhz
+    .clk_out2(i_ddr3_clk), // 333.333 MHz
     .clk_out3(i_ref_clk), // 200 MHz 
+    .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90 degrees shift
     // Status and control signals
     .reset(!i_rst_n),
     .locked(clk_locked),
     // Clock in ports
-    .clk_in1(i_clk)
+    .clk_in1(sys_clk_200MHz)
     );
 
-    // UART module from https://github.com/alexforencich/verilog-uart
-    uart #(.DATA_WIDTH(8)) uart_m
-    (
-         .clk(i_controller_clk),
-         .rst(!i_rst_n),
-         .s_axis_tdata(o_wb_data),
-         .s_axis_tvalid(o_wb_ack),
-         .s_axis_tready(),
-         .m_axis_tdata(rd_data),
-         .m_axis_tvalid(m_axis_tvalid),
-         .m_axis_tready(1),
-         .rxd(rx),
-         .txd(tx),
-        .prescale(1302) //9600 Baud Rate: 100MHz/(8*9600)
+    // UART TX/RX module from https://github.com/ben-marshall/uart
+    uart_tx #(
+        .BIT_RATE(9600),
+        .CLK_HZ(83_333_333),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+        ) uart_tx_inst (
+        .clk(i_controller_clk), // Top level system clock input.
+        .resetn(i_rst_n && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+        .uart_txd(tx), // UART transmit pin.
+        .uart_tx_busy(), // Module busy sending previous item.
+        .uart_tx_en(o_wb_ack), // Send the data on uart_tx_data
+        .uart_tx_data(o_wb_data) // The data to be sent
     );
+    uart_rx #(
+        .BIT_RATE(9600),
+        .CLK_HZ(83_333_333),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+    ) uart_rx_inst (
+        .clk(i_controller_clk), // Top level system clock input.
+        .resetn(i_rst_n && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+        .uart_rxd(rx), // UART Recieve pin.
+        .uart_rx_en(o_debug1[4:0] == 23), // Recieve enable
+        .uart_rx_break(), // Did we get a BREAK message?
+        .uart_rx_valid(m_axis_tvalid), // Valid data recieved/available.
+        .uart_rx_data(rd_data)   // The recieved data.
+    );
+    
+
+    // UART module from https://github.com/alexforencich/verilog-uart (DOES NOT WORK ON OPENXC7, UberDDR3 cannot finish calibration when this UART is used)
+    //    uart #(.DATA_WIDTH(8)) uart_m
+    //    (
+    //         .clk(i_controller_clk),
+    //         .rst(!i_rst_n),
+    //         .s_axis_tdata(o_wb_data),
+    //         .s_axis_tvalid(o_wb_ack),
+    //         .s_axis_tready(),
+    //         .m_axis_tdata(rd_data),
+    //         .m_axis_tvalid(m_axis_tvalid),
+    //         .m_axis_tready(1),
+    //         .rxd(rx),
+    //         .txd(tx),
+    //        .prescale(1085) //9600 Baud Rate (83.33MHz/(8*9600))
+    //    );
     
     // DDR3 Controller 
     ddr3_top #(
-        .CONTROLLER_CLK_PERIOD(10_000), //ps, clock period of the controller interface
-        .DDR3_CLK_PERIOD(2_500), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+        .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
+        .DDR3_CLK_PERIOD(3_000), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
         .ROW_BITS(15), //width of row address
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
@@ -152,7 +193,7 @@
             .i_controller_clk(i_controller_clk),
             .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
             .i_ref_clk(i_ref_clk),
-            .i_ddr3_clk_90(0),
+            .i_ddr3_clk_90(i_ddr3_clk_90),
             .i_rst_n(i_rst_n && clk_locked), 
             // Wishbone inputs
             .i_wb_cyc(1), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
