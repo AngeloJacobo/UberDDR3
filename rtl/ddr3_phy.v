@@ -41,6 +41,7 @@ module ddr3_phy #(
                   LANES = 8,
     parameter[0:0] ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    USE_IO_TERMINATION = 0, //use IOBUF_DCIEN and IOBUFDS_DCIEN when 1
+                   NO_IOSERDES_LOOPBACK = 1, // don't use IOSERDES loopback for bitslip training
               // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
     parameter serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
               wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
@@ -66,7 +67,7 @@ module ddr3_phy #(
         input wire i_controller_write_leveling_calib,
         output wire[DQ_BITS*LANES*8-1:0] o_controller_iserdes_data,
         output wire[LANES*8-1:0] o_controller_iserdes_dqs,
-        output reg[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
+        output wire[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
         output wire o_controller_idelayctrl_rdy,
         // DDR3 I/O Interface
         output wire o_ddr3_clk_p,o_ddr3_clk_n,
@@ -138,7 +139,15 @@ module ddr3_phy #(
     wire ddr3_clk_delayed;
     wire idelayctrl_rdy;
     wire dci_locked;
+    reg[LANES*8-1:0] o_controller_iserdes_bitslip_reference_reg;
+    reg[LANES - 1 : 0] shift_bitslip_index;
     
+    // initial value of bitslip reference
+    initial begin
+        o_controller_iserdes_bitslip_reference_reg = {LANES{8'b0001_1110}};
+        shift_bitslip_index = 0;
+    end
+                
     assign o_controller_idelayctrl_rdy = idelayctrl_rdy && dci_locked;
     
 `ifdef DEBUG_DQS
@@ -148,14 +157,6 @@ module ddr3_phy #(
     assign o_ddr3_debug_read_dqs_p = 0;
     assign o_ddr3_debug_read_dqs_n = 0;
 `endif
-    reg[LANES - 1 : 0] shift_bitslip_index = 0;
-    integer index;
-    
-    // initial value of bitslip reference
-    initial begin
-        o_controller_iserdes_bitslip_reference = {LANES{8'b0001_1110}};
-        shift_bitslip_index = 0;
-    end
 
     //synchronous reset
     always @(posedge i_controller_clk) begin
@@ -1047,90 +1048,97 @@ module ddr3_phy #(
             );
             // End of ISERDESE2_inst instantiation
 `endif
-                      
-                      
-            always @(posedge i_controller_clk) begin
-                if(!i_rst_n || i_controller_reset) begin
-                    o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 0)] <= 8'b0001_1110;
-                    shift_bitslip_index[gen_index] <= 0;
-                end
-                else if(i_controller_bitslip[gen_index]) begin
-                // if shift_bitslip_index high, shift right by 3, else shift left by 1 (this is reverse of the IOSelect document for ISERDES sincebit is reversed)
-                    o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 0)] <= 
-                        shift_bitslip_index[gen_index]? {o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 2) : (serdes_ratio*2*gen_index + 0)], o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 3)]}
-                        : {o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 6) : (serdes_ratio*2*gen_index + 0)], o_controller_iserdes_bitslip_reference[(serdes_ratio*2*gen_index + 7)]};
-                    shift_bitslip_index[gen_index] <= !shift_bitslip_index[gen_index];         
-                end
-            end
-            /*
-            //ISERDES train
-            // End of IOBUF_inst instantiation                 
-            // ISERDESE2: Input SERial/DESerializer with bitslip
-            //7 Series
-            // Xilinx HDL Libraries Guide, version 13.4
-            ISERDESE2 #(
-                .DATA_RATE("DDR"), // DDR, SDR
-                .DATA_WIDTH(serdes_ratio*2), // Parallel data width (2-8,10,14)
-                // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
-                .INIT_Q1(1'b0),
-                .INIT_Q2(1'b0),
-                .INIT_Q3(1'b0),
-                .INIT_Q4(1'b0),
-                .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-                .IOBDELAY("NONE"), // NONE, BOTH, IBUF, IFD
-                .NUM_CE(1),// Number of clock enables (1,2)
-                .OFB_USED("TRUE"), // Select OFB path (FALSE, TRUE)
-                // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
-                .SRVAL_Q1(1'b0),
-                .SRVAL_Q2(1'b0),
-                .SRVAL_Q3(1'b0),
-                .SRVAL_Q4(1'b0)
-            )
-            ISERDESE2_train (
-                .O(),
-                // 1-bit output: Combinatorial output
-                // Q1 - Q8: 1-bit (each) output: Registered data outputs
-                .Q1(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 7]),
-                .Q2(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 6]),
-                .Q3(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 5]),
-                .Q4(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 4]),   
-                .Q5(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 3]),
-                .Q6(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 2]),
-                .Q7(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 1]),
-                .Q8(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 0]),
-                // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
-                .SHIFTOUT1(),
-                .SHIFTOUT2(),
-                .BITSLIP(i_controller_bitslip[gen_index]),
-                // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
-                // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
-                // to Q8 output ports will shift, as in a barrel-shifter operation, one
-                // position every time Bitslip is invoked (DDR operation is different from
-                // SDR).
-                // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
-                .CE1(1'b1),
-                .CE2(1'b1),
-                .CLKDIVP(), // 1-bit input: TBD
-                // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
-                .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
-                .CLKB(!i_ddr3_clk), // 1-bit input: High-speed secondary clock
-                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
-                .OCLK(), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
-                // Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
-                .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
-                .DYNCLKSEL(), // 1-bit input: Dynamic CLK/CLKB inversion
-                // Input Data: 1-bit (each) input: ISERDESE2 data input ports
-                .D(), // 1-bit input: Data input
-                .DDLY(), // 1-bit input: Serial data from IDELAYE2
-                .OFB(oserdes_bitslip_reference[gen_index]), // 1-bit input: Data feedback from OSERDESE2
-                .OCLKB(), // 1-bit input: High speed negative edge output clock
-                .RST(sync_rst), // 1-bit input: Active high asynchronous reset
-                // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
-                .SHIFTIN1(),
-                .SHIFTIN2()
-            );
-            // End of ISERDESE2_inst instantiation
             
+            // generate IOSERDES loopback or not for bitslip training
+            if(NO_IOSERDES_LOOPBACK) begin                    
+                // logic that models OSERDES loopback to ISERDES     
+                // accdg to IOSELECT (UG471) for 7-series:    
+                // " In DDR mode, every Bitslip operation causes the output pattern to alternate between
+                //   a shift right by one and shift left by three"
+                always @(posedge i_controller_clk) begin
+                    if(!i_rst_n || i_controller_reset) begin
+                        o_controller_iserdes_bitslip_reference_reg[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 0)] <= 8'b0001_1110;
+                        shift_bitslip_index[gen_index] <= 0;
+                    end
+                    else if(i_controller_bitslip[gen_index]) begin
+                    // if shift_bitslip_index high, shift right by 3, else shift left by 1 (this is reverse of the IOSelect document for ISERDES since vector o_controller_iserdes_bitslip_reference is reversed)
+                        o_controller_iserdes_bitslip_reference_reg[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 0)] <= 
+                            shift_bitslip_index[gen_index]? {o_controller_iserdes_bitslip_reference_reg[(serdes_ratio*2*gen_index + 2) : (serdes_ratio*2*gen_index + 0)], o_controller_iserdes_bitslip_reference_reg[(serdes_ratio*2*gen_index + 7) : (serdes_ratio*2*gen_index + 3)]}
+                            : {o_controller_iserdes_bitslip_reference_reg[(serdes_ratio*2*gen_index + 6) : (serdes_ratio*2*gen_index + 0)], o_controller_iserdes_bitslip_reference_reg[(serdes_ratio*2*gen_index + 7)]};
+                        shift_bitslip_index[gen_index] <= !shift_bitslip_index[gen_index];         
+                    end
+                end
+                assign o_controller_iserdes_bitslip_reference = o_controller_iserdes_bitslip_reference_reg;
+            end
+            else begin // OSERDES will loopback to ISERDES for bitslip training    
+                //ISERDES train
+                // End of IOBUF_inst instantiation                 
+                // ISERDESE2: Input SERial/DESerializer with bitslip
+                //7 Series
+                // Xilinx HDL Libraries Guide, version 13.4
+                ISERDESE2 #(
+                    .DATA_RATE("DDR"), // DDR, SDR
+                    .DATA_WIDTH(serdes_ratio*2), // Parallel data width (2-8,10,14)
+                    // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
+                    .INIT_Q1(1'b0),
+                    .INIT_Q2(1'b0),
+                    .INIT_Q3(1'b0),
+                    .INIT_Q4(1'b0),
+                    .INTERFACE_TYPE("NETWORKING"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
+                    .IOBDELAY("NONE"), // NONE, BOTH, IBUF, IFD
+                    .NUM_CE(1),// Number of clock enables (1,2)
+                    .OFB_USED("TRUE"), // Select OFB path (FALSE, TRUE)
+                    // SRVAL_Q1 - SRVAL_Q4: Q output values when SR is used (0/1)
+                    .SRVAL_Q1(1'b0),
+                    .SRVAL_Q2(1'b0),
+                    .SRVAL_Q3(1'b0),
+                    .SRVAL_Q4(1'b0)
+                )
+                ISERDESE2_train (
+                    .O(),
+                    // 1-bit output: Combinatorial output
+                    // Q1 - Q8: 1-bit (each) output: Registered data outputs
+                    .Q1(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 7]),
+                    .Q2(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 6]),
+                    .Q3(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 5]),
+                    .Q4(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 4]),   
+                    .Q5(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 3]),
+                    .Q6(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 2]),
+                    .Q7(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 1]),
+                    .Q8(o_controller_iserdes_bitslip_reference[gen_index*serdes_ratio*2 + 0]),
+                    // SHIFTOUT1-SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
+                    .SHIFTOUT1(),
+                    .SHIFTOUT2(),
+                    .BITSLIP(i_controller_bitslip[gen_index]),
+                    // 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
+                    // CLKDIV when asserted (active High). Subsequently, the data seen on the Q1
+                    // to Q8 output ports will shift, as in a barrel-shifter operation, one
+                    // position every time Bitslip is invoked (DDR operation is different from
+                    // SDR).
+                    // CE1, CE2: 1-bit (each) input: Data register clock enable inputs
+                    .CE1(1'b1),
+                    .CE2(1'b1),
+                    .CLKDIVP(), // 1-bit input: TBD
+                    // Clocks: 1-bit (each) input: ISERDESE2 clock input ports
+                    .CLK(i_ddr3_clk), // 1-bit input: High-speed clock
+                    .CLKB(!i_ddr3_clk), // 1-bit input: High-speed secondary clock
+                    .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                    .OCLK(), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
+                    // Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
+                    .DYNCLKDIVSEL(), // 1-bit input: Dynamic CLKDIV inversion
+                    .DYNCLKSEL(), // 1-bit input: Dynamic CLK/CLKB inversion
+                    // Input Data: 1-bit (each) input: ISERDESE2 data input ports
+                    .D(), // 1-bit input: Data input
+                    .DDLY(), // 1-bit input: Serial data from IDELAYE2
+                    .OFB(oserdes_bitslip_reference[gen_index]), // 1-bit input: Data feedback from OSERDESE2
+                    .OCLKB(), // 1-bit input: High speed negative edge output clock
+                    .RST(sync_rst), // 1-bit input: Active high asynchronous reset
+                    // SHIFTIN1-SHIFTIN2: 1-bit (each) input: Data width expansion input ports
+                    .SHIFTIN1(),
+                    .SHIFTIN2()
+                );
+                // End of ISERDESE2_inst instantiation
+                
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
@@ -1177,67 +1185,12 @@ module ddr3_phy #(
                     // 1-bit input: 3-state clock enable
                 );
                 // End of OSERDESE2_inst instantiation  
-    */
-    
+            end
+            
         end
      endgenerate 
      
-     /*
-    // OSERDESE2: Output SERial/DESerializer with bitslip
-    //7 Series
-    // Xilinx HDL Libraries Guide, version 13.4
-    OSERDESE2 #(
-        .DATA_RATE_OQ("DDR"), // DDR, SDR
-        .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
-        .INIT_OQ(1'b1) // Initial value of OQ output (1'b0,1'b1)
-    )
-    OSERDESE2_train(
-        .OFB(test_OFB), // 1-bit output: Feedback path for data
-        .OQ(), // 1-bit output: Data path output
-        .CLK(i_ddr3_clk), // 1-bit input: High speed clock
-        .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
-        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
-        .D1(1'b0),
-        .D2(1'b0),
-        .D3(1'b0),
-        .D4(1'b0),
-        .D5(1'b1),
-        .D6(1'b1),
-        .D7(1'b1),
-        .D8(1'b1),
-        .OCE(1'b1), // 1-bit input: Output data clock enable
-        .RST(sync_rst) // 1-bit input: Reset
-    );
-    // End of OSERDESE2_inst instantiation  
-     */
-     /*
-    // OSERDESE2: Output SERial/DESerializer with bitslip
-    //7 Series
-    // Xilinx HDL Libraries Guide, version 13.4
-    OSERDESE2 #(
-        .DATA_RATE_OQ("DDR"), // DDR, SDR
-        .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
-        .INIT_OQ(1'b1) // Initial value of OQ output (1'b0,1'b1)
-    )
-    OSERDESE2_dqs(
-        .OFB(oserdes_dqs), // 1-bit output: Feedback path for data
-        .OQ(), // 1-bit output: Data path output
-        .CLK(i_ddr3_clk), // 1-bit input: High speed clock
-        .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
-        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
-        .D1(1'b1 && i_controller_toggle_dqs),
-        .D2(1'b0 && i_controller_toggle_dqs),
-        .D3(1'b1 && i_controller_toggle_dqs),
-        .D4(1'b0 && i_controller_toggle_dqs),
-        .D5(1'b1 && i_controller_toggle_dqs),
-        .D6(1'b0 && i_controller_toggle_dqs),
-        .D7(1'b1 && i_controller_toggle_dqs),
-        .D8(1'b0 && i_controller_toggle_dqs),
-        .OCE(1'b1), // 1-bit input: Output data clock enable
-        .RST(sync_rst) // 1-bit input: Reset
-    );
-    // End of OSERDESE2_inst instantiation
-    */
+
     // IDELAYCTRL: IDELAYE2/ODELAYE2 Tap Delay Value Control
     // 7 Series
     // Xilinx HDL Libraries Guide, version 13.4
@@ -1252,10 +1205,11 @@ module ddr3_phy #(
     // DCIRESET: Digitially Controlled Impedence Reset Component
     //7 Series
     // Xilinx HDL Libraries Guide, version 13.4
-    DCIRESET DCIRESET_inst (
-        .LOCKED(dci_locked), // 1-bit output: LOCK status output (When low, DCI I/O impedance is being calibrated and DCI I/Os are unavailable)
-        .RST(sync_rst) // 1-bit input: Active-high asynchronous reset input
-    );
+    // DCIRESET DCIRESET_inst (
+    //     .LOCKED(dci_locked), // 1-bit output: LOCK status output (When low, DCI I/O impedance is being calibrated and DCI I/Os are unavailable)
+    //     .RST(sync_rst) // 1-bit input: Active-high asynchronous reset input
+    // );
+    assign dci_locked = 1;
     // End of DCIRESET_inst instantiation
          
-    endmodule
+endmodule
