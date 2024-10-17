@@ -93,34 +93,64 @@
     (* mark_debug = "true" *) wire clk_locked;
     clk_wiz clk_wiz_inst
     (
-    // Clock out ports
-    .clk_out1(i_controller_clk), //83.333 Mhz
-    .clk_out2(i_ddr3_clk), // 333.333 MHz
-    .clk_out3(i_ref_clk), //200MHz
-    .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90degree shift
-    // Status and control signals
-    .reset(i_rst),
-    .locked(clk_locked),
-    // Clock in ports
-    .clk_in1(i_clk)
-    );
-
-    // UART module from https://github.com/alexforencich/verilog-uart
-    uart #(.DATA_WIDTH(8)) uart_m
-    (
-         .clk(i_controller_clk),
-         .rst(i_rst),
-         .s_axis_tdata(o_wb_data),
-         .s_axis_tvalid(o_wb_ack),
-         .s_axis_tready(),
-         .m_axis_tdata(rd_data),
-         .m_axis_tvalid(m_axis_tvalid),
-         .m_axis_tready(1),
-         .rxd(rx),
-         .txd(tx),
-        .prescale(1085) //9600 Baud Rate
+        // Clock out ports
+        .clk_out1(i_controller_clk), //83.333 Mhz
+        .clk_out2(i_ddr3_clk), // 333.333 MHz
+        .clk_out3(i_ref_clk), //200MHz
+        .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90degree shift
+        // Status and control signals
+        .reset(i_rst),
+        .locked(clk_locked),
+        // Clock in ports
+        .clk_in1(i_clk)
     );
        
+    // UART TX/RXmodule from https://github.com/ben-marshall/uart
+    uart_tx #(
+        .BIT_RATE(9600),
+        .CLK_HZ(83_333_333),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+        ) uart_tx_inst (
+        .clk(i_controller_clk), // Top level system clock input.
+        .resetn(!i_rst && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+        .uart_txd(tx), // UART transmit pin.
+        .uart_tx_busy(), // Module busy sending previous item.
+        .uart_tx_en(o_wb_ack), // Send the data on uart_tx_data
+        .uart_tx_data(o_wb_data) // The data to be sent
+    );
+    uart_rx #(
+        .BIT_RATE(9600),
+        .CLK_HZ(83_333_333),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+    ) uart_rx_inst (
+        .clk(i_controller_clk), // Top level system clock input.
+        .resetn(!i_rst && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+        .uart_rxd(rx), // UART Recieve pin.
+        .uart_rx_en(o_debug1[4:0] == 23), // Recieve enable
+        .uart_rx_break(), // Did we get a BREAK message?
+        .uart_rx_valid(m_axis_tvalid), // Valid data recieved/available.
+        .uart_rx_data(rd_data)   // The recieved data.
+    );
+    
+
+    // UART module from https://github.com/alexforencich/verilog-uart (DOES NOT WORK ON OPENXC7, UberDDR3 cannot finish calibration when this UART is used)
+    //    uart #(.DATA_WIDTH(8)) uart_m
+    //    (
+    //         .clk(i_controller_clk),
+    //         .rst(i_rst),
+    //         .s_axis_tdata(o_wb_data),
+    //         .s_axis_tvalid(o_wb_ack),
+    //         .s_axis_tready(),
+    //         .m_axis_tdata(rd_data),
+    //         .m_axis_tvalid(m_axis_tvalid),
+    //         .m_axis_tready(1),
+    //         .rxd(rx),
+    //         .txd(tx),
+    //        .prescale(1085) //9600 Baud Rate (83.33MHz/(8*9600))
+    //    );
+
     
     // DDR3 Controller 
     ddr3_top #(
