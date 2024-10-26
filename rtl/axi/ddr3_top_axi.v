@@ -44,6 +44,11 @@ module ddr3_top_axi #(
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
+                   WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
+                   SKIP_INTERNAL_TEST = 0, // skip built-in self test (would require >2 seconds of internal test right after calibration)
+    parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
+    parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
+    parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 DQ_BITS = 8,  //device width (fixed to 8, if DDR3 is x16 then BYTE_LANES will be 2 while )
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
@@ -121,12 +126,15 @@ module ddr3_top_axi #(
         output wire[BYTE_LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt,
         //
+        // Done Calibration pin
+        output wire o_calib_complete,
+        //
         // Debug outputs
-        output wire[31:0] o_debug1,
-        output wire[31:0] o_debug2,
-        output wire[31:0] o_debug3,
-        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
-        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
+        output wire[31:0] o_debug1
+//        output wire[31:0] o_debug2,
+//        output wire[31:0] o_debug3,
+//        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
+//        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
     );
 
 wire wb_cyc;
@@ -152,7 +160,12 @@ ddr3_top #(
     .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 if ODELAYE2 is supported
     .SECOND_WISHBONE(SECOND_WISHBONE), //set to 1 if 2nd wishbone for debugging is needed 
     .WB2_ADDR_BITS(WB2_ADDR_BITS), //width of 2nd wishbone address bus 
-    .WB2_DATA_BITS(WB2_DATA_BITS) //width of 2nd wishbone data bus
+    .WB2_DATA_BITS(WB2_DATA_BITS), //width of 2nd wishbone data bus
+    .WB_ERROR(WB_ERROR), // set to 1 to support Wishbone error (asserts at ECC double bit error)
+    .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
+    .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
+    .DIC(DIC), // Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
+    .RTT_NOM(RTT_NOM) //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
     ) ddr3_top_inst
     (
         //clock and reset
@@ -205,12 +218,15 @@ ddr3_top #(
         .o_ddr3_dm(o_ddr3_dm), // width = BYTE_LANES
         .o_ddr3_odt(o_ddr3_odt),
         //
+        // Done Calibration pin
+        .o_calib_complete(o_calib_complete),
+        //
         // Debug outputs
-        .o_debug1(o_debug1),
-        .o_debug2(o_debug2),
-        .o_debug3(o_debug3),
-        .o_ddr3_debug_read_dqs_p(o_ddr3_debug_read_dqs_p),
-        .o_ddr3_debug_read_dqs_n(o_ddr3_debug_read_dqs_n)
+        .o_debug1(o_debug1)
+        // .o_debug2(o_debug2),
+        // .o_debug3(o_debug3),
+        // .o_ddr3_debug_read_dqs_p(o_ddr3_debug_read_dqs_p),
+        // .o_ddr3_debug_read_dqs_n(o_ddr3_debug_read_dqs_n)
         ////////////////////////////////////
     );
 
