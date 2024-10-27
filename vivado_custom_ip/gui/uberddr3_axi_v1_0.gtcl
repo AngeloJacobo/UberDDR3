@@ -1,0 +1,10 @@
+# This file is automatically written.  Do not modify.
+proc gen_USERPARAMETER_DDR3_CLK_PERIOD_VALUE {CONTROLLER_CLK_PERIOD } {expr $CONTROLLER_CLK_PERIOD / 4}
+proc gen_USERPARAMETER_wb_addr_bits_VALUE {ROW_BITS COL_BITS BA_BITS } {expr $ROW_BITS + $COL_BITS + $BA_BITS - 3}
+proc gen_USERPARAMETER_wb_data_bits_VALUE {DQ_BITS BYTE_LANES } {expr $DQ_BITS * $BYTE_LANES * 8}
+proc gen_USERPARAMETER_wb_sel_bits_VALUE {wb_data_bits } {expr $wb_data_bits / 8}
+proc gen_USERPARAMETER_wb2_sel_bits_VALUE {WB2_DATA_BITS } {expr $WB2_DATA_BITS / 8}
+proc gen_USERPARAMETER_cmd_len_VALUE {BA_BITS ROW_BITS } {expr 4 + 3 + $BA_BITS + $ROW_BITS}
+proc gen_USERPARAMETER_AXI_LSBS_VALUE {wb_data_bits } {expr (log( $wb_data_bits )/log(2)) - 3}
+proc gen_USERPARAMETER_AXI_ADDR_WIDTH_VALUE {wb_addr_bits AXI_LSBS } {expr $wb_addr_bits + $AXI_LSBS}
+proc gen_USERPARAMETER_AXI_DATA_WIDTH_VALUE {wb_data_bits } {expr $wb_data_bits}

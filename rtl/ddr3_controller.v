@@ -67,6 +67,7 @@ module ddr3_controller #(
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
+                   SKIP_INTERNAL_TEST = 1, // skip built-in self test (would require >2 seconds of internal test right after calibration)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC )  (only change when you know what you are doing)
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)  (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
@@ -131,10 +132,12 @@ module ddr3_controller #(
         output reg[LANES-1:0] o_phy_bitslip,
         output reg o_phy_write_leveling_calib,
         output wire o_phy_reset,
+        // Done Calibration pin
+        output wire o_calib_complete,
         // Debug port
-        output	wire	[31:0]	o_debug1,
-        output	wire	[31:0]	o_debug2,
-        output	wire	[31:0]	o_debug3
+        output	wire	[31:0]	o_debug1
+//        output	wire	[31:0]	o_debug2,
+//        output	wire	[31:0]	o_debug3
     );
 
     
@@ -554,6 +557,7 @@ module ddr3_controller #(
     (* mark_debug = "true" *) reg odelay_cntvalue_halfway = 0;
     reg initial_calibration_done = 0;
     reg final_calibration_done = 0;
+    assign o_calib_complete = final_calibration_done;
     // Wishbone 2
     reg wb2_stb = 0;
     reg wb2_update = 0;
@@ -2325,7 +2329,7 @@ module ddr3_controller #(
                             /* verilator lint_off WIDTH */
                             if(lane == LANES - 1) begin
                             /* verilator lint_on WIDTH */
-                                state_calibrate <= BURST_WRITE;
+                                state_calibrate <= SKIP_INTERNAL_TEST? FINISH_READ : BURST_WRITE; // go straight to FINISH_READ if SKIP_INTERNAL_TEST high
                                 initial_calibration_done <= 1'b1;
                             end        
                             else begin
@@ -2827,11 +2831,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     end//end of always
     // Logic connected to debug port
     // Logic connected to debug port
-    wire debug_trigger;
+//    wire debug_trigger;
     assign o_debug1 = {27'd0, state_calibrate[4:0]};
-    assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
-    assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
-    assign debug_trigger = repeat_test /*o_wb_ack_read_q[0][0]*/;
+//    assign o_debug2 = {debug_trigger,i_phy_iserdes_data[62:32]};
+//    assign o_debug3 = {debug_trigger,i_phy_iserdes_data[30:0]};
+//    assign debug_trigger = repeat_test /*o_wb_ack_read_q[0][0]*/;
     /*********************************************************************************************************************************************/
 
 

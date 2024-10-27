@@ -44,6 +44,7 @@ module ddr3_top #(
                    ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
+                   SKIP_INTERNAL_TEST = 0, // skip built-in self test (would require >2 seconds of internal test right after calibration)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
@@ -104,12 +105,14 @@ module ddr3_top #(
         output wire[BYTE_LANES-1:0] o_ddr3_dm,
         output wire o_ddr3_odt, // on-die termination
         //
+        // Done Calibration pin
+        output wire o_calib_complete,
         // Debug outputs
-        output wire[31:0] o_debug1,
-        output wire[31:0] o_debug2,
-        output wire[31:0] o_debug3,
-        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
-        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
+        output wire[31:0] o_debug1
+//        output wire[31:0] o_debug2,
+//        output wire[31:0] o_debug3,
+//        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
+//        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
     );
     
 // Instantiation Template (DEFAULT VALUE IS FOR ARTY S7)
@@ -182,10 +185,6 @@ ddr3_top #(
         .o_ddr3_odt(ddr3_odt),
         // Debug outputs
         .o_debug1(),
-        .o_debug2(),
-        .o_debug3(),
-        .o_ddr3_debug_read_dqs_p(),
-        .o_ddr3_debug_read_dqs_n()
         ////////////////////////////////////
     );
 */
@@ -225,6 +224,7 @@ ddr3_top #(
             .SECOND_WISHBONE(SECOND_WISHBONE), //set to 1 if 2nd wishbone is needed 
             .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
             .WB_ERROR(WB_ERROR), // set to 1 to support Wishbone error (asserts at ECC double bit error)
+            .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
             .DIC(DIC), //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
             .RTT_NOM(RTT_NOM) //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
         ) ddr3_controller_inst (
@@ -278,10 +278,12 @@ ddr3_top #(
             .o_phy_bitslip(bitslip),
             .o_phy_write_leveling_calib(write_leveling_calib),
             .o_phy_reset(reset),
+            // Done Calibration pin
+            .o_calib_complete(o_calib_complete),
             // Debug outputs
-            .o_debug1(o_debug1),
-            .o_debug2(o_debug2),
-            .o_debug3(o_debug3)
+            .o_debug1(o_debug1)
+//            .o_debug2(o_debug2),
+//            .o_debug3(o_debug3)
         );
         
     ddr3_phy #(
@@ -336,8 +338,8 @@ ddr3_top #(
             .io_ddr3_dqs_n(io_ddr3_dqs_n),
             .o_ddr3_dm(o_ddr3_dm),
             .o_ddr3_odt(o_ddr3_odt), // on-die termination
-            .o_ddr3_debug_read_dqs_p(o_ddr3_debug_read_dqs_p),
-            .o_ddr3_debug_read_dqs_n(o_ddr3_debug_read_dqs_n)
+            .o_ddr3_debug_read_dqs_p(/*o_ddr3_debug_read_dqs_p*/),
+            .o_ddr3_debug_read_dqs_n(/*o_ddr3_debug_read_dqs_n*/)
         );
         
 endmodule
