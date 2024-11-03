@@ -135,9 +135,11 @@ module ddr3_controller #(
         // Done Calibration pin
         output wire o_calib_complete,
         // Debug port
-        output	wire	[31:0]	o_debug1
+        output	wire	[31:0]	o_debug1,
 //        output	wire	[31:0]	o_debug2,
 //        output	wire	[31:0]	o_debug3
+        // User enabled self-refresh
+        input wire i_user_self_refresh
     );
 
     
@@ -150,8 +152,10 @@ module ddr3_controller #(
                       CMD_WR  = 4'b0100, // Write (A10-AP: 0 = no Auto-Precharge) (A12-BC#: 1 = Burst Length 8) 
                       CMD_RD  = 4'b0101, //Read  (A10-AP: 0 = no Auto-Precharge) (A12-BC#: 1 = Burst Length 8) 
                       CMD_NOP = 4'b0111, // No Operation
-                      CMD_ZQC = 4'b0110; // ZQ Calibration (A10-AP: 0 = ZQ Calibration Short, 1 = ZQ Calibration Long)
-
+                      CMD_ZQC = 4'b0110, // ZQ Calibration (A10-AP: 0 = ZQ Calibration Short, 1 = ZQ Calibration Long)
+                      CMD_SREF_EN = 4'b0001,
+                      CMD_SREF_XT = 4'b0111;
+                      
     localparam RST_DONE = 27, // Command bit that determines if reset seqeunce had aready finished. non-persistent (only needs to be toggled once), 
                   REF_IDLE = 27, // No refresh is about to start and no ongoing refresh. (same bit as RST_DONE)
                   USE_TIMER = 26, // Command bit that determines if timer will be used (if delay is zero, USE_TIMER must be LOW)
@@ -248,7 +252,10 @@ module ddr3_controller #(
     localparam DELAY_MAX_VALUE = ps_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam CALIBRATION_DELAY = 2; // must be >= 2
-                                    
+    localparam tXSDLL = nCK_to_cycles(512); // cycles (controller) Exit Self Refresh to commands requiring a locked DLL
+    localparam tXSDLL_tRFC = tXSDLL - ps_to_cycles(tRFC); // cycles (controller) Time before refresh after exit from self-refresh
+    localparam tCKE = max(3, ps_to_nCK(7500) ); // nCK CKE minimum pulse width
+    localparam tCKESR = nCK_to_cycles(tCKE + 1); // cycles (controller) Minimum time that the DDR3 SDRAM must remain in Self-Refresh mode is tCKESR
     /*********************************************************************************************************************************************/
     
 
@@ -586,7 +593,8 @@ module ddr3_controller #(
     wire db_err_o;
     wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
     /* verilator lint_on UNDRIVEN */
-        
+    reg user_self_refresh_q; // registered i_user_self_refresh
+
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
@@ -727,7 +735,7 @@ module ddr3_controller #(
             5'd18: read_rom_instruction = {5'b01011, CMD_NOP, tMOD[DELAY_SLOT_WIDTH-1:0]};
             //18. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
-            // Perform first refresh and any subsequent refresh (so instruction 12 to 15 will be re-used for the refresh sequence)
+            // Perform first refresh and any subsequent refresh (so instruction 19 to 22 will be re-used for the refresh sequence)
             5'd19: read_rom_instruction = {5'b01111, CMD_PRE, ps_to_cycles(tRP)}; 
             //19. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
@@ -740,7 +748,19 @@ module ddr3_controller #(
             
             5'd22: read_rom_instruction = {5'b01011, CMD_NOP, PRE_REFRESH_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
             // 22. Extra delay needed before starting the refresh sequence. 
-                // (this already sets the wishbone stall high to make sure no user request is on-going when refresh seqeunce starts)
+            // (this already sets the wishbone stall high to make sure no user request is on-going when refresh seqeunce starts)
+            
+            5'd23: read_rom_instruction = {5'b01111, CMD_PRE, ps_to_cycles(tRP)}; 
+            // 23. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Self-Refresh Command can be applied.
+
+            5'd24: read_rom_instruction = {5'b01011, CMD_SREF_EN, tCKESR[DELAY_SLOT_WIDTH-1:0]};
+            // 24. Self-refresh entry
+            // JEDEC Standard No. 79-3E Page 79: The minimum time that the DDR3 SDRAM must remain in Self-Refresh mode is tCKESR
+
+            5'd25: read_rom_instruction = {5'b01011, CMD_SREF_XT, tXSDLL_tRFC[DELAY_SLOT_WIDTH-1:0]};
+            // 25. From 24 (Self-refresh entry), wait until user-self_refresh is disabled then wait for tXSDLL - tRFC before going to 20 (Refresh)
+            // JEDEC Standard No. 79-3E Page 79: Before a command that requires a locked DLL can be applied, a delay of at least tXSDLL must be satisfied.
+            // JEDEC Standard No. 79-3E Page 80: Upon exit from Self-Refresh, the DDR3 SDRAM requires a minimum of one extra refresh command before it is put back into Self-Refresh Mode.
             
             default: read_rom_instruction = {5'b00011, CMD_NOP, {(DELAY_SLOT_WIDTH){1'b0}}}; 
         endcase
@@ -785,13 +805,36 @@ module ddr3_controller #(
             if(delay_counter == 1 || !instruction[USE_TIMER]/* || skip_reset_seq_delay*/) begin
                 delay_counter_is_zero <= 1; 
                 instruction <= read_rom_instruction(instruction_address);
-                instruction_address <= (instruction_address == 5'd22)? 5'd19:instruction_address+1; //wrap back of address to repeat refresh sequence 
+                if(instruction_address == 5'd22) begin // if user_self_refresh is disabled, wrap back to 19 (Precharge All before Refresh)
+                    instruction_address <= 5'd19;
+                end
+                else if(instruction_address == 5'd25) begin // self-refresh exit always wraps back to 20 (Refresh)
+                    instruction_address <= 5'd20;
+                end
+                else begin
+                    instruction_address <= instruction_address + 5'd1; // just increment address
+                end
             end
             //we are now on the middle of a delay 
-            else delay_counter_is_zero <=0; 
+            else begin
+                delay_counter_is_zero <=0; 
+            end
+
+            if(instruction_address == 5'd22 && user_self_refresh_q) begin // if user_self_refresh is enabled, go straight to 23
+                instruction_address <= 23; // go to Precharge All for Self-refresh
+                delay_counter_is_zero <= 1; 
+                instruction <= read_rom_instruction(instruction_address);
+            end
+
+
             //instruction[RST_DONE] is non-persistent thus we need to register it once it goes high
             reset_done <= instruction[RST_DONE]? 1'b1:reset_done; 
         end
+    end
+
+    // register user-enabled self-refresh
+    always @(posedge i_controller_clk) begin 
+        user_self_refresh_q <= i_user_self_refresh && (user_self_refresh_q || (instruction_address != 5'd25)); //will not go high again if already at instruction_address 25 (self-refresh exit)
     end
     /*********************************************************************************************************************************************/
 
@@ -2567,6 +2610,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     DONE_CALIBRATE: begin
                         calib_stb <= 0;
                         state_calibrate <= DONE_CALIBRATE;
+                        if(instruction_address == 5'd25) begin // Self-refresh Exit
+                            pause_counter <= user_self_refresh_q; // wait until user-self-refresh is disabled before continuing 25 (Self-refresh Exit)
+                        end
                      end
 
             endcase

@@ -107,7 +107,8 @@ module ddr3_dimm_micron_sim;
   wire o_wb2_stall; //1 = busy, cannot accept requests
   wire o_wb2_ack; //1 = read/write request has completed
   wire[$bits(ddr3_top.o_wb2_data)-1:0] o_wb2_data; //read data
-  
+  // User enabled self-refresh
+  reg i_user_self_refresh;
   wire clk_locked;
   
   `ifdef USE_CLOCK_WIZARD
@@ -211,9 +212,9 @@ ddr3_top #(
         .io_ddr3_dq(dq),
         .io_ddr3_dqs(dqs),
         .io_ddr3_dqs_n(dqs_n),
-        .o_ddr3_dm(ddr3_dm)
-        
-        ////////////////////////////////////
+        .o_ddr3_dm(ddr3_dm),
+        // User enabled self-refresh
+        .i_user_self_refresh(i_user_self_refresh)
     );
     
    
@@ -318,6 +319,7 @@ ddr3_top #(
     integer average_1, average_2, average_3, average_4;
     localparam MAX_READS = (2**COL_BITS)*(2**BA_BITS + 1)/8; //1 row = 2**(COL_BITS) addresses/8 burst = 128 words per row. Times 8 to pass all 8 banks
       initial begin
+        i_user_self_refresh = 0;
         //toggle reset for 1 slow clk 
         @(posedge i_controller_clk) begin
             i_rst_n <= 0;
