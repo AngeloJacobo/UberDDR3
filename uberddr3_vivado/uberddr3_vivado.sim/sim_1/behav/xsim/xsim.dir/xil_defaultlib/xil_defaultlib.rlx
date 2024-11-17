@@ -1,0 +1,14 @@
+0.7
+2020.2
+Oct 14 2022
+05:20:55
+C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_controller.v,1731504944,verilog,,C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_phy.v,,ddr3_controller,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_phy.v,1730806135,verilog,,C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_top.v,,ddr3_phy,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_top.v,1731497208,verilog,,,,ddr3_top,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ecc/ecc_dec.sv,1730806135,systemVerilog,,C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ecc/ecc_enc.sv,,ecc_dec,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ecc/ecc_enc.sv,1730806135,systemVerilog,,C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/ddr3_dimm_micron_sim.sv,,ecc_enc,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/8192Mb_ddr3_parameters.vh,1731495519,verilog,,,,,,,,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/ddr3.sv,1731495349,systemVerilog,,C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ecc/ecc_dec.sv,C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/8192Mb_ddr3_parameters.vh,ddr3,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/ddr3_dimm_micron_sim.sv,1731496215,systemVerilog,,,C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/8192Mb_ddr3_parameters.vh,ddr3_dimm_micron_sim,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/ddr3_module.sv,1730806135,systemVerilog,,C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ecc/ecc_dec.sv,C:/Users/AJacobo/Documents/UberDDR3_repo/testbench/8192Mb_ddr3_parameters.vh,ddr3_module,,uvm,../../../../../testbench,,,,,
+C:/Users/AJacobo/Documents/UberDDR3_repo/uberddr3_vivado/uberddr3_vivado.sim/sim_1/behav/xsim/glbl.v,1665704903,verilog,,,,glbl,,uvm,,,,,,

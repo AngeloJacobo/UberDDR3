@@ -64,7 +64,8 @@ module ddr3_dimm_micron_sim;
  localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
             DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
-            ECC_ENABLE = 0; // ECC enable
+            ECC_ENABLE = 0, // ECC enable
+            SELF_REFRESH = 2'b11;
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -164,7 +165,9 @@ ddr3_top #(
     .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 if ODELAYE2 is supported
     .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone for debugging is needed 
     .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
-    .WB_ERROR(1) // set to 1 to support Wishbone error (asserts at ECC double bit error)
+    .WB_ERROR(1), // set to 1 to support Wishbone error (asserts at ECC double bit error)
+    .SKIP_INTERNAL_TEST(1), // skip built-in self test (would require >2 seconds of internal test right after calibration)
+    .SELF_REFRESH(SELF_REFRESH) // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
     ) ddr3_top
     (
         //clock and reset
@@ -344,7 +347,11 @@ ddr3_top #(
             i_rst_n <= 1;
         end
         wait(ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE);
-
+        
+        // test self refresh after calibration
+        // test self refresh 
+        self_refresh();
+        
         // test 1 phase 1: Write random word sequentially
         // write to row 1
         number_of_op <= 0;
@@ -382,8 +389,8 @@ ddr3_top #(
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
-        #1000_000; //rest here
-            
+        // test self refresh 
+        self_refresh();
             
         //Read sequentially
         address <= start_address;
@@ -409,7 +416,8 @@ ddr3_top #(
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
-        #1000_000; //rest here
+        // test self refresh 
+        self_refresh();
         
         average_1 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 1: FIRST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
@@ -456,7 +464,8 @@ ddr3_top #(
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
-        #1000_000; //rest here
+        // test self refresh 
+        self_refresh();
         
         // Read sequentially
         address <= start_address;
@@ -482,7 +491,8 @@ ddr3_top #(
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
-        #1000_000; //rest here
+        // test self refresh 
+        self_refresh();
         
         average_2 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 1: MIDDLE ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
@@ -526,7 +536,8 @@ ddr3_top #(
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
-        #1000_000; //rest here
+        // test self refresh 
+        self_refresh();
         
         // Read sequentially
         address <= start_address;
@@ -558,15 +569,14 @@ ddr3_top #(
 //                i_wb_stb <= 0;
 //            end
 //        end
-          #1000_000; //rest here
+        // test self refresh 
+        self_refresh();
         
         average_3 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 1: LAST ROW\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
         //#100_000;
        
-        
-        
         // Test 2:Random Access
         // write randomly
         address <= random_start; //this will just be used as the seed to generate a random number 
@@ -602,7 +612,9 @@ ddr3_top #(
                if (!o_wb_stall) i_wb_stb <= 1'b0;
           end
         end
-        #1000_000; //rest here
+        
+         // test self refresh 
+        self_refresh();
         
         // Read sequentially
         // Read the random words written at the random addresses
@@ -639,8 +651,10 @@ ddr3_top #(
         average_4 = ($time-time_started)/(number_of_op*1000);
         $display("\n--------------------------------\nDONE TEST 2: RANDOM\nNumber of Operations: %0d\nTime Started: %0d ns\nTime Done: %0d ns\nAverage Rate: %0d ns/request\n--------------------------------\n\n",
             number_of_op,time_started/1000, $time/1000, ($time-time_started)/(number_of_op*1000));
-            
-        #100_000;
+
+         // test self refresh 
+        self_refresh();
+        
         // Test 3: Read from wishbone 2 (PHY)
         // Wishbone 2
         i_wb2_cyc <= 0; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -699,7 +713,11 @@ ddr3_top #(
           end
         end
       
-        #1000_000;
+        #1000_000; //rest here
+         // test self refresh 
+        self_refresh();
+        #1000_000; // rest
+        
         $display("\n\n------- SUMMARY -------\nNumber of Writes = %0d\nNumber of Reads = %0d\nNumber of Success = %0d\nNumber of Fails = %0d\nNumber of Injected Errors = %0d\n", 
                                                 number_of_writes, number_of_reads,number_of_successful, number_of_failed, number_of_injected_errors); 
         $display("\n\nTEST CALIBRATION\n[-]: write_test_address_counter = %0d", ddr3_top.ddr3_controller_inst.write_test_address_counter);
@@ -709,6 +727,20 @@ ddr3_top #(
         $stop;
     end
     
+    task self_refresh;
+        if(SELF_REFRESH == 2'b00) begin
+             // test self refresh 
+            @(posedge i_controller_clk)
+            i_user_self_refresh = 1;
+            #40_000_000; //40_000 ns of self-refresh
+            @(posedge i_controller_clk)
+            i_user_self_refresh = 0;
+        end
+        else begin
+            #10_000_000; // 10_000 ns of rest
+        end
+    endtask
+        
     //check read data
     initial begin
         start_read_address = 0; //start at first row
