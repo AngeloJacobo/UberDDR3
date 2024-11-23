@@ -1,7 +1,0 @@
-Running: xsim.dir/ddr3_dimm_micron_sim_behav/xsimk.exe -simmode gui -wdb ddr3_dimm_micron_sim_behav.wdb -simrunnum 0 -socket 60020
-Design successfully loaded
-Design Loading Memory Usage: 45004 KB (Peak: 45004 KB)
-Design Loading CPU Usage: 218 ms
-Simulation completed
-Simulation Memory Usage: 59724 KB (Peak: 59724 KB)
-Simulation CPU Usage: 403593 ms

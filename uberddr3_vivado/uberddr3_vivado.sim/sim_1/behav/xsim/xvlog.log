@@ -1,6 +1,0 @@
-INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_controller.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_controller
-INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_phy.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_phy
-INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/AJacobo/Documents/UberDDR3_repo/rtl/ddr3_top.v" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module ddr3_top

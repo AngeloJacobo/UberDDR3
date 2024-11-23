@@ -11,24 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="119.000001 us"></ZoomEndTime>
-      <Cursor1Time time="1.000000 us"></Cursor1Time>
+      <ZoomStartTime time="749.583 ns"></ZoomStartTime>
+      <ZoomEndTime time="6,229.584 ns"></ZoomEndTime>
+      <Cursor1Time time="1,130.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="267"></NameColumnWidth>
-      <ValueColumnWidth column_width="112"></ValueColumnWidth>
+      <NameColumnWidth column_width="272"></NameColumnWidth>
+      <ValueColumnWidth column_width="129"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="65" />
-   <wave_markers>
-      <marker label="" time="211751250" />
-      <marker label="" time="320531250" />
-      <marker label="" time="480281250" />
-      <marker label="" time="61533750" />
-      <marker label="" time="102971250" />
-      <marker label="" time="102493750" />
-      <marker label="" time="99448750" />
-   </wave_markers>
+   <WVObjectSize size="47" />
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Clocks and Reset</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -36,6 +27,10 @@
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_rst_n">
       <obj_property name="ElementShortName">i_rst_n</obj_property>
       <obj_property name="ObjectShortName">i_rst_n</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
+      <obj_property name="ElementShortName">i_controller_clk</obj_property>
+      <obj_property name="ObjectShortName">i_controller_clk</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_ddr3_clk">
       <obj_property name="ElementShortName">i_ddr3_clk</obj_property>
@@ -52,6 +47,14 @@
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Calibration</obj_property>
       <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/\sideband_ECC_per_8_bursts.ecc_dec_inst /sb_err">
+      <obj_property name="ElementShortName">sb_err</obj_property>
+      <obj_property name="ObjectShortName">sb_err</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/\sideband_ECC_per_8_bursts.ecc_dec_inst /db_err">
+      <obj_property name="ElementShortName">db_err</obj_property>
+      <obj_property name="ObjectShortName">db_err</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/initial_calibration_done">
       <obj_property name="ElementShortName">initial_calibration_done</obj_property>
@@ -94,30 +97,6 @@
       <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
       <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="CustomSignalColor">#FFA500</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/user_self_refresh_q">
-      <obj_property name="ElementShortName">user_self_refresh_q</obj_property>
-      <obj_property name="ObjectShortName">user_self_refresh_q</obj_property>
-      <obj_property name="CustomSignalColor">#FFA500</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_wb_stall">
-      <obj_property name="ElementShortName">o_wb_stall</obj_property>
-      <obj_property name="ObjectShortName">o_wb_stall</obj_property>
-      <obj_property name="CustomSignalColor">#FFA500</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
-      <obj_property name="ElementShortName">i_controller_clk</obj_property>
-      <obj_property name="ObjectShortName">i_controller_clk</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_counter">
-      <obj_property name="ElementShortName">delay_counter[15:0]</obj_property>
-      <obj_property name="ObjectShortName">delay_counter[15:0]</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/read_test_address_counter">
       <obj_property name="ElementShortName">read_test_address_counter[25:0]</obj_property>
@@ -142,10 +121,6 @@
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">WIshbone Interface</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
-      <obj_property name="ElementShortName">state_calibrate[4:0]</obj_property>
-      <obj_property name="ObjectShortName">state_calibrate[4:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_controller_clk">
       <obj_property name="ElementShortName">i_controller_clk</obj_property>
@@ -196,13 +171,6 @@
       <obj_property name="label">DDR3 Interface</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/command_used">
-      <obj_property name="ElementShortName">command_used[23:0]</obj_property>
-      <obj_property name="ObjectShortName">command_used[23:0]</obj_property>
-      <obj_property name="Radix">ASCIIRADIX</obj_property>
-      <obj_property name="CustomSignalColor">#FFD700</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cke">
       <obj_property name="ElementShortName">o_ddr3_cke</obj_property>
       <obj_property name="ObjectShortName">o_ddr3_cke</obj_property>
@@ -250,80 +218,5 @@
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_odt">
       <obj_property name="ElementShortName">o_ddr3_odt</obj_property>
       <obj_property name="ObjectShortName">o_ddr3_odt</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/calibration_state">
-      <obj_property name="ElementShortName">calibration_state[319:0]</obj_property>
-      <obj_property name="ObjectShortName">calibration_state[319:0]</obj_property>
-      <obj_property name="Radix">ASCIIRADIX</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/i_user_self_refresh">
-      <obj_property name="ElementShortName">i_user_self_refresh</obj_property>
-      <obj_property name="ObjectShortName">i_user_self_refresh</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/user_self_refresh_q">
-      <obj_property name="ElementShortName">user_self_refresh_q</obj_property>
-      <obj_property name="ObjectShortName">user_self_refresh_q</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/refresh_counter">
-      <obj_property name="ElementShortName">refresh_counter[8:0]</obj_property>
-      <obj_property name="ObjectShortName">refresh_counter[8:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/i_wb_stb">
-      <obj_property name="ElementShortName">i_wb_stb</obj_property>
-      <obj_property name="ObjectShortName">i_wb_stb</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_wb_stall">
-      <obj_property name="ElementShortName">o_wb_stall</obj_property>
-      <obj_property name="ObjectShortName">o_wb_stall</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/i_wb_cyc">
-      <obj_property name="ElementShortName">i_wb_cyc</obj_property>
-      <obj_property name="ObjectShortName">i_wb_cyc</obj_property>
-      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
-      <obj_property name="UseCustomSignalColor">true</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cke">
-      <obj_property name="ElementShortName">o_ddr3_cke</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_cke</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_user_self_refresh">
-      <obj_property name="ElementShortName">i_user_self_refresh</obj_property>
-      <obj_property name="ObjectShortName">i_user_self_refresh</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
-      <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
-      <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_wb_stall_d">
-      <obj_property name="ElementShortName">o_wb_stall_d</obj_property>
-      <obj_property name="ObjectShortName">o_wb_stall_d</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/pause_counter">
-      <obj_property name="ElementShortName">pause_counter</obj_property>
-      <obj_property name="ObjectShortName">pause_counter</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/tCKESR">
-      <obj_property name="ElementShortName">tCKESR[31:0]</obj_property>
-      <obj_property name="ObjectShortName">tCKESR[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/delay_counter">
-      <obj_property name="ElementShortName">delay_counter[15:0]</obj_property>
-      <obj_property name="ObjectShortName">delay_counter[15:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/user_self_refresh">
-      <obj_property name="ElementShortName">user_self_refresh</obj_property>
-      <obj_property name="ObjectShortName">user_self_refresh</obj_property>
    </wvobject>
 </wave_config>
