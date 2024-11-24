@@ -48,6 +48,7 @@ module ddr3_top #(
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
+    parameter[1:0] SELF_REFRESH = 2'b00, // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 DQ_BITS = 8,  //device width (fixed to 8, if DDR3 is x16 then BYTE_LANES will be 2 while )
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
@@ -210,6 +211,30 @@ ddr3_top #(
     wire write_leveling_calib;
     wire reset;
     
+    // logic for self-refresh
+    reg[8:0] refresh_counter = 0;
+    reg user_self_refresh;
+    // refresh counter 
+    always @(posedge i_controller_clk) begin
+        if(i_wb_stb && i_wb_cyc) begin // if there is Wishbone request, then reset counter
+            refresh_counter <= 0;
+        end
+        else if(!o_wb_stall || user_self_refresh) begin // if no request (but not stalled) OR already on self-refresh, then increment counter
+            refresh_counter <= refresh_counter + 1;
+        end
+    end
+    // choose self-refresh options
+    always @* begin
+        case(SELF_REFRESH) 
+            2'b00: user_self_refresh = i_user_self_refresh; // use input i_user_self_refresh (high = enter self-refresh, low = exit self-refresh)
+            2'b01: user_self_refresh = refresh_counter[6];  // Self-refresh mode is enabled after 64 controller clock cycles of no requests, then exit Self-refresh after another 64 controller clk cycles
+            2'b10: user_self_refresh = refresh_counter[7];  // Self-refresh mode is enabled after 128 controller clock cycles of no requests, then exit Self-refresh after another 128 controller clk cycles
+            2'b11: user_self_refresh = refresh_counter[8];  // Self-refresh mode is enabled after 256 controller clock cycles of no requests, then exit Self-refresh after another 256 controller clk cycles
+        endcase
+    end
+    
+
+    
     //module instantiations
     ddr3_controller #(
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, clock period of the controller interface
@@ -288,7 +313,7 @@ ddr3_top #(
 //            .o_debug2(o_debug2),
 //            .o_debug3(o_debug3)
             // User enabled self-refresh
-            .i_user_self_refresh(i_user_self_refresh)
+            .i_user_self_refresh(user_self_refresh)
         );
         
     ddr3_phy #(
@@ -348,4 +373,3 @@ ddr3_top #(
         );
         
 endmodule
-
