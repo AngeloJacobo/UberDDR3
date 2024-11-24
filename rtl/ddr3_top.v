@@ -371,5 +371,29 @@ ddr3_top #(
             .o_ddr3_debug_read_dqs_p(/*o_ddr3_debug_read_dqs_p*/),
             .o_ddr3_debug_read_dqs_n(/*o_ddr3_debug_read_dqs_n*/)
         );
-        
+
+        // display value of parameters for easy debugging
+        initial begin
+            $display("\nDDR3 TOP PARAMETERS:\n-----------------------------");
+            $display("CONTROLLER_CLK_PERIOD = %0d", CONTROLLER_CLK_PERIOD);
+            $display("DDR3_CLK_PERIOD = %0d", DDR3_CLK_PERIOD);
+            $display("ROW_BITS = %0d", ROW_BITS);
+            $display("COL_BITS = %0d", COL_BITS);
+            $display("BA_BITS = %0d", BA_BITS);
+            $display("BYTE_LANES = %0d", BYTE_LANES);
+            $display("AUX_WIDTH = %0d", AUX_WIDTH);
+            $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
+            $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
+            $display("MICRON_SIM = %0d", MICRON_SIM);
+            $display("ODELAY_SUPPORTED = %0d", ODELAY_SUPPORTED);
+            $display("SECOND_WISHBONE = %0d", SECOND_WISHBONE);
+            $display("WB_ERROR = %0d", WB_ERROR);
+            $display("SKIP_INTERNAL_TEST = %0d", SKIP_INTERNAL_TEST);
+            $display("ECC_ENABLE = %0d", ECC_ENABLE);
+            $display("DIC = %0d", DIC);
+            $display("RTT_NOM = %0d", RTT_NOM);
+            $display("SELF_REFRESH = %0d", SELF_REFRESH);
+            $display("End of DDR3 TOP PARAMETERS\n-----------------------------");
+        end
+
 endmodule

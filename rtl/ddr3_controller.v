@@ -489,7 +489,8 @@ module ddr3_controller #(
     initial begin
         o_phy_bitslip = 0;
     end
-    reg cmd_odt_q = 0, cmd_odt, cmd_ck_en, cmd_reset_n;  
+    reg cmd_odt_q = 0, cmd_odt, cmd_reset_n;
+    (* mark_debug = "true" *) reg cmd_ck_en;  
     reg o_wb_stall_q = 1, o_wb_stall_d, o_wb_stall_calib = 1;
     reg precharge_slot_busy;
     reg activate_slot_busy;

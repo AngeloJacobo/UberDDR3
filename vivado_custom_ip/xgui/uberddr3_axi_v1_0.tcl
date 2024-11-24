@@ -19,8 +19,10 @@ proc init_gui { IPINST } {
   set_property tooltip {Width of bank address} ${BA_BITS}
   set BYTE_LANES [ipgui::add_param $IPINST -name "BYTE_LANES" -parent ${Page_0}]
   set_property tooltip {Number of byte lanes of DDR3 RAM in the FPGA board (e.g. x16 DDR3 will have 2 byte lanes)} ${BYTE_LANES}
-  set ECC_ENABLE [ipgui::add_param $IPINST -name "ECC_ENABLE" -parent ${Page_0}]
-  set_property tooltip {0 = DIsabled, 1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC} ${ECC_ENABLE}
+  set ECC_ENABLE [ipgui::add_param $IPINST -name "ECC_ENABLE" -parent ${Page_0} -widget comboBox]
+  set_property tooltip {Type of ECC (0,1,2,3)} ${ECC_ENABLE}
+  set SELF_REFRESH [ipgui::add_param $IPINST -name "SELF_REFRESH" -parent ${Page_0} -widget comboBox]
+  set_property tooltip {Enable option for self-refresh} ${SELF_REFRESH}
   set SKIP_INTERNAL_TEST [ipgui::add_param $IPINST -name "SKIP_INTERNAL_TEST" -parent ${Page_0}]
   set_property tooltip {Check to skip built-in self-test (check this if UberDDR3 will be connected to Microblaze)} ${SKIP_INTERNAL_TEST}
   set ODELAY_SUPPORTED [ipgui::add_param $IPINST -name "ODELAY_SUPPORTED" -parent ${Page_0}]
@@ -284,6 +286,15 @@ proc validate_PARAM_VALUE.SECOND_WISHBONE { PARAM_VALUE.SECOND_WISHBONE } {
 	return true
 }
 
+proc update_PARAM_VALUE.SELF_REFRESH { PARAM_VALUE.SELF_REFRESH } {
+	# Procedure called to update SELF_REFRESH when any of the dependent parameters in the arguments change
+}
+
+proc validate_PARAM_VALUE.SELF_REFRESH { PARAM_VALUE.SELF_REFRESH } {
+	# Procedure called to validate SELF_REFRESH
+	return true
+}
+
 proc update_PARAM_VALUE.SKIP_INTERNAL_TEST { PARAM_VALUE.SKIP_INTERNAL_TEST } {
 	# Procedure called to update SKIP_INTERNAL_TEST when any of the dependent parameters in the arguments change
 }
@@ -403,6 +414,11 @@ proc update_MODELPARAM_VALUE.SKIP_INTERNAL_TEST { MODELPARAM_VALUE.SKIP_INTERNAL
 proc update_MODELPARAM_VALUE.ECC_ENABLE { MODELPARAM_VALUE.ECC_ENABLE PARAM_VALUE.ECC_ENABLE } {
 	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
 	set_property value [get_property value ${PARAM_VALUE.ECC_ENABLE}] ${MODELPARAM_VALUE.ECC_ENABLE}
+}
+
+proc update_MODELPARAM_VALUE.SELF_REFRESH { MODELPARAM_VALUE.SELF_REFRESH PARAM_VALUE.SELF_REFRESH } {
+	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
+	set_property value [get_property value ${PARAM_VALUE.SELF_REFRESH}] ${MODELPARAM_VALUE.SELF_REFRESH}
 }
 
 proc update_MODELPARAM_VALUE.DIC { MODELPARAM_VALUE.DIC PARAM_VALUE.DIC } {
