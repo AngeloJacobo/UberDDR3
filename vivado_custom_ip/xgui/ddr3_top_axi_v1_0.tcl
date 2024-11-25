@@ -15,6 +15,7 @@ proc init_gui { IPINST } {
   ipgui::add_param $IPINST -name "DIC" -parent ${Page_0}
   ipgui::add_param $IPINST -name "DQ_BITS" -parent ${Page_0}
   ipgui::add_param $IPINST -name "ECC_ENABLE" -parent ${Page_0}
+  ipgui::add_param $IPINST -name "SELF_REFRESH" -parent ${Page_0}
   ipgui::add_param $IPINST -name "MICRON_SIM" -parent ${Page_0}
   ipgui::add_param $IPINST -name "ODELAY_SUPPORTED" -parent ${Page_0}
   ipgui::add_param $IPINST -name "ROW_BITS" -parent ${Page_0}
@@ -139,6 +140,15 @@ proc update_PARAM_VALUE.ECC_ENABLE { PARAM_VALUE.ECC_ENABLE } {
 
 proc validate_PARAM_VALUE.ECC_ENABLE { PARAM_VALUE.ECC_ENABLE } {
 	# Procedure called to validate ECC_ENABLE
+	return true
+}
+
+proc update_PARAM_VALUE.SELF_REFRESH { PARAM_VALUE.SELF_REFRESH } {
+	# Procedure called to update SELF_REFRESH when any of the dependent parameters in the arguments change
+}
+
+proc validate_PARAM_VALUE.SELF_REFRESH { PARAM_VALUE.SELF_REFRESH } {
+	# Procedure called to validate SELF_REFRESH
 	return true
 }
 
@@ -351,6 +361,11 @@ proc update_MODELPARAM_VALUE.SKIP_INTERNAL_TEST { MODELPARAM_VALUE.SKIP_INTERNAL
 proc update_MODELPARAM_VALUE.ECC_ENABLE { MODELPARAM_VALUE.ECC_ENABLE PARAM_VALUE.ECC_ENABLE } {
 	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
 	set_property value [get_property value ${PARAM_VALUE.ECC_ENABLE}] ${MODELPARAM_VALUE.ECC_ENABLE}
+}
+
+proc update_MODELPARAM_VALUE.SELF_REFRESH { MODELPARAM_VALUE.SELF_REFRESH PARAM_VALUE.SELF_REFRESH } {
+	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
+	set_property value [get_property value ${PARAM_VALUE.SELF_REFRESH}] ${MODELPARAM_VALUE.SELF_REFRESH}
 }
 
 proc update_MODELPARAM_VALUE.DIC { MODELPARAM_VALUE.DIC PARAM_VALUE.DIC } {

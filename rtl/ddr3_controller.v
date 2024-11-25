@@ -135,9 +135,11 @@ module ddr3_controller #(
         // Done Calibration pin
         output wire o_calib_complete,
         // Debug port
-        output	wire	[31:0]	o_debug1
+        output	wire	[31:0]	o_debug1,
 //        output	wire	[31:0]	o_debug2,
 //        output	wire	[31:0]	o_debug3
+        // User enabled self-refresh
+        input wire i_user_self_refresh
     );
 
     
@@ -150,8 +152,10 @@ module ddr3_controller #(
                       CMD_WR  = 4'b0100, // Write (A10-AP: 0 = no Auto-Precharge) (A12-BC#: 1 = Burst Length 8) 
                       CMD_RD  = 4'b0101, //Read  (A10-AP: 0 = no Auto-Precharge) (A12-BC#: 1 = Burst Length 8) 
                       CMD_NOP = 4'b0111, // No Operation
-                      CMD_ZQC = 4'b0110; // ZQ Calibration (A10-AP: 0 = ZQ Calibration Short, 1 = ZQ Calibration Long)
-
+                      CMD_ZQC = 4'b0110, // ZQ Calibration (A10-AP: 0 = ZQ Calibration Short, 1 = ZQ Calibration Long)
+                      CMD_SREF_EN = 4'b0001,
+                      CMD_SREF_XT = 4'b0111;
+                      
     localparam RST_DONE = 27, // Command bit that determines if reset seqeunce had aready finished. non-persistent (only needs to be toggled once), 
                   REF_IDLE = 27, // No refresh is about to start and no ongoing refresh. (same bit as RST_DONE)
                   USE_TIMER = 26, // Command bit that determines if timer will be used (if delay is zero, USE_TIMER must be LOW)
@@ -248,7 +252,11 @@ module ddr3_controller #(
     localparam DELAY_MAX_VALUE = ps_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam CALIBRATION_DELAY = 2; // must be >= 2
-                                    
+    localparam tXSDLL = nCK_to_cycles(512); // cycles (controller) Exit Self Refresh to commands requiring a locked DLL
+    localparam tXSDLL_tRFC = tXSDLL - ps_to_cycles(tRFC); // cycles (controller) Time before refresh after exit from self-refresh
+    localparam tCKE = max(3, ps_to_nCK(7500) ); // nCK CKE minimum pulse width
+    localparam tCKESR = nCK_to_cycles(tCKE + 1)+ 5; // cycles (controller) Minimum time that the DDR3 SDRAM must remain in Self-Refresh mode is tCKESR
+    localparam tCPDED = 1; // cycle (tCPDED is at most 2nCK but we make it to 1cycle or 4nCK) Command pass disable delay , required cycles of NOP after CKE low 
     /*********************************************************************************************************************************************/
     
 
@@ -481,7 +489,8 @@ module ddr3_controller #(
     initial begin
         o_phy_bitslip = 0;
     end
-    reg cmd_odt_q = 0, cmd_odt, cmd_ck_en, cmd_reset_n;  
+    reg cmd_odt_q = 0, cmd_odt, cmd_reset_n;
+    (* mark_debug = "true" *) reg cmd_ck_en;  
     reg o_wb_stall_q = 1, o_wb_stall_d, o_wb_stall_calib = 1;
     reg precharge_slot_busy;
     reg activate_slot_busy;
@@ -586,7 +595,8 @@ module ddr3_controller #(
     wire db_err_o;
     wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
     /* verilator lint_on UNDRIVEN */
-        
+    reg user_self_refresh_q; // registered i_user_self_refresh
+
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
@@ -660,7 +670,7 @@ module ddr3_controller #(
              else
                 read_rom_instruction = {5'b01000 , CMD_NOP , ps_to_cycles(POWER_ON_RESET_HIGH)}; 
                 //0. RESET# needs to be maintained low for minimum 200us with power-up initialization. CKE is pulled
-                    //“Low” anytime before RESET# being de-asserted (min. time 10 ns). .
+                    //“Low�? anytime before RESET# being de-asserted (min. time 10 ns). .
 
             5'd1: 
              if (MICRON_SIM)
@@ -727,7 +737,7 @@ module ddr3_controller #(
             5'd18: read_rom_instruction = {5'b01011, CMD_NOP, tMOD[DELAY_SLOT_WIDTH-1:0]};
             //18. Delay of tMOD between MRS command to a non-MRS command excluding NOP and DES 
             
-            // Perform first refresh and any subsequent refresh (so instruction 12 to 15 will be re-used for the refresh sequence)
+            // Perform first refresh and any subsequent refresh (so instruction 19 to 22 will be re-used for the refresh sequence)
             5'd19: read_rom_instruction = {5'b01111, CMD_PRE, ps_to_cycles(tRP)}; 
             //19. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Refresh Command can be applied.
             
@@ -740,7 +750,22 @@ module ddr3_controller #(
             
             5'd22: read_rom_instruction = {5'b01011, CMD_NOP, PRE_REFRESH_DELAY[DELAY_SLOT_WIDTH-1:0]}; 
             // 22. Extra delay needed before starting the refresh sequence. 
-                // (this already sets the wishbone stall high to make sure no user request is on-going when refresh seqeunce starts)
+            // (this already sets the wishbone stall high to make sure no user request is on-going when refresh seqeunce starts)
+            
+            5'd23: read_rom_instruction = {5'b01111, CMD_PRE, ps_to_cycles(tRP)}; 
+            // 23. All banks must be precharged (A10-AP = high) and idle for a minimum of the precharge time tRP(min) before the Self-Refresh Command can be applied.
+            
+            5'd24: read_rom_instruction = {5'b01001, CMD_NOP, tCPDED[DELAY_SLOT_WIDTH-1:0]};
+            // 24. CKE must go low to enter self-refresh, tCPDED cycles of NOP are required before CMD_SREF_EN
+            
+            5'd25: read_rom_instruction = {5'b01001, CMD_SREF_EN, tCKESR[DELAY_SLOT_WIDTH-1:0]};
+            // 25. Self-refresh entry
+            // JEDEC Standard No. 79-3E Page 79: The minimum time that the DDR3 SDRAM must remain in Self-Refresh mode is tCKESR
+
+            5'd26: read_rom_instruction = {5'b01011, CMD_SREF_XT, tXSDLL_tRFC[DELAY_SLOT_WIDTH-1:0]};
+            // 26. From 25 (Self-refresh entry), wait until user-self_refresh is disabled then wait for tXSDLL - tRFC before going to 20 (Refresh)
+            // JEDEC Standard No. 79-3E Page 79: Before a command that requires a locked DLL can be applied, a delay of at least tXSDLL must be satisfied.
+            // JEDEC Standard No. 79-3E Page 80: Upon exit from Self-Refresh, the DDR3 SDRAM requires a minimum of one extra refresh command before it is put back into Self-Refresh Mode.
             
             default: read_rom_instruction = {5'b00011, CMD_NOP, {(DELAY_SLOT_WIDTH){1'b0}}}; 
         endcase
@@ -778,20 +803,44 @@ module ddr3_controller #(
             //delay_counter is 1 (for r/w calibration and prestall delay)
             //address will only move forward for these kinds of delay only
             //when skip_reset_seq_delay is toggled
-            else if(instruction[USE_TIMER] /*&& delay_counter != {(DELAY_COUNTER_WIDTH){1'b1}}*/ && !pause_counter) delay_counter <= delay_counter - 1; 
+            else if(instruction[USE_TIMER] /*&& delay_counter != {(DELAY_COUNTER_WIDTH){1'b1}}*/ && !pause_counter && delay_counter != 0) delay_counter <= delay_counter - 1; 
             
             //delay_counter of 1 means we will need to update the delay_counter next clock cycle (delay_counter of zero) so we need to retrieve 
             //now the next instruction. The same thing needs to be done when current instruction does not need the timer delay.
             if(delay_counter == 1 || !instruction[USE_TIMER]/* || skip_reset_seq_delay*/) begin
                 delay_counter_is_zero <= 1; 
                 instruction <= read_rom_instruction(instruction_address);
-                instruction_address <= (instruction_address == 5'd22)? 5'd19:instruction_address+1; //wrap back of address to repeat refresh sequence 
+                if(instruction_address == 5'd22) begin // if user_self_refresh is disabled, wrap back to 19 (Precharge All before Refresh)
+                    instruction_address <= 5'd19;
+                end
+                else if(instruction_address == 5'd26) begin // self-refresh exit always wraps back to 20 (Refresh)
+                    instruction_address <= 5'd20;
+                end
+                else begin
+                    instruction_address <= instruction_address + 5'd1; // just increment address
+                end
             end
             //we are now on the middle of a delay 
-            else delay_counter_is_zero <=0; 
+            else begin
+                delay_counter_is_zero <=0; 
+            end
+
+            if(instruction_address == 5'd22 && user_self_refresh_q) begin // if user_self_refresh is enabled, go straight to 23
+                instruction_address <= 23; // go to Precharge All for Self-refresh
+                delay_counter_is_zero <= 1; 
+                delay_counter <= 0;
+                instruction <= read_rom_instruction(instruction_address);
+            end
+
+
             //instruction[RST_DONE] is non-persistent thus we need to register it once it goes high
             reset_done <= instruction[RST_DONE]? 1'b1:reset_done; 
         end
+    end
+
+    // register user-enabled self-refresh
+    always @(posedge i_controller_clk) begin 
+        user_self_refresh_q <= i_user_self_refresh && (user_self_refresh_q || (instruction_address != 5'd26)) && final_calibration_done; //will not go high again if already at instruction_address 26 (self-refresh exit), only go high when calibration is done
     end
     /*********************************************************************************************************************************************/
 
@@ -879,7 +928,7 @@ module ddr3_controller #(
                 bank_active_row_q[index] <= bank_active_row_d[index];
             end
 
-            if(instruction_address == 20) begin ///current instruction at precharge
+            if(instruction_address == 20 || instruction_address == 24) begin ///current instruction at precharge
                 cmd_odt_q <= 1'b0;
                 //all banks will be in idle after refresh
                 for( index=0; index < (1<<BA_BITS); index=index+1) begin
@@ -2567,6 +2616,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     DONE_CALIBRATE: begin
                         calib_stb <= 0;
                         state_calibrate <= DONE_CALIBRATE;
+                        if(instruction_address == 5'd26) begin // Self-refresh Exit
+                            pause_counter <= user_self_refresh_q; // wait until user-self-refresh is disabled before continuing 25 (Self-refresh Exit)
+                        end
+                        else begin
+                            pause_counter <= 0;
+                        end
                      end
 
             endcase
@@ -2581,7 +2636,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
              if(odelay_data_cntvaluein[lane] == 15) begin
                 odelay_cntvalue_halfway <= 1; 
              end
-            if(instruction_address == 19) begin //pre-stall delay to finish all remaining requests
+            if(instruction_address == 19 || instruction_address == 23) begin //pre-stall delay before precharge all to finish all remaining requests
                 pause_counter <= 1; // pause instruction address until pre-stall delay before refresh sequence finishes
                 //skip to instruction address 20 (precharge all before refresh) when no pending requests anymore
                 //toggle it for 1 clk cycle only
@@ -3463,9 +3518,24 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             end
             //move the pipeline forward when counter is about to go zero and we are not yet at end of reset sequence
             else if((delay_counter == 1 || !instruction[USE_TIMER])) begin             
-                f_addr <= (f_addr == 22)? 19:f_addr + 1;
+                if(f_addr == 22 && user_self_refresh_q) begin // if self refresh, move forward
+                    f_addr <= 23;
+                end
+                else if(f_addr == 22 & !user_self_refresh_q) begin // if not self refresh, move backward
+                    f_addr <= 19;
+                end
+                else if (f_addr == 26) begin // 26 (self-refresh exit) always wraps back to 20 (refresh)
+                    f_addr <= 20;
+                end
+                else begin // else, just increment 
+                    f_addr <= f_addr + 1;
+                end
                 f_read <= f_addr;
             end     
+            else if(f_addr == 22 && user_self_refresh_q) begin // if self refresh, move forward immediately (no need to wait for delay zero)
+                f_addr <= 23;
+                f_read <= f_addr;
+            end
         end
         
         // assert f_addr and f_read as shadows of next and current instruction address 
@@ -3490,11 +3560,11 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 end
                 else if(f_past_valid) begin
                     //if counter is zero previously and current instruction needs timer delay, then this cycle should now have the new updated counter value
-                    if( $past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER]) ) begin 
+                    if( $past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER]) && !$past(user_self_refresh_q) ) begin 
                             assert(delay_counter == f_read_inst[DELAY_COUNTER_WIDTH - 1:0]); 
                     end
                      //delay_counter_is_zero can be high when counter is zero and current instruction needs delay
-                     if($past(f_read_inst[USE_TIMER]) && !$past(pause_counter) ) begin
+                     if($past(f_read_inst[USE_TIMER]) && !$past(pause_counter) && !$past(user_self_refresh_q)) begin
                          assert( delay_counter_is_zero  == (delay_counter == 0) ); 
                      end
                      //delay_counter_is_zero will go high this cycle when we received a don't-use-timer instruction
@@ -3511,12 +3581,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     
                     //if delay is not yet zero and timer delay is enabled, then delay_counter should decrement
                     if(!$past(delay_counter_is_zero) && $past(f_read_inst[USE_TIMER]) && !$past(pause_counter) ) begin
-                        assert(delay_counter == $past(delay_counter) - 1); 
+                        assert((delay_counter == $past(delay_counter) - 1) || (delay_counter == 0 && $past(user_self_refresh_q))); 
                         assert(delay_counter < $past(delay_counter) ); //just to make sure delay_counter will never overflow back to all 1's
                     end
                     
                     //sanity checking for the comment "delay_counter will be zero AT NEXT CLOCK CYCLE when counter is now one"
-                if($past(delay_counter) == 1) begin
+                if($past(delay_counter) == 1 && !$past(pause_counter)) begin
                     assert(delay_counter == 0 && delay_counter_is_zero); 
                 end
                 //assert the relationship between the stages FOR RESET SEQUENCE
@@ -3537,15 +3607,18 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 //assert the relationship between the stages FOR REFRESH SEQUENCE
                 else begin
                     if(f_read == 22) begin
-                        assert(f_addr == 19); //if current instruction is 22, then next instruction must be at 19 (instruction address wraps from 15 to 12)
+                        assert( (f_addr == 19) || (f_addr == 23 ) ); //if current instruction is 22, then next instruction must be at 19 or 23 (instruction address wraps from 22 to 19 if not self refresh, else 22 to 23)
                     end
-                    else if(f_addr == 19) begin
-                        assert(f_read == 22); //if next instruction is at 12, then current instruction must be at 15 (instruction address wraps from 15 to 12)
+                    else if(f_addr == 19 || f_addr == 23) begin
+                        assert(f_read == 22); //if next instruction is at 19 or 23, then current instruction must be at 22 (instruction address wraps from 22 to 19)
+                    end
+                    else if(f_read == 26) begin
+                        assert(f_addr == 20); // if current instruction is 26 (exit self-refresh) then go to 20 (refresh)
                     end
                     else begin
                         assert(f_read + 1 == f_addr); //if there is no need to wrap around, then instruction address must increment 
                     end
-                    assert((f_read >= 19 && f_read <= 22) ); //refresh sequence is only on instruction address 19,20,21,22
+                    assert((f_read >= 19 && f_read <= 26) ); //refresh sequence is only on instruction address 19,20,21,22
                 end
                 
                 // reset_done must retain high when it was already asserted once
@@ -3562,7 +3635,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 if(reset_done &&  f_read_inst[REF_IDLE]) begin
                     assert(f_read == 21);
                 end
-                        
+
             end
 
         end
@@ -3575,9 +3648,18 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 assert( a[DELAY_COUNTER_WIDTH - 1:0] > 0);      
             end
         end
-        
+
         // assertion on FSM calibration
         always @* begin
+            if(instruction_address == 19 || instruction_address == 23) begin //pre-stall delay before precharge all to finish all remaining requests
+                if(pause_counter == 1) begin // if there are still pending requests (pause_counter high) then delay_counter should still be at PRE_REFRESH_DELAY
+                    assert(delay_counter == PRE_REFRESH_DELAY);
+                end
+            end
+            if(instruction_address >= 24 && instruction_address < 26) begin
+                assert(!pause_counter); // no pause counter from precharge to sel-refresh entry
+            end
+
             if(instruction_address < 13) begin
                 assert(state_calibrate == IDLE);
             end
@@ -3595,6 +3677,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             
             if(pause_counter) begin
                 assert(delay_counter != 0);
+                // will fix this soon
             end
             
             if(state_calibrate > ISSUE_WRITE_1 && state_calibrate <= ANALYZE_DATA) begin
@@ -3890,10 +3973,10 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 end
 
                 if(reset_done) begin
-                    assert(cmd_d[PRECHARGE_SLOT][CMD_CKE] && cmd_d[PRECHARGE_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
-                    assert(cmd_d[ACTIVATE_SLOT][CMD_CKE] && cmd_d[ACTIVATE_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
-                    assert(cmd_d[READ_SLOT][CMD_CKE] && cmd_d[READ_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
-                    assert(cmd_d[WRITE_SLOT][CMD_CKE] && cmd_d[WRITE_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
+                    assert(cmd_d[PRECHARGE_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
+                    assert(cmd_d[ACTIVATE_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
+                    assert(cmd_d[READ_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
+                    assert(cmd_d[WRITE_SLOT][CMD_RESET_N]); //cke and rst_n should stay high when reset sequence is already done
                 end
             end
             if(state_calibrate == DONE_CALIBRATE) begin
@@ -3908,7 +3991,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             if(!f_empty) begin
                 assert(state_calibrate == DONE_CALIBRATE);
             end
-            if(train_delay == 0 && state_calibrate == FINISH_READ) begin//remove
+            if(train_delay == 0 && state_calibrate == FINISH_READ) begin//fix this soon
                 assume(f_sum_of_pending_acks == 0);
             end
         end
@@ -4053,6 +4136,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         always @* begin
             assert(f_bank_status == bank_status_q);
+            if(instruction_address >= 25) begin // after precharge until end of refresh, all banks are idle
+                assert(bank_status_q == 0);
+            end
+            if(instruction_address == 23 && pause_counter) begin // if at PRE_REFRESH_DELAY and not yet done, then delay_counter should still be at original value
+
+            end
         end
 
         (*keep*) reg[31:0] bank; 
@@ -4090,9 +4179,17 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     f_bank_status_2 = f_bank_status_2 | (1<<bank); //bank will be turned active
                     f_bank_active_row[bank] <= cmd_d[ACTIVATE_SLOT][CMD_ADDRESS_START:0]; //save row to be activated 
                 end
+
+                if(instruction_address == 20 || instruction_address == 24) begin ///current instruction at precharge
+                    //all banks will be in idle after refresh
+                    for( index=0; index < (1<<BA_BITS); index=index+1) begin
+                        f_bank_status_2[index] <= 0;  
+                    end
+                end
                 f_bank_status <= f_bank_status_2;
 
             end
+
         end
 
         assign f_write_slot = WRITE_SLOT;
@@ -4143,7 +4240,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         
         always @* begin
-            if(instruction_address != 22 && instruction_address != 19) begin
+            if(instruction_address != 22 && instruction_address != 19 && instruction_address != 23) begin
                assert(!stage1_pending && !stage2_pending); //must be pending except in tREFI and in prestall delay
             end
 
@@ -4344,7 +4441,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         end
         always @(posedge i_controller_clk) begin
             if(f_past_valid) begin
-                if(instruction_address != 22 && instruction_address != 19 && $past(i_wb_cyc) && !past_sync_rst_controller) begin
+                if(instruction_address != 22 && instruction_address != 19 && instruction_address != 23 && $past(i_wb_cyc) && !past_sync_rst_controller) begin
                    assert(f_nreqs == $past(f_nreqs));           
                 end
                 if(state_calibrate == DONE_CALIBRATE && $past(state_calibrate) != DONE_CALIBRATE && !past_sync_rst_controller) begin//just started DONE_CALBRATION
@@ -4518,12 +4615,12 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         // extra assertions to make sure engine starts properly
         always @* begin
             //if(!past_sync_rst_controller) begin
-                assert(instruction_address <= 22);
+                assert(instruction_address <= 26);
                 assert(state_calibrate <= DONE_CALIBRATE);
 
                 if(!o_wb_stall) begin
                     assert(state_calibrate == DONE_CALIBRATE);
-                    assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0));
+                    assert(instruction_address == 22 || (instruction_address == 19 && delay_counter == 0) || (instruction_address == 23));
                 end
 
                 if(instruction_address == 19 && delay_counter != 0 && state_calibrate == DONE_CALIBRATE) begin
@@ -4534,7 +4631,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
                 if(stage1_pending || stage2_pending) begin
                    assert(state_calibrate > ISSUE_WRITE_1); 
-                   assert(instruction_address == 22 || instruction_address == 19);
+                   assert(instruction_address == 22 || instruction_address == 19 || instruction_address == 23);
                 end
 
                 if(instruction_address < 13) begin
@@ -4576,7 +4673,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     assert(o_wb_stall_calib);
                 end
                 if(reset_done) begin
-                    assert(instruction_address >= 19 && instruction_address <= 22);
+                    assert(instruction_address >= 19 && instruction_address <= 26);
                 end
                 //delay_counter is zero at first clock of new instruction address, the actual delay_clock wil start at next clock cycle 
                 if(instruction_address == 19 && delay_counter != 0) begin

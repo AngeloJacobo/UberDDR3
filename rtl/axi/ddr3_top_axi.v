@@ -49,6 +49,7 @@ module ddr3_top_axi #(
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
+    parameter[1:0] SELF_REFRESH = 2'b00, // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 DQ_BITS = 8,  //device width (fixed to 8, if DDR3 is x16 then BYTE_LANES will be 2 while )
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
@@ -130,11 +131,14 @@ module ddr3_top_axi #(
         output wire o_calib_complete,
         //
         // Debug outputs
-        output wire[31:0] o_debug1
+        output wire[31:0] o_debug1,
 //        output wire[31:0] o_debug2,
 //        output wire[31:0] o_debug3,
 //        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
 //        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
+        //
+        // User enabled self-refresh
+        input wire i_user_self_refresh
     );
 
 wire wb_cyc;
@@ -165,7 +169,8 @@ ddr3_top #(
     .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
     .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     .DIC(DIC), // Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
-    .RTT_NOM(RTT_NOM) //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
+    .RTT_NOM(RTT_NOM), //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
+    .SELF_REFRESH(SELF_REFRESH) // Self-refresh options (0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles)
     ) ddr3_top_inst
     (
         //clock and reset
@@ -222,11 +227,13 @@ ddr3_top #(
         .o_calib_complete(o_calib_complete),
         //
         // Debug outputs
-        .o_debug1(o_debug1)
+        .o_debug1(o_debug1),
         // .o_debug2(o_debug2),
         // .o_debug3(o_debug3),
         // .o_ddr3_debug_read_dqs_p(o_ddr3_debug_read_dqs_p),
         // .o_ddr3_debug_read_dqs_n(o_ddr3_debug_read_dqs_n)
+        //
+        .i_user_self_refresh(i_user_self_refresh)
         ////////////////////////////////////
     );
 
