@@ -68,17 +68,18 @@ module ddr3_controller #(
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
                    SKIP_INTERNAL_TEST = 1, // skip built-in self test (would require >2 seconds of internal test right after calibration)
+                   DUAL_RANK_DIMM = 0, // enable dual rank DIMM
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC )  (only change when you know what you are doing)
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)  (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
                 wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
-                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
+                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2) + DUAL_RANK_DIMM,
                 wb_sel_bits = wb_data_bits / 8,
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
-                cmd_len = 4 + 3 + BA_BITS + ROW_BITS,
+                cmd_len = 4 + 3 + BA_BITS + ROW_BITS + DUAL_RANK_DIMM,
                 lanes_clog2 = $clog2(LANES) == 0? 1: $clog2(LANES),
     parameter[1:0] row_bank_col = (ECC_ENABLE == 3)? 2 : 1, // memory address mapping: 0 {bank, row, col} , 1 = {row, bank, col} , 2 = {bank[2:1]. row, bank[0], col} FOR ECC
     parameter[0:0] ECC_TEST = 0
@@ -118,7 +119,7 @@ module ddr3_controller #(
         (* mark_debug = "true" *) input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
         input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_bitslip_reference,
         input wire i_phy_idelayctrl_rdy,
-        output wire[cmd_len*serdes_ratio-1:0] o_phy_cmd,
+        output wire[(cmd_len+DUAL_RANK_DIMM)*serdes_ratio-1:0] o_phy_cmd,
         output reg o_phy_dqs_tri_control, o_phy_dq_tri_control,
         output wire o_phy_toggle_dqs,
         output wire[wb_data_bits-1:0] o_phy_data,
@@ -168,15 +169,32 @@ module ddr3_controller #(
                      
     // ddr3 command partitioning
     /* verilator lint_off UNUSEDPARAM */
-    localparam CMD_CS_N = cmd_len - 1,
-               CMD_RAS_N = cmd_len - 2,
-               CMD_CAS_N= cmd_len - 3,
-               CMD_WE_N = cmd_len - 4,
-               CMD_ODT = cmd_len - 5,
-               CMD_CKE = cmd_len - 6, 
-               CMD_RESET_N = cmd_len - 7,
-               CMD_BANK_START = BA_BITS + ROW_BITS - 1,
-               CMD_ADDRESS_START = ROW_BITS - 1;
+    generate
+        if(DUAL_RANK_DIMM) begin
+            localparam CMD_CS_N_2 = cmd_len - 1,
+                        CMD_CS_N = cmd_len - 2,
+                        CMD_RAS_N = cmd_len - 3,
+                        CMD_CAS_N= cmd_len - 4,
+                        CMD_WE_N = cmd_len - 5,
+                        CMD_ODT = cmd_len - 6,
+                        CMD_CKE = cmd_len - 7, 
+                        CMD_RESET_N = cmd_len - 8,
+                        CMD_BANK_START = BA_BITS + ROW_BITS - 1,
+                        CMD_ADDRESS_START = ROW_BITS - 1,
+        end
+        else begin
+            localparam CMD_CS_N = cmd_len - 1,
+                        CMD_RAS_N = cmd_len - 2,
+                        CMD_CAS_N= cmd_len - 3,
+                        CMD_WE_N = cmd_len - 4,
+                        CMD_ODT = cmd_len - 5,
+                        CMD_CKE = cmd_len - 6, 
+                        CMD_RESET_N = cmd_len - 7,
+                        CMD_BANK_START = BA_BITS + ROW_BITS - 1,
+                        CMD_ADDRESS_START = ROW_BITS - 1,
+        end
+    endgenerate
+    
     /* verilator lint_on UNUSEDPARAM */          
     localparam READ_SLOT = get_slot(CMD_RD),
                 WRITE_SLOT = get_slot(CMD_WR),
@@ -412,9 +430,9 @@ module ddr3_controller #(
     reg stage2_update = 1;
     reg stage2_stall = 0;
     reg stage1_stall = 0;
-    reg[(1<<BA_BITS)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
+    reg[(1<<(BA_BITS+DUAL_RANK_DIMM)-1:0] bank_status_q, bank_status_d; //bank_status[bank_number]: determine current state of bank (1=active , 0=idle)
     //bank_active_row[bank_number] = stores the active row address in the specified bank
-    reg[ROW_BITS-1:0] bank_active_row_q[(1<<BA_BITS)-1:0], bank_active_row_d[(1<<BA_BITS)-1:0]; 
+    reg[ROW_BITS-1:0] bank_active_row_q[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0], bank_active_row_d[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0]; 
 
     // ECC_ENABLE = 3 regs
     /* verilator lint_off UNUSEDSIGNAL */
@@ -458,9 +476,9 @@ module ddr3_controller #(
     wire[wb_data_bits - 1:0] stage1_data_mux, stage1_data_encoded;
     reg[wb_sel_bits - 1:0] stage1_dm = 0;
     reg[COL_BITS-1:0] stage1_col = 0;
-    reg[BA_BITS-1:0] stage1_bank = 0;
+    reg[BA_BITS-1+DUAL_RANK_DIMM:0] stage1_bank = 0;
     reg[ROW_BITS-1:0] stage1_row = 0;
-    reg[BA_BITS-1:0] stage1_next_bank = 0;
+    reg[BA_BITS-1+DUAL_RANK_DIMM:0] stage1_next_bank = 0;
     reg[ROW_BITS-1:0] stage1_next_row = 0;
     wire[wb_addr_bits-1:0] wb_addr_plus_anticipate, calib_addr_plus_anticipate;
 
@@ -475,14 +493,14 @@ module ddr3_controller #(
     reg [DQ_BITS*8 - 1:0] unaligned_data[LANES-1:0];
     reg [8 - 1:0] unaligned_dm[LANES-1:0];
     reg[COL_BITS-1:0] stage2_col = 0;
-    reg[BA_BITS-1:0] stage2_bank = 0;
+    reg[BA_BITS-1+DUAL_RANK_DIMM:0] stage2_bank = 0;
     reg[ROW_BITS-1:0] stage2_row = 0;
     
     //delay counter for every banks
-    reg[3:0] delay_before_precharge_counter_q[(1<<BA_BITS)-1:0], delay_before_precharge_counter_d[(1<<BA_BITS)-1:0]; //delay counters
-    reg[3:0] delay_before_activate_counter_q[(1<<BA_BITS)-1:0], delay_before_activate_counter_d[(1<<BA_BITS)-1:0] ;
-    reg[3:0] delay_before_write_counter_q[(1<<BA_BITS)-1:0], delay_before_write_counter_d[(1<<BA_BITS)-1:0] ;
-    reg[3:0] delay_before_read_counter_q[(1<<BA_BITS)-1:0] , delay_before_read_counter_d[(1<<BA_BITS)-1:0] ;
+    reg[3:0] delay_before_precharge_counter_q[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0], delay_before_precharge_counter_d[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0]; //delay counters
+    reg[3:0] delay_before_activate_counter_q[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0], delay_before_activate_counter_d[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0] ;
+    reg[3:0] delay_before_write_counter_q[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0], delay_before_write_counter_d[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0] ;
+    reg[3:0] delay_before_read_counter_q[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0] , delay_before_read_counter_d[(1<<(BA_BITS+DUAL_RANK_DIMM))-1:0] ;
     
     //commands to be sent to PHY (4 slots per controller clk cycle)
     reg[cmd_len-1:0] cmd_d[3:0];
@@ -586,6 +604,8 @@ module ddr3_controller #(
     reg[lanes_clog2-1:0] wb2_write_lane;
     reg sync_rst_wb2 = 0, sync_rst_controller = 0;
     reg reset_from_wb2 = 0, reset_from_calibrate = 0, reset_from_test = 0, repeat_test = 0;
+    reg reset_after_rank_1 = 0; // reset after calibration rank 1 to switch to rank 2
+    reg current_rank = 0;
     // test calibration 
     reg[wb_addr_bits-1:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
     reg[31:0] write_test_address_counter = 0;
@@ -604,7 +624,7 @@ module ddr3_controller #(
             o_wb_ack_read_q[index] = 0;
         end
 
-        for(index=0; index < (1<<BA_BITS); index=index+1) begin
+        for(index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
             bank_status_q[index] = 0;  
             bank_status_d[index] = 0;
             bank_active_row_q[index] = 0; 
@@ -616,7 +636,7 @@ module ddr3_controller #(
             stage2_dm[index] = 0;
         end
 
-        for(index=0; index <(1<<BA_BITS); index=index+1) begin
+        for(index=0; index <(1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
             delay_before_precharge_counter_q[index] = 0;  
             delay_before_activate_counter_q[index] = 0;
             delay_before_write_counter_q[index] = 0; 
@@ -776,7 +796,7 @@ module ddr3_controller #(
 
     /******************************************* Reset Sequence ROM Controller *******************************************/
     always @(posedge i_controller_clk) begin
-        sync_rst_controller <= !i_rst_n || reset_from_wb2 || reset_from_calibrate || reset_from_test;
+        sync_rst_controller <= !i_rst_n || reset_from_wb2 || reset_from_calibrate || reset_from_test || reset_after_rank_1;
         sync_rst_wb2 <= !i_rst_n;
     end
     assign o_phy_reset = sync_rst_controller;
@@ -889,14 +909,14 @@ module ddr3_controller #(
                 unaligned_dm[index] <= 0;
             end
             //set delay counters to 0
-            for(index=0; index<(1<<BA_BITS); index=index+1) begin
+            for(index=0; index<(1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= 0;  
                 delay_before_activate_counter_q[index] <= 0;
                 delay_before_write_counter_q[index] <= 0; 
                 delay_before_read_counter_q[index] <= 0; 
             end
             //reset bank status and active row
-            for( index=0; index < (1<<BA_BITS); index=index+1) begin
+            for( index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
                     bank_status_q[index] <= 0;  
                     bank_active_row_q[index] <= 0; 
             end
@@ -915,7 +935,7 @@ module ddr3_controller #(
             cmd_odt_q <= cmd_odt;
 
             //update delay counter 
-            for(index=0; index< (1<<BA_BITS); index=index+1) begin
+            for(index=0; index< (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
                 delay_before_precharge_counter_q[index] <= delay_before_precharge_counter_d[index];  
                 delay_before_activate_counter_q[index] <= delay_before_activate_counter_d[index];
                 delay_before_write_counter_q[index] <= delay_before_write_counter_d[index]; 
@@ -923,7 +943,7 @@ module ddr3_controller #(
             end
 
             //update bank status and active row
-            for(index=0; index < (1<<BA_BITS); index=index+1) begin
+            for(index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
                 bank_status_q[index] <= bank_status_d[index];
                 bank_active_row_q[index] <= bank_active_row_d[index];
             end
@@ -931,7 +951,7 @@ module ddr3_controller #(
             if(instruction_address == 20 || instruction_address == 24) begin ///current instruction at precharge
                 cmd_odt_q <= 1'b0;
                 //all banks will be in idle after refresh
-                for( index=0; index < (1<<BA_BITS); index=index+1) begin
+                for( index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
                     bank_status_q[index] <= 0;  
                 end
             end
@@ -1038,6 +1058,9 @@ module ddr3_controller #(
                 end
 
                 if(row_bank_col == 1) begin // memory address mapping: {row, bank, col}
+                    if(DUAL_RANK_DIMM) begin
+                        stage1_bank[BA_BITS] = i_wb_addr[ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2)]; // msb determines rank
+                    end
                     stage1_row <= i_wb_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS - $clog2(serdes_ratio*2)) ]; //row_address
                     stage1_bank <=  i_wb_addr[ (BA_BITS + COL_BITS - $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //bank_address
                     stage1_col <= { i_wb_addr[ (COL_BITS- $clog2(serdes_ratio*2)-1) : 0 ], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (n-burst word-aligned)
@@ -1109,6 +1132,9 @@ module ddr3_controller #(
                 end
 
                 if(row_bank_col == 1) begin // memory address mapping: {row, bank, col}
+                    if(DUAL_RANK_DIMM) begin
+                        stage1_bank[BA_BITS] = calib_addr[ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2)]; // msb determines rank
+                    end
                     stage1_row <= calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1) : (BA_BITS + COL_BITS - $clog2(serdes_ratio*2)) ]; //row_address
                     stage1_bank <=  calib_addr[ (BA_BITS + COL_BITS - $clog2(serdes_ratio*2) - 1) : (COL_BITS- $clog2(serdes_ratio*2)) ]; //bank_address
                     stage1_col <= { calib_addr[ (COL_BITS- $clog2(serdes_ratio*2)-1) : 0 ], {{$clog2(serdes_ratio*2)}{1'b0}} }; //column address (8-burst word-aligned)
@@ -1414,7 +1440,7 @@ module ddr3_controller #(
         activate_slot_busy = 0; //flag that determines if stage 2 is issuing activate (thus stage 1 cannot issue activate)
         write_dqs_d = write_calib_dqs;
         write_dq_d = write_calib_dq;
-        for(index=0; index < (1<<BA_BITS); index=index+1) begin
+        for(index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
             bank_status_d[index] = bank_status_q[index];
             bank_active_row_d[index] = bank_active_row_q[index];
         end
@@ -1434,11 +1460,25 @@ module ddr3_controller #(
         else begin
             cmd_d[WRITE_SLOT] = {1'b0, 3'b111, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
         end
-        
+        /////////////////////////////////////////////////////////////////////////////////////////
+        // if dual rank is enabled, last 2 bits are {cs_2, cs_1}
+        if(DUAL_RANK_DIMM) begin
+            cmd_d[PRECHARGE_SLOT][cmd_len-1:cmd_len-2]= {!current_rank || !delay_counter_is_zero , current_rank || !delay_counter_is_zero}; // reset sequence is done per rank
+            cmd_d[READ_SLOT][cmd_len-1:cmd_len-2] = {!current_rank || !issue_read_command , current_rank || !issue_read_command}; // MPR is done per rank
+            cmd_d[ACTIVATE_SLOT][cmd_len-1:cmd_len-2] = 2'b11; // NOP by default
+            if(WRITE_SLOT == READ_SLOT) begin
+                cmd_d[REMAINING_SLOT][cmd_len-1:cmd_len-2] = 2'b11 // always NOP by default
+            end
+            // if read and write slot is not shared, the write slot should be NOP by default
+            else begin
+                cmd_d[WRITE_SLOT][cmd_len-1:cmd_len-2] = 2'b11 // always NOP by default
+            end
+        end
+        /////////////////////////////////////////////////////////////////////////////////////////
 
         // decrement delay counters for every bank , stay to 0 once 0 is reached
         // every bank will have its own delay counters for precharge, activate, write, and read 
-        for(index=0; index< (1<<BA_BITS); index=index+1) begin
+        for(index=0; index< (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
             delay_before_precharge_counter_d[index] = (delay_before_precharge_counter_q[index] == 0)? 0: delay_before_precharge_counter_q[index] - 1;
             delay_before_activate_counter_d[index] = (delay_before_activate_counter_q[index] == 0)? 0: delay_before_activate_counter_q[index] - 1;
             delay_before_write_counter_d[index] = (delay_before_write_counter_q[index] == 0)? 0:delay_before_write_counter_q[index] - 1;
@@ -1493,16 +1533,27 @@ module ddr3_controller #(
                         //than the WRITE_TO_PRECHARGE_DELAY
                         delay_before_precharge_counter_d[stage2_bank] = WRITE_TO_PRECHARGE_DELAY;
                     end
-                    for(index=0; index < (1<<BA_BITS); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
+                    for(index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin //the write to read delay applies to all banks (odt must be turned off properly before reading)
                         delay_before_read_counter_d[index] = WRITE_TO_READ_DELAY + 1; //NOTE TO SELF: why plus 1?
                     end
                     delay_before_write_counter_d[stage2_bank] = WRITE_TO_WRITE_DELAY;
                     //issue read command
-                    if(COL_BITS <= 10) begin
-                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                    if(DUAL_RANK_DIMM) begin
+                        if(COL_BITS <= 10) begin
+                            // if stage2_bank[BA_BITS] high then request is for 2nd rank, if low then for 1st rank
+                            cmd_d[WRITE_SLOT] = {!stage2_bank[BA_BITS], stage2_bank[BA_BITS], CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank[BA_BITS-1:0],{{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        end
+                        else begin // COL_BITS > 10 has different format from <= 10
+                            cmd_d[WRITE_SLOT] = {!stage2_bank[BA_BITS], stage2_bank[BA_BITS], CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank[BA_BITS-1:0],{{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                        end
                     end
-                    else begin // COL_BITS > 10 has different format from <= 10
-                        cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                    else begin
+                        if(COL_BITS <= 10) begin
+                            cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        end
+                        else begin // COL_BITS > 10 has different format from <= 10
+                            cmd_d[WRITE_SLOT] = {1'b0, CMD_WR[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank,{{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                        end
                     end
                     //turn on odt at same time as write cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
@@ -1549,19 +1600,30 @@ module ddr3_controller #(
                     end
                     delay_before_read_counter_d[stage2_bank] = READ_TO_READ_DELAY;     
                     delay_before_write_counter_d[stage2_bank] = READ_TO_WRITE_DELAY + 1; //temporary solution since its possible odt to go high already while reading previously
-                    for(index=0; index < (1<<BA_BITS); index=index+1) begin //the read to write delay applies to all banks (odt must be turned on properly before writing and this delay is for ODT to settle)
+                    for(index=0; index < (1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin //the read to write delay applies to all banks (odt must be turned on properly before writing and this delay is for ODT to settle)
                         delay_before_write_counter_d[index] = READ_TO_WRITE_DELAY + 1; // NOTE TO SELF: why plus 1?
                     end
                     // don't acknowledge if ECC request
                     shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
 
                     //issue read command
-                    if(COL_BITS <= 10) begin
-                        cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                    if(DUAL_RANK_DIMM) begin
+                        if(COL_BITS <= 10) begin
+                            cmd_d[READ_SLOT] = {!stage2_bank[BA_BITS], stage2_bank[BA_BITS], CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank[BA_BITS-1:0], {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        end
+                        else begin // COL_BITS > 10 has different format from <= 10
+                            cmd_d[READ_SLOT] =  {!stage2_bank[BA_BITS], stage2_bank[BA_BITS], CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank[BA_BITS-1:0], {{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                        end
                     end
-                    else begin // COL_BITS > 10 has different format from <= 10
-                        cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                    else begin
+                        if(COL_BITS <= 10) begin
+                            cmd_d[READ_SLOT] = {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_col[9:0]};  
+                        end
+                        else begin // COL_BITS > 10 has different format from <= 10
+                            cmd_d[READ_SLOT] =  {1'b0, CMD_RD[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, {{ROW_BITS-32'd12}{1'b0}} , stage2_col[(COL_BITS <= 10) ? 0 : 10] , 1'b0 , stage2_col[9:0]};  
+                        end
                     end
+
                     //turn off odt at same time as read cmd
                     cmd_d[0][CMD_ODT] = cmd_odt;
                     cmd_d[1][CMD_ODT] = cmd_odt;
@@ -1582,7 +1644,12 @@ module ddr3_controller #(
                     delay_before_write_counter_d[stage2_bank] = ACTIVATE_TO_WRITE_DELAY;
                 end
                 //issue activate command
-                cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
+                if(DUAL_RANK_DIMM) begin
+                    cmd_d[ACTIVATE_SLOT] = {!stage2_bank[BA_BITS], stage2_bank[BA_BITS], CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank[BA_BITS-1:0], stage2_row};
+                end
+                else begin
+                    cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank , stage2_row};
+                end
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b1;
                 bank_active_row_d[stage2_bank] = stage2_row;
@@ -1593,7 +1660,12 @@ module ddr3_controller #(
                 //set-up delay before activate
                 delay_before_activate_counter_d[stage2_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
                 //issue precharge command
-                cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
+                if(DUAL_RANK_DIMM) begin
+                    cmd_d[PRECHARGE_SLOT] = {!stage2_bank[BA_BITS], stage2_bank[BA_BITS], CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank[BA_BITS-1:0], { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
+                end
+                else begin
+                    cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage2_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage2_row[9:0] } };
+                end
                 //update bank status and active row
                 bank_status_d[stage2_bank] = 1'b0; 
             end
@@ -1615,8 +1687,13 @@ module ddr3_controller #(
             // Thus stage 1 anticipate makes sure smooth burst operation that jumps banks
             if(bank_status_q[stage1_next_bank] &&  bank_active_row_q[stage1_next_bank] != stage1_next_row && delay_before_precharge_counter_q[stage1_next_bank] ==0 && !precharge_slot_busy) begin    
                 //set-up delay before read and write
-                 delay_before_activate_counter_d[stage1_next_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
-                cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
+                delay_before_activate_counter_d[stage1_next_bank] = PRECHARGE_TO_ACTIVATE_DELAY;
+                if(DUAL_RANK_DIMM) begin
+                    cmd_d[PRECHARGE_SLOT] = {!stage1_next_bank[BA_BITS], stage1_next_bank[BA_BITS], CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
+                end
+                else begin
+                    cmd_d[PRECHARGE_SLOT] = {1'b0, CMD_PRE[2:0], cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank, { {{ROW_BITS-32'd11}{1'b0}} , 1'b0 , stage1_next_row[9:0] } };
+                end
                 bank_status_d[stage1_next_bank] = 1'b0; 
             end //end of anticipate precharge
             
@@ -1630,7 +1707,12 @@ module ddr3_controller #(
                 if(delay_before_write_counter_d[stage1_next_bank] <= ACTIVATE_TO_WRITE_DELAY) begin  // if current delay is > ACTIVATE_TO_WRITE_DELAY, then updating it to the lower delay will cause the previous delay to be violated
                     delay_before_write_counter_d[stage1_next_bank] = ACTIVATE_TO_WRITE_DELAY;
                 end
-                cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
+                if(DUAL_RANK_DIMM) begin
+                    cmd_d[ACTIVATE_SLOT] = {!stage1_next_bank[BA_BITS], stage1_next_bank[BA_BITS], CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
+                end
+                else begin
+                    cmd_d[ACTIVATE_SLOT] = {1'b0, CMD_ACT[2:0] , cmd_odt, cmd_ck_en, cmd_reset_n, stage1_next_bank , stage1_next_row};
+                end
                 bank_status_d[stage1_next_bank] = 1'b1;
                 bank_active_row_d[stage1_next_bank] = stage1_next_row;
             end //end of anticipate activate
@@ -2027,6 +2109,7 @@ module ddr3_controller #(
             write_by_byte_counter <= 0;
             initial_calibration_done <= 1'b0;
             final_calibration_done <= 1'b0;
+            reset_after_rank_1 <= 1'b0;
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -2052,7 +2135,8 @@ module ddr3_controller #(
             /* verilator lint_on WIDTH */
             idelay_data_cntvaluein_prev <= idelay_data_cntvaluein[lane];
             reset_from_calibrate <= 0;
-            
+            reset_after_rank_1 <= 0; // reset for dual rank
+
             if(wb2_update) begin
                 odelay_data_cntvaluein[wb2_write_lane] <=  wb2_phy_odelay_data_ld[wb2_write_lane]? wb2_phy_odelay_data_cntvaluein : odelay_data_cntvaluein[wb2_write_lane];
                 odelay_dqs_cntvaluein[wb2_write_lane] <= wb2_phy_odelay_dqs_ld[wb2_write_lane]? wb2_phy_odelay_dqs_cntvaluein : odelay_dqs_cntvaluein[wb2_write_lane];
@@ -2609,7 +2693,13 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         calib_stb <= 0;
                         if(train_delay == 0) begin
                             state_calibrate <= DONE_CALIBRATE;
-                            final_calibration_done <= 1'b1;
+                            if(DUAL_RANK_DIMM) begin
+                                final_calibration_done <= current_rank; // calibration is only done after calibration of 2nd rank
+                                reset_after_rank_1 <= !current_rank; // reset only if current rank is 1st rank
+                            end
+                            else begin
+                                final_calibration_done <= 1'b1;
+                            end
                         end
                     end    
                                
@@ -2651,7 +2741,23 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 write_test_address_counter <= 0;
             end
         end
-    end      
+    end    
+
+    generate
+    if(DUAL_RANK_DIMM) begin  
+        // logic for current_rank to track if rank 1 or rank 2 is being calibrated
+        always @(posedge i_controller_clk) begin 
+            if(sync_rst_controller && !reset_after_rank_1) begin // dont reset at reset_after_rank_1
+                current_rank <= 1'b0; // start at rank 1
+            end
+            else begin
+                if(reset_after_rank_1) begin
+                    current_rank <= 1'b1; // switch to 2nd rank after reset
+                end
+            end
+        end
+    endgenerate
+
     assign issue_read_command = (state_calibrate == MPR_READ && delay_before_read_data == 0);
     assign o_phy_odelay_data_cntvaluein = odelay_data_cntvaluein[lane]; 
     assign o_phy_odelay_dqs_cntvaluein = odelay_dqs_cntvaluein[lane];
