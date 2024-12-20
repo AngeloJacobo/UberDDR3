@@ -62,10 +62,13 @@ module ddr3_dimm_micron_sim;
 
 
  localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
+            DDR3_CLK_PERIOD = 2500,//ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
-            SELF_REFRESH = 2'b11;
+            SELF_REFRESH = 2'b11,
+            DUAL_RANK_DIMM = 1,
+            TEST_SELF_REFRESH = 1;
+        
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -167,7 +170,8 @@ ddr3_top #(
     .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     .WB_ERROR(1), // set to 1 to support Wishbone error (asserts at ECC double bit error)
     .SKIP_INTERNAL_TEST(0), // skip built-in self test (would require >2 seconds of internal test right after calibration)
-    .SELF_REFRESH(SELF_REFRESH) // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
+    .SELF_REFRESH(SELF_REFRESH), // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
+    .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
     ) ddr3_top
     (
         //clock and reset
@@ -201,11 +205,11 @@ ddr3_top #(
         .o_wb2_ack(o_wb2_ack), //1 = read/write request has completed
         .o_wb2_data(o_wb2_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         // PHY Interface (to be added later)
-        .o_ddr3_clk_p(o_ddr3_clk_p[1]),
-        .o_ddr3_clk_n(o_ddr3_clk_n[1]),
-        .o_ddr3_cke(ck_en[1]), // CKE
-        .o_ddr3_cs_n(cs_n[1]), // chip select signal
-        .o_ddr3_odt(odt[1]), // on-die termination
+        .o_ddr3_clk_p(o_ddr3_clk_p[DUAL_RANK_DIMM:0]),
+        .o_ddr3_clk_n(o_ddr3_clk_n[DUAL_RANK_DIMM:0]),
+        .o_ddr3_cke(ck_en[DUAL_RANK_DIMM:0]), // CKE
+        .o_ddr3_cs_n(cs_n[DUAL_RANK_DIMM:0]), // chip select signal
+        .o_ddr3_odt(odt[DUAL_RANK_DIMM:0]), // on-die termination
         .o_ddr3_ras_n(ras_n), // RAS#
         .o_ddr3_cas_n(cas_n), // CAS#
         .o_ddr3_we_n(we_n), // WE#
@@ -261,9 +265,15 @@ ddr3_top #(
         .dqs_n(dqs_n),
         .dq(dq)
     );
-    assign ck_en[0]=0,
-           cs_n[0]=1,
-           odt[0]=0; 
+    generate
+        if(!DUAL_RANK_DIMM) begin // if dual rank disabled then rank 1 is idle
+            assign ck_en[1]=0,
+                   cs_n[1]=1,
+                   odt[1]=0,
+                   o_ddr3_clk_p[1]=0,
+                   o_ddr3_clk_n[1]=0; 
+        end
+    endgenerate
  `endif
  
  
@@ -730,17 +740,19 @@ ddr3_top #(
     end
     
     task self_refresh;
-        if(SELF_REFRESH == 2'b00) begin
-             // test self refresh 
-            @(posedge i_controller_clk)
-            i_user_self_refresh = 1;
-            #40_000_000; //40_000 ns of self-refresh
-            @(posedge i_controller_clk)
-            i_user_self_refresh = 0;
-        end
-        else begin
-            #10_000_000; // 10_000 ns of rest
-        end
+        if(TEST_SELF_REFRESH) begin
+            if(SELF_REFRESH == 2'b00) begin
+                 // test self refresh 
+                @(posedge i_controller_clk)
+                i_user_self_refresh = 1;
+                #40_000_000; //40_000 ns of self-refresh
+                @(posedge i_controller_clk)
+                i_user_self_refresh = 0;
+            end
+            else begin
+                #10_000_000; // 10_000 ns of rest
+            end
+         end
     endtask
         
     //check read data
@@ -947,9 +959,9 @@ ddr3_top #(
     reg[31:0] time_now;
     reg[3:0] repeats = 0; 
     //display commands issued
-    always @(posedge o_ddr3_clk_p[1]) begin
-        if(!cs_n[1]) begin //command is center-aligned to positive edge of clock, a valid command always has low cs_n
-            case({cs_n[1], ras_n, cas_n, we_n})
+    always @(posedge o_ddr3_clk_p[0]) begin
+        if(!cs_n[0]) begin //command is center-aligned to positive edge of clock, a valid command always has low cs_n
+            case({cs_n[0], ras_n, cas_n, we_n})
                  4'b0000: command_used = "MRS";
                  4'b0001: command_used = "REF";
                  4'b0010: command_used = "PRE";

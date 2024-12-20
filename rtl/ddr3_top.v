@@ -40,6 +40,7 @@ module ddr3_top #(
                    AUX_WIDTH = 4, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus 
+                   DUAL_RANK_DIMM = 0, // enable dual rank DIMM (1 =  enable, 0 = disable)
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
@@ -52,12 +53,12 @@ module ddr3_top #(
     parameter // The next parameters act more like a localparam (since user does not have to set this manually) but was added here to simplify port declaration
                 DQ_BITS = 8,  //device width (fixed to 8, if DDR3 is x16 then BYTE_LANES will be 2 while )
                 serdes_ratio = 4, // this controller is fixed as a 4:1 memory controller (CONTROLLER_CLK_PERIOD/DDR3_CLK_PERIOD = 4)
-                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2),
+                wb_addr_bits = ROW_BITS + COL_BITS + BA_BITS - $clog2(serdes_ratio*2) + DUAL_RANK_DIMM,
                 wb_data_bits = DQ_BITS*BYTE_LANES*serdes_ratio*2,
                 wb_sel_bits = wb_data_bits / 8,
                 wb2_sel_bits = WB2_DATA_BITS / 8,
                 //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
-                cmd_len = 4 + 3 + BA_BITS + ROW_BITS
+                cmd_len = 4 + 3 + BA_BITS + ROW_BITS + 2*DUAL_RANK_DIMM
     ) 
     (
         input wire i_controller_clk, i_ddr3_clk, i_ref_clk, //i_controller_clk = CONTROLLER_CLK_PERIOD, i_ddr3_clk = DDR3_CLK_PERIOD, i_ref_clk = 200MHz
@@ -92,10 +93,10 @@ module ddr3_top #(
         output wire[WB2_DATA_BITS - 1:0] o_wb2_data, //read data
         //
         // DDR3 I/O Interface
-        output wire o_ddr3_clk_p, o_ddr3_clk_n,
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_clk_p, o_ddr3_clk_n,
         output wire o_ddr3_reset_n,
-        output wire o_ddr3_cke, // CKE
-        output wire o_ddr3_cs_n, // chip select signal
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_cke, // CKE
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_cs_n, // chip select signal
         output wire o_ddr3_ras_n, // RAS#
         output wire o_ddr3_cas_n, // CAS#
         output wire o_ddr3_we_n, // WE#
@@ -104,7 +105,7 @@ module ddr3_top #(
         inout wire[(DQ_BITS*BYTE_LANES)-1:0] io_ddr3_dq,
         inout wire[BYTE_LANES-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
         output wire[BYTE_LANES-1:0] o_ddr3_dm,
-        output wire o_ddr3_odt, // on-die termination
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_odt, // on-die termination
         //
         // Done Calibration pin
         output wire o_calib_complete,
@@ -254,7 +255,8 @@ ddr3_top #(
             .WB_ERROR(WB_ERROR), // set to 1 to support Wishbone error (asserts at ECC double bit error)
             .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
             .DIC(DIC), //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
-            .RTT_NOM(RTT_NOM) //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
+            .RTT_NOM(RTT_NOM), //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
+            .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
         ) ddr3_controller_inst (
             .i_controller_clk(i_controller_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
             .i_rst_n(i_rst_n), //200MHz input clock
@@ -323,7 +325,8 @@ ddr3_top #(
             .LANES(BYTE_LANES), //8 lanes of DQ
             .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, period of clock input to this DDR3 controller module
             .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, period of clock input to DDR3 RAM device 
-            .ODELAY_SUPPORTED(ODELAY_SUPPORTED)
+            .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 when ODELAYE2 is supported
+            .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
         ) ddr3_phy_inst (
             .i_controller_clk(i_controller_clk), 
             .i_ddr3_clk(i_ddr3_clk),
@@ -393,6 +396,7 @@ ddr3_top #(
             $display("DIC = %0d", DIC);
             $display("RTT_NOM = %0d", RTT_NOM);
             $display("SELF_REFRESH = %0d", SELF_REFRESH);
+            $display("DUAL_RANK_DIMM = %0d", DUAL_RANK_DIMM);
             $display("End of DDR3 TOP PARAMETERS\n-----------------------------");
         end
 
