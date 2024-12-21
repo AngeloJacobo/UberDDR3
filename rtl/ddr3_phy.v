@@ -226,6 +226,55 @@ module ddr3_phy #(
             // End of OSERDESE2_inst instantiation
       
         end
+
+        if(DUAL_RANK_DIMM) begin // if dual rank enabled, odt_2 and odt_1 will be generated separately
+            // OSERDESE2: Output SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OSERDESE2 #(
+                .DATA_RATE_OQ("SDR"), // DDR, SDR
+                .DATA_RATE_TQ("SDR"), // DDR, SDR
+                .DATA_WIDTH(4), // Parallel data width (2-8,10,14)
+                .INIT_OQ(1'b0), // Initial value of OQ output (1'b0,1'b1)
+                .TRISTATE_WIDTH(1)
+            )
+            OSERDESE2_cmd(
+                .OFB(), // 1-bit output: Feedback path for data
+                .OQ(o_ddr3_odt[1]), // 1-bit output: Data path output
+                .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1(i_controller_cmd[cmd_len*0 + CMD_ODT]),
+                .D2(i_controller_cmd[cmd_len*1 + CMD_ODT]),
+                .D3(i_controller_cmd[cmd_len*2 + CMD_ODT]),
+                .D4(i_controller_cmd[cmd_len*3 + CMD_ODT]),
+                .OCE(1'b1), // 1-bit input: Output data clock enable
+                .RST(sync_rst), // 1-bit input: Reset
+                // unused signals but were added here to make vivado happy
+                .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT2(),
+                .TBYTEOUT(), // 1-bit output: Byte group tristate
+                .TFB(), // 1-bit output: 3-state control
+                .TQ(), // 1-bit output: 3-state control
+                .D5(),
+                .D6(),
+                .D7(),
+                .D8(),
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1(0),
+                .SHIFTIN2(0),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1(0),
+                .T2(0),
+                .T3(0),
+                .T4(0),
+                .TBYTEIN(0),
+                // 1-bit input: Byte group tristate
+                .TCE(0)
+                // 1-bit input: 3-state clock enable
+            );
+            // End of OSERDESE2_inst instantiation
+        end
     endgenerate 
 
     // cs[1] when DUAL_RANK_DIMM enabled
@@ -235,8 +284,9 @@ module ddr3_phy #(
             assign o_ddr3_cs_n[0] = oserdes_cmd[CMD_CS_N];
             assign o_ddr3_cke[1] = oserdes_cmd[CMD_CKE_2];
             assign o_ddr3_cke[0] = oserdes_cmd[CMD_CKE];
-            assign o_ddr3_odt[1] = oserdes_cmd[CMD_ODT];
             assign o_ddr3_odt[0] = oserdes_cmd[CMD_ODT];
+            // o_ddr3_odt[1] will be generated directly by a separate OSERDES
+            // if odt[1] and odt[0] uses same output from oserdes, one of them will be unroutable
         end
         else begin
             assign o_ddr3_cs_n = oserdes_cmd[CMD_CS_N];

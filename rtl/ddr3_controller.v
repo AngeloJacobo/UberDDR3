@@ -406,7 +406,7 @@ module ddr3_controller #(
 
     /************************************************************* Registers and Wires *************************************************************/
     integer index;
-    reg[4:0] instruction_address = 0; //address for accessing rom instruction
+    (* mark_debug ="true" *) reg[4:0] instruction_address = 0; //address for accessing rom instruction
     reg[27:0] instruction = INITIAL_RESET_INSTRUCTION; //instruction retrieved from reset instruction rom
     reg[ DELAY_COUNTER_WIDTH - 1:0] delay_counter = INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0]; //counter used for delays
     reg delay_counter_is_zero = (INITIAL_RESET_INSTRUCTION[DELAY_COUNTER_WIDTH - 1:0] == 0); //counter is now zero so retrieve next delay
@@ -601,7 +601,7 @@ module ddr3_controller #(
     wire db_err_o;
     wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
     /* verilator lint_on UNDRIVEN */
-    reg user_self_refresh_q; // registered i_user_self_refresh
+    (* mark_debug ="true" *) reg user_self_refresh_q; // registered i_user_self_refresh
 
     // initial block for all regs
     initial begin
