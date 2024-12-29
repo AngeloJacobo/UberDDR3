@@ -174,7 +174,7 @@ module spd_reader (
                     end
                     else begin // I2C acks so send via UART the received data
                         state_read_spd <= UART_SEND;
-                        // byte_data[byte_address] <= miso_data;
+                        byte_data[byte_address] <= miso_data;
                     end
                     end
                     else begin
@@ -448,6 +448,141 @@ module spd_reader (
             .uart_tx_en(uart_tx_en), // Send the data on uart_tx_data
             .uart_tx_data(uart_tx_data)  // The data to be sent
         );
+
+    generate 
+        if(1) begin // set to 1 to debug registers in ILA
+            (* mark_debug = "true" *) wire [7:0] byte_data_0;
+            (* mark_debug = "true" *) wire [7:0] byte_data_1;
+            (* mark_debug = "true" *) wire [7:0] byte_data_2;
+            (* mark_debug = "true" *) wire [7:0] byte_data_3;
+            (* mark_debug = "true" *) wire [7:0] byte_data_4;
+            (* mark_debug = "true" *) wire [7:0] byte_data_5;
+            (* mark_debug = "true" *) wire [7:0] byte_data_6;
+            (* mark_debug = "true" *) wire [7:0] byte_data_7;
+            (* mark_debug = "true" *) wire [7:0] byte_data_8;
+            (* mark_debug = "true" *) wire [7:0] byte_data_9;
+            (* mark_debug = "true" *) wire [7:0] byte_data_10;
+            (* mark_debug = "true" *) wire [7:0] byte_data_11;
+            (* mark_debug = "true" *) wire [7:0] byte_data_12;
+            (* mark_debug = "true" *) wire [7:0] byte_data_13;
+            (* mark_debug = "true" *) wire [7:0] byte_data_14;
+            (* mark_debug = "true" *) wire [7:0] byte_data_15;
+            (* mark_debug = "true" *) wire [7:0] byte_data_16;
+            (* mark_debug = "true" *) wire [7:0] byte_data_17;
+            (* mark_debug = "true" *) wire [7:0] byte_data_18;
+            (* mark_debug = "true" *) wire [7:0] byte_data_19;
+            (* mark_debug = "true" *) wire [7:0] byte_data_20;
+            (* mark_debug = "true" *) wire [7:0] byte_data_21;
+            (* mark_debug = "true" *) wire [7:0] byte_data_22;
+            (* mark_debug = "true" *) wire [7:0] byte_data_23;
+            (* mark_debug = "true" *) wire [7:0] byte_data_24;
+            (* mark_debug = "true" *) wire [7:0] byte_data_25;
+            (* mark_debug = "true" *) wire [7:0] byte_data_26;
+            (* mark_debug = "true" *) wire [7:0] byte_data_27;
+            (* mark_debug = "true" *) wire [7:0] byte_data_28;
+            (* mark_debug = "true" *) wire [7:0] byte_data_29;
+            (* mark_debug = "true" *) wire [7:0] byte_data_30;
+            (* mark_debug = "true" *) wire [7:0] byte_data_31;
+            (* mark_debug = "true" *) wire [7:0] byte_data_32;
+            (* mark_debug = "true" *) wire [7:0] byte_data_33;
+            (* mark_debug = "true" *) wire [7:0] byte_data_34;
+            (* mark_debug = "true" *) wire [7:0] byte_data_35;
+            (* mark_debug = "true" *) wire [7:0] byte_data_36;
+            (* mark_debug = "true" *) wire [7:0] byte_data_37;
+            (* mark_debug = "true" *) wire [7:0] byte_data_38;
+            (* mark_debug = "true" *) wire [7:0] byte_data_39;
+            (* mark_debug = "true" *) wire [7:0] byte_data_40;
+            (* mark_debug = "true" *) wire [7:0] byte_data_41;
+            (* mark_debug = "true" *) wire [7:0] byte_data_42;
+            (* mark_debug = "true" *) wire [7:0] byte_data_43;
+            (* mark_debug = "true" *) wire [7:0] byte_data_44;
+            (* mark_debug = "true" *) wire [7:0] byte_data_45;
+            (* mark_debug = "true" *) wire [7:0] byte_data_46;
+            (* mark_debug = "true" *) wire [7:0] byte_data_47;
+            (* mark_debug = "true" *) wire [7:0] byte_data_48;
+            (* mark_debug = "true" *) wire [7:0] byte_data_49;
+            (* mark_debug = "true" *) wire [7:0] byte_data_50;
+            (* mark_debug = "true" *) wire [7:0] byte_data_51;
+            (* mark_debug = "true" *) wire [7:0] byte_data_52;
+            (* mark_debug = "true" *) wire [7:0] byte_data_53;
+            (* mark_debug = "true" *) wire [7:0] byte_data_54;
+            (* mark_debug = "true" *) wire [7:0] byte_data_55;
+            (* mark_debug = "true" *) wire [7:0] byte_data_56;
+            (* mark_debug = "true" *) wire [7:0] byte_data_57;
+            (* mark_debug = "true" *) wire [7:0] byte_data_58;
+            (* mark_debug = "true" *) wire [7:0] byte_data_59;
+            (* mark_debug = "true" *) wire [7:0] byte_data_60;
+            (* mark_debug = "true" *) wire [7:0] byte_data_61;
+            (* mark_debug = "true" *) wire [7:0] byte_data_62;
+            (* mark_debug = "true" *) wire [7:0] byte_data_63;
+
+            // Assign each wire to its respective array index
+            assign byte_data_0 = byte_data[0];
+            assign byte_data_1 = byte_data[1];
+            assign byte_data_2 = byte_data[2];
+            assign byte_data_3 = byte_data[3];
+            assign byte_data_4 = byte_data[4];
+            assign byte_data_5 = byte_data[5];
+            assign byte_data_6 = byte_data[6];
+            assign byte_data_7 = byte_data[7];
+            assign byte_data_8 = byte_data[8];
+            assign byte_data_9 = byte_data[9];
+            assign byte_data_10 = byte_data[10];
+            assign byte_data_11 = byte_data[11];
+            assign byte_data_12 = byte_data[12];
+            assign byte_data_13 = byte_data[13];
+            assign byte_data_14 = byte_data[14];
+            assign byte_data_15 = byte_data[15];
+            assign byte_data_16 = byte_data[16];
+            assign byte_data_17 = byte_data[17];
+            assign byte_data_18 = byte_data[18];
+            assign byte_data_19 = byte_data[19];
+            assign byte_data_20 = byte_data[20];
+            assign byte_data_21 = byte_data[21];
+            assign byte_data_22 = byte_data[22];
+            assign byte_data_23 = byte_data[23];
+            assign byte_data_24 = byte_data[24];
+            assign byte_data_25 = byte_data[25];
+            assign byte_data_26 = byte_data[26];
+            assign byte_data_27 = byte_data[27];
+            assign byte_data_28 = byte_data[28];
+            assign byte_data_29 = byte_data[29];
+            assign byte_data_30 = byte_data[30];
+            assign byte_data_31 = byte_data[31];
+            assign byte_data_32 = byte_data[32];
+            assign byte_data_33 = byte_data[33];
+            assign byte_data_34 = byte_data[34];
+            assign byte_data_35 = byte_data[35];
+            assign byte_data_36 = byte_data[36];
+            assign byte_data_37 = byte_data[37];
+            assign byte_data_38 = byte_data[38];
+            assign byte_data_39 = byte_data[39];
+            assign byte_data_40 = byte_data[40];
+            assign byte_data_41 = byte_data[41];
+            assign byte_data_42 = byte_data[42];
+            assign byte_data_43 = byte_data[43];
+            assign byte_data_44 = byte_data[44];
+            assign byte_data_45 = byte_data[45];
+            assign byte_data_46 = byte_data[46];
+            assign byte_data_47 = byte_data[47];
+            assign byte_data_48 = byte_data[48];
+            assign byte_data_49 = byte_data[49];
+            assign byte_data_50 = byte_data[50];
+            assign byte_data_51 = byte_data[51];
+            assign byte_data_52 = byte_data[52];
+            assign byte_data_53 = byte_data[53];
+            assign byte_data_54 = byte_data[54];
+            assign byte_data_55 = byte_data[55];
+            assign byte_data_56 = byte_data[56];
+            assign byte_data_57 = byte_data[57];
+            assign byte_data_58 = byte_data[58];
+            assign byte_data_59 = byte_data[59];
+            assign byte_data_60 = byte_data[60];
+            assign byte_data_61 = byte_data[61];
+            assign byte_data_62 = byte_data[62];
+            assign byte_data_63 = byte_data[63];
+        end
+    endgenerate
 endmodule
 
 
