@@ -86,13 +86,29 @@ module i2c_slave (scl, sda);
     wire debug = 1'b1;
     genvar i;
 
-    reg [7:0] mem [99:0]; // initiate memory
+    reg [7:0] mem [22:0]; // initiate memory
 
     integer index;
     initial begin
-        for (index = 0; index <= 100; index = index + 1) begin
-            mem[index] = index; // Assign each element with its index value
-        end
+//        for (index = 0; index <= 100; index = index + 1) begin
+//            mem[index] = index; // Assign each element with its index value
+//        end
+        mem[0] = 8'h00;
+        mem[1] = 8'h11;
+        mem[2] = 8'h0b;
+        mem[3] = 8'h03; 
+        mem[4] = 8'h05; // BA_BITS = 3 , SDRAM_CAPACITY = 5
+        mem[5][5:3] = 3'h3; // ROW_BITS =   15, COL_BITS = 10
+        mem[5][2:0] = 3'h1;
+        mem[7][5:3] = 3'h1; // DUAL_RANK_DIMM = 0
+        mem[7][2:0] = 3'h1; // 
+        mem[8] = 8'h03; // BYTE_LANES = 8
+        mem[10] = 8'h01;
+        mem[11] = 8'h08; // mtb = mtb (1/8)
+        mem[18] = 8'h6e; // TRCD = 13_750
+        mem[20] = 8'h6c; //TRP = 13_500
+        mem[21] = 8'h01; // TRAS = 35_000
+        mem[22] = 8'h18;
     end
 
     reg [7:0] mem_adr;   // memory address

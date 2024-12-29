@@ -9,6 +9,8 @@ module spd_reader_top (
     // i2c interface
     inout wire i2c_scl,
     inout wire i2c_sda,
+    // uart tx interface
+    output wire uart_tx,
     // fan
     output wire fan_pwm,
     //Debug LEDs
@@ -58,6 +60,7 @@ module spd_reader_top (
         .i_rst_n(i_rst_n && clk_locked),
         .i2c_scl(i2c_scl),
         .i2c_sda(i2c_sda),
+        .uart_tx(uart_tx),
         .find_i2c_address_done(find_i2c_address_done),
         .read_spd_done(read_spd_done)
     );  

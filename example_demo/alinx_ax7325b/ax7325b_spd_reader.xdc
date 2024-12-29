@@ -24,10 +24,14 @@ set_property IOSTANDARD LVCMOS25 [get_ports i_rst_n]
 
 ##############LED define##################
 set_property PACKAGE_PIN A22 [get_ports {led[0]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {led[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
 set_property PACKAGE_PIN C19 [get_ports {led[1]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {led[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
 set_property PACKAGE_PIN B19 [get_ports {led[2]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {led[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
 set_property PACKAGE_PIN E18 [get_ports {led[3]}]
-set_property IOSTANDARD LVCMOS15 [get_ports {led[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {led[3]}]
+
+##############uart define###########################
+set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
+set_property PACKAGE_PIN AK26 [get_ports uart_tx]
