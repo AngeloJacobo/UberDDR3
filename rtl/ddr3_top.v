@@ -41,6 +41,12 @@ module ddr3_top #(
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus 
                    DUAL_RANK_DIMM = 0, // enable dual rank DIMM (1 =  enable, 0 = disable)
+    // DDR3 timing parameter values
+    parameter      SPEED_BIN = 3, // 0 = Use top-level parameters , 1 = DDR3-1066 (7-7-7) , 2 = DR3-1333 (9-9-9) , 3 = DDR3-1600 (11-11-11)
+                   SDRAM_CAPACITY = 5, // 0 = 256Mb, 1 = 512Mb, 2 = 1Gb, 3 = 2Gb, 4 = 4Gb, 5 = 8Gb, 6 = 16Gb
+                   TRCD = 13_750, // ps Active to Read/Write command time (only used if SPEED_BIN = 0)
+                   TRP = 13_750, // ps Precharge command period (only used if SPEED_BIN = 0)
+                   TRAS = 35_000, // ps ACT to PRE command period (only used if SPEED_BIN = 0)
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
@@ -256,7 +262,12 @@ ddr3_top #(
             .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
             .DIC(DIC), //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
             .RTT_NOM(RTT_NOM), //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
-            .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
+            .DUAL_RANK_DIMM(DUAL_RANK_DIMM), // enable dual rank DIMM (1 =  enable, 0 = disable)
+            .SPEED_BIN(SPEED_BIN), // 0 = Use top-level parameters , 1 = DDR3-1066 (7-7-7) , 2 = DR3-1333 (9-9-9) , 3 = DDR3-1600 (11-11-11)
+            .SDRAM_CAPACITY(SDRAM_CAPACITY), // 0 = 256Mb, 1 = 512Mb, 2 = 1Gb, 3 = 2Gb, 4 = 4Gb, 5 = 8Gb, 6 = 16Gb
+            .TRCD(TRCD), // ps Active to Read/Write command time (only used if SPEED_BIN = 0)
+            .TRP(TRP), // ps Precharge command period (only used if SPEED_BIN = 0)
+            .TRAS(TRAS) // ps ACT to PRE command period (only used if SPEED_BIN = 0)
         ) ddr3_controller_inst (
             .i_controller_clk(i_controller_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD 
             .i_rst_n(i_rst_n), //200MHz input clock

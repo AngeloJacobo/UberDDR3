@@ -33,5 +33,5 @@ set_property PACKAGE_PIN E18 [get_ports {led[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[3]}]
 
 ##############uart define###########################
-set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
+set_property IOSTANDARD LVCMOS25 [get_ports uart_tx]
 set_property PACKAGE_PIN AK26 [get_ports uart_tx]
