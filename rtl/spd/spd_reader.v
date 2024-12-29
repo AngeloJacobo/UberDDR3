@@ -60,7 +60,8 @@ module spd_reader (
     reg[9:0] uart_text_length,uart_text_length_index;
     reg uart_send_done;
     reg skip_byte;
-    reg[7:0] mtb_dividend, mtb;
+    reg[7:0] mtb_dividend, mtb_divisor;
+    wire[7:0] mtb;
     reg[3:0] tras_high;
 
     // initialize in case fpga starts with no reset
@@ -85,7 +86,7 @@ module spd_reader (
         uart_text = {(30*8){1'b0}};
         skip_byte = 0;
         mtb_dividend = 0;
-        mtb = 0;
+        mtb_divisor = 0;
         tras_high = 0;
     end
 
@@ -107,7 +108,7 @@ module spd_reader (
             uart_text = {(30*8){1'b0}};
             skip_byte <= 1'b0;
             mtb_dividend <= 0;
-            mtb <= 0;
+            mtb_divisor <= 0;
             tras_high <= 0;
         end
         else begin
@@ -301,10 +302,15 @@ module spd_reader (
                             uart_text[7:0] <= 8'h0a;
                         end
                         11: begin
-                            mtb = mtb_dividend*1000/miso_data;
+                            mtb_divisor <= miso_data;
                             uart_start_send <= 1'b1;
-                            uart_text_length <= 15; 
-                            uart_text[30*8-1:8*8] <= "mtb: 0x";
+                            uart_text_length <= 1; 
+                            uart_text[7:0] <= "m";
+                        end
+                        12: begin // give time for mtb to be computer
+                            uart_start_send <= 1'b1;
+                            uart_text_length <= 14; 
+                            uart_text[30*8-1:8*8] <= "tb: 0x";
                             uart_text[8*8-1:8*7] <= hex_to_ascii(mtb[7:4]);
                             uart_text[7*8-1:8*6] <= hex_to_ascii(mtb[3:0]);
                             uart_text[6*8-1:8*1] <= " (ps)";
@@ -362,6 +368,7 @@ module spd_reader (
             endcase
         end
     end
+    assign mtb = mtb_dividend*1000/miso_data; // mtb is MCP (multicycle path) to give time for multiplication to be done
 
     // FSM for uart 
     // uart_text = "Hello" , uart_text_length = 5
