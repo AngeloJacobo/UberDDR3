@@ -368,7 +368,7 @@ module spd_reader (
             endcase
         end
     end
-    assign mtb = mtb_dividend*1000/miso_data; // mtb is MCP (multicycle path) to give time for multiplication to be done
+    assign mtb = mtb_dividend*1000/mtb_divisor; // mtb is MCP (multicycle path) to give time for multiplication to be done
 
     // FSM for uart 
     // uart_text = "Hello" , uart_text_length = 5
