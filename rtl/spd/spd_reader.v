@@ -7,7 +7,10 @@ module spd_reader (
     input wire i_rst_n,
     // i2c interface
     inout wire i2c_scl,
-    inout wire i2c_sda
+    inout wire i2c_sda,
+    // state of spd reader
+    (* mark_debug = "true" *) output reg find_i2c_address_done,
+    (* mark_debug = "true" *) output reg read_spd_done
     // uart interface
     // input uart_rx,
     // output uart_tx
@@ -25,9 +28,9 @@ module spd_reader (
     localparam I2C_ADDRESS = 7'h30;
     localparam IDLE = 0,
                 READ_ADDRESS = 1, 
+                READ_BYTE = 1,
                 WAIT_ACK = 2;
     (* mark_debug = "true" *) reg[1:0] state_find_i2c_address;
-    (* mark_debug = "true" *) reg find_i2c_address_done;
     (* mark_debug = "true" *) reg[6:0] i2c_address;
 
     // i2c master interface
@@ -38,7 +41,27 @@ module spd_reader (
     wire[7:0] miso_data;
     wire busy;
     wire slave_nack;
-    
+    (* mark_debug = "true" *) reg nack_unexpected_err;
+    (* mark_debug = "true" *) reg[2:0] state_read_spd;
+    (* mark_debug = "true" *) reg[5:0] byte_address; // read until byte 63
+    (* mark_debug = "true" *) reg[7:0] byte_data[63:0];
+
+
+    // initialize in case fpga starts with no reset
+    initial begin
+        state_find_i2c_address = IDLE;
+        find_i2c_address_done = 0;
+        enable = 1'b0;
+        read_write = 1'b0;
+        register_address = 8'd0;
+        i2c_address = 7'd0;
+        read_spd_done = 1'b0;
+        nack_unexpected_err = 1'b0;
+        state_read_spd = IDLE;
+        byte_address = 6'h00;
+    end
+
+    // main FSM
     always @(posedge i_clk, negedge i_rst_n) begin
         if(!i_rst_n) begin
             state_find_i2c_address <= IDLE;
@@ -47,13 +70,17 @@ module spd_reader (
             read_write <= 1'b0;
             register_address <= 8'd0;
             i2c_address <= 7'd0;
+            read_spd_done <= 1'b0;
+            nack_unexpected_err <= 1'b0;
+            state_read_spd <= IDLE;
+            byte_address <= 6'h00;
         end
         else begin
             // Find I2C Address of SPD
             case(state_find_i2c_address)
                 IDLE: if(!find_i2c_address_done) begin
                     state_find_i2c_address <= READ_ADDRESS;
-                    i2c_address <= 7'd0;
+                    i2c_address <= 7'h01; // start brute force find i2c address from 1 (0 might be general call)
                 end
                 READ_ADDRESS: if(!busy) begin
                     enable <= 1'b1;
@@ -71,10 +98,44 @@ module spd_reader (
                         state_find_i2c_address <= IDLE;
                         find_i2c_address_done <= 1'b1;
                     end
+                    end
+                    else begin
+                        enable <= 1'b0;
+                    end
+                default: state_find_i2c_address <= IDLE;
+            endcase
+
+            // read bytes from SPD
+            case(state_read_spd) 
+                IDLE: if(find_i2c_address_done && !read_spd_done && !nack_unexpected_err) begin // start read SPD only once i2c address is found
+                    state_read_spd <= READ_BYTE;
+                    byte_address <= 6'h00; // start read from byte 0
                 end
-                else begin
-                    enable <= 1'b0;
+                READ_BYTE: if(!busy) begin // if not busy, send i2c read transaction
+                    enable <= 1'b1;
+                    read_write <= 1'b1; // read i2c
+                    register_address <= {2'b00,byte_address};
+                    device_address <= i2c_address;
+                    state_read_spd <= WAIT_ACK;
                 end
+                WAIT_ACK: if(!busy && !enable) begin
+                    if(slave_nack) begin // if i2c_address NACKS, then something is wrong, raise nack_unexpected_err
+                        nack_unexpected_err <= 1'b1;
+                        state_read_spd <= IDLE;
+                    end
+                    else begin // I2C acks so store the received byte
+                        byte_data[byte_address] <= miso_data;
+                        state_read_spd <= READ_BYTE;
+                        byte_address <= byte_address + 1;
+                        if(byte_address == 63) begin
+                            read_spd_done <= 1'b1;
+                            state_read_spd <= IDLE;
+                        end
+                    end
+                    end
+                    else begin
+                        enable <= 1'b0;
+                    end
             endcase
         end
     end

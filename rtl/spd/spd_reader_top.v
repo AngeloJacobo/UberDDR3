@@ -9,15 +9,21 @@ module spd_reader_top (
     // i2c interface
     inout wire i2c_scl,
     inout wire i2c_sda,
-    output wire i2c_lsb,
     // fan
-    output wire fan_pwm
+    output wire fan_pwm,
+    //Debug LEDs
+    output wire[3:0] led
 );
-    assign fan_pwm = 1'b0; // turn on fan
-    assign i2c_lsb = 1'b0;
+
     wire clk_locked;
     wire main_clk_100;
+    wire find_i2c_address_done, read_spd_done;
 
+    assign fan_pwm = 1'b0; // turn on fan from the start
+    assign led[0] = find_i2c_address_done; // lights up once done
+    assign led[1] = find_i2c_address_done;
+    assign led[2] = read_spd_done; 
+    assign led[3] = read_spd_done; 
 
     //===========================================================================
     //Differentia system clock to single end clock
@@ -51,7 +57,9 @@ module spd_reader_top (
         .i_clk(main_clk_100),
         .i_rst_n(i_rst_n && clk_locked),
         .i2c_scl(i2c_scl),
-        .i2c_sda(i2c_sda)
+        .i2c_sda(i2c_sda),
+        .find_i2c_address_done(find_i2c_address_done),
+        .read_spd_done(read_spd_done)
     );  
 
 

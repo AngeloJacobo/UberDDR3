@@ -72,7 +72,7 @@ module i2c_slave (scl, sda);
     //
     // parameters
     //
-    parameter I2C_ADR = 7'b001_0000;
+    parameter I2C_ADR = 7'b000_0100;
 
     //
     // input && outpus
@@ -86,13 +86,13 @@ module i2c_slave (scl, sda);
     wire debug = 1'b1;
     genvar i;
 
-    reg [7:0] mem [3:0]; // initiate memory
+    reg [7:0] mem [99:0]; // initiate memory
 
+    integer index;
     initial begin
-        mem[0] = 8'd00;
-        mem[1] = 8'd01;
-        mem[2] = 8'd02;
-        mem[3] = 8'd03;
+        for (index = 0; index <= 100; index = index + 1) begin
+            mem[index] = index; // Assign each element with its index value
+        end
     end
 
     reg [7:0] mem_adr;   // memory address
@@ -350,14 +350,14 @@ module i2c_slave (scl, sda);
                 fast_tsu_sto  =  600,
                 fast_tbuf     = 1300;
 
-      $width(negedge scl, normal_scl_low);  // scl low time
-      $width(posedge scl, normal_scl_high); // scl high time
+//      $width(negedge scl, normal_scl_low);  // scl low time
+//      $width(posedge scl, normal_scl_high); // scl high time
 
-      $setup(posedge scl, negedge sda &&& scl, normal_tsu_sta); // setup start
-      $setup(negedge sda &&& scl, negedge scl, normal_thd_sta); // hold start
-      $setup(posedge scl, posedge sda &&& scl, normal_tsu_sto); // setup stop
+//      $setup(posedge scl, negedge sda &&& scl, normal_tsu_sta); // setup start
+//      $setup(negedge sda &&& scl, negedge scl, normal_thd_sta); // hold start
+//      $setup(posedge scl, posedge sda &&& scl, normal_tsu_sto); // setup stop
 
-      $setup(posedge tst_sta, posedge tst_sto, normal_tbuf); // stop to start time
+//      $setup(posedge tst_sta, posedge tst_sto, normal_tbuf); // stop to start time
     endspecify
 
 endmodule

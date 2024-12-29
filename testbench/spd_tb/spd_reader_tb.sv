@@ -17,10 +17,7 @@ module spd_reader_tb;
         .i_rst_n(rst_n),
         // i2c interface
         .i2c_scl(scl),
-        .i2c_sda(sda),
-        .i2c_lsb(),
-        // fan
-        .fan_pwm()
+        .i2c_sda(sda)
     );
 
     initial begin
@@ -28,7 +25,7 @@ module spd_reader_tb;
         rst_n = 0;
         #100;
         rst_n = 1;
-        wait(DUT.spd_reader_inst.find_i2c_address_done);
+        wait(DUT.spd_reader_inst.read_spd_done);
         #10_000;
         $stop;
     end
