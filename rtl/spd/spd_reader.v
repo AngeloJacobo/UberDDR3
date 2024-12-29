@@ -184,8 +184,9 @@ module spd_reader (
                     case(byte_address) 
                         0: begin
                             uart_start_send <= 1'b1;
-                            uart_text_length <= 15; 
-                            uart_text[30*8-1:8] <= "START SPD READ";
+                            uart_text_length <= 29; 
+                            uart_text[30*8-1:8*29] <= 8'h0a;
+                            uart_text[29*8-1:8] <= "------ START SPD READ ------";
                             uart_text[7:0] <= 8'h0a;
                         end
                         1: begin
