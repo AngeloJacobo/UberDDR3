@@ -273,7 +273,7 @@ module spd_reader (
                         7: begin
                                 uart_start_send <= 1'b1;
                                 uart_text_length <= 18; 
-                                if(miso_data[5:3] == 0) begin
+                                if(miso_data[5:3] == 1) begin
                                     uart_text[30*8-1:8] <= "DUAL_RANK_DIMM: 1";
                                 end
                                 else begin
@@ -327,11 +327,14 @@ module spd_reader (
                         end
                         21: begin
                             tras_high = miso_data[3:0];
+                            uart_start_send <= 1'b1;
+                            uart_text_length <= 1; 
+                            uart_text[7:0] <= "T";
                         end
                         22: begin
                             uart_start_send <= 1'b1;
-                            uart_text_length <= 18; 
-                            uart_text[30*8-1:8*4] <= "TRAS: mtb * 0x";
+                            uart_text_length <= 17; 
+                            uart_text[30*8-1:8*4] <= "RAS: mtb * 0x";
                             uart_text[4*8-1:8*3] <= hex_to_ascii(tras_high[3:0]);
                             uart_text[3*8-1:8*2] <= hex_to_ascii(miso_data[7:4]);
                             uart_text[2*8-1:8*1] <= hex_to_ascii(miso_data[3:0]);
