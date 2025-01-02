@@ -1,3 +1,34 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Filename: spd_reader.v
+// Project:	Serial Presence Detect (SPD) Reader for UberDDR3
+//
+// Purpose: Communicates with the SPD (Serial Presence Detect) chip on the 
+// DDR3 DIMM using the I2C protocol to retrieve essential timing parameters 
+// and configuration details required by UberDDR3. The SPD report will be 
+// reported via the UART line.
+//
+// Engineer: Angelo C. Jacobo
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2023-2025  Angelo Jacobo
+// 
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 `default_nettype none
 `timescale 1ns / 1ps
 
@@ -14,15 +45,6 @@ module spd_reader (
     // uart interface
     output wire uart_tx
 );
-
-    // byte 2: DRAM Device Type (DDR3 SDRAM = 0x0B)
-    // byte 3: Module Type (SO-DIMM = 0x03)
-    // byte 4: SDRAM Density and Banks ([6:4] = BA_BITS, [3:0] = SDRAM capacity)
-    // byte 5: SDRAM Addressing ([5:3] = Row Addr , [2:0] = Column Addr)
-    // byte 7: Module Organization ([5:3] = Ranks , Device Width = [2:0])
-    // byte 8: Module Memory Bus Width ([2:0] = Bus Width)
-    // byte 10,11: Medium Timebase (MTB) Dividend (0x01), Medium Timebase (MTB) Divisor (0x08 = 0.125ns , 0x10 = 0.0625ns) (tXX = tXX(MTB) * MTB)
-    // byte 12: SDRAM Minimum Cycle Time tCK
 
     localparam I2C_ADDRESS = 7'h30;
     localparam IDLE = 0,

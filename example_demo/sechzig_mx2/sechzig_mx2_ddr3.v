@@ -16,7 +16,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2023-2024  Angelo Jacobo
+// Copyright (C) 2023-2025  Angelo Jacobo
 // Copyright (C) 2024       Lone Dynamics Corporation
 // 
 //     This program is free software: you can redistribute it and/or modify
