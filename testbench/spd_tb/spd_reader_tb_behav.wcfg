@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="spd_reader_tb_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="spd_reader_tb" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0.004104000 ms"></ZoomStartTime>
+      <ZoomEndTime time="5.854104001 ms"></ZoomEndTime>
+      <Cursor1Time time="0.284104000 ms"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="238"></NameColumnWidth>
+      <ValueColumnWidth column_width="104"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="35" />
+   <wave_markers>
+      <marker label="" time="6062762500" />
+      <marker label="" time="6172762500" />
+   </wave_markers>
+   <wvobject fp_name="divider37" type="divider">
+      <obj_property name="label">spd_reader_top</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/sys_clk_p">
+      <obj_property name="ElementShortName">sys_clk_p</obj_property>
+      <obj_property name="ObjectShortName">sys_clk_p</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/sys_clk_n">
+      <obj_property name="ElementShortName">sys_clk_n</obj_property>
+      <obj_property name="ObjectShortName">sys_clk_n</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/i_rst_n">
+      <obj_property name="ElementShortName">i_rst_n</obj_property>
+      <obj_property name="ObjectShortName">i_rst_n</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/i2c_scl">
+      <obj_property name="ElementShortName">i2c_scl</obj_property>
+      <obj_property name="ObjectShortName">i2c_scl</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/i2c_sda">
+      <obj_property name="ElementShortName">i2c_sda</obj_property>
+      <obj_property name="ObjectShortName">i2c_sda</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/fan_pwm">
+      <obj_property name="ElementShortName">fan_pwm</obj_property>
+      <obj_property name="ObjectShortName">fan_pwm</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/clk_locked">
+      <obj_property name="ElementShortName">clk_locked</obj_property>
+      <obj_property name="ObjectShortName">clk_locked</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/main_clk_100">
+      <obj_property name="ElementShortName">main_clk_100</obj_property>
+      <obj_property name="ObjectShortName">main_clk_100</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/sys_clk">
+      <obj_property name="ElementShortName">sys_clk</obj_property>
+      <obj_property name="ObjectShortName">sys_clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider37" type="divider">
+      <obj_property name="label">spd_reader</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/i_clk">
+      <obj_property name="ElementShortName">i_clk</obj_property>
+      <obj_property name="ObjectShortName">i_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/i_rst_n">
+      <obj_property name="ElementShortName">i_rst_n</obj_property>
+      <obj_property name="ObjectShortName">i_rst_n</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/i2c_scl">
+      <obj_property name="ElementShortName">i2c_scl</obj_property>
+      <obj_property name="ObjectShortName">i2c_scl</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/i2c_sda">
+      <obj_property name="ElementShortName">i2c_sda</obj_property>
+      <obj_property name="ObjectShortName">i2c_sda</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/state_find_i2c_address">
+      <obj_property name="ElementShortName">state_find_i2c_address[1:0]</obj_property>
+      <obj_property name="ObjectShortName">state_find_i2c_address[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/find_i2c_address_done">
+      <obj_property name="ElementShortName">find_i2c_address_done</obj_property>
+      <obj_property name="ObjectShortName">find_i2c_address_done</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/i2c_address">
+      <obj_property name="ElementShortName">i2c_address[6:0]</obj_property>
+      <obj_property name="ObjectShortName">i2c_address[6:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/enable">
+      <obj_property name="ElementShortName">enable</obj_property>
+      <obj_property name="ObjectShortName">enable</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/read_write">
+      <obj_property name="ElementShortName">read_write</obj_property>
+      <obj_property name="ObjectShortName">read_write</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/register_address">
+      <obj_property name="ElementShortName">register_address[7:0]</obj_property>
+      <obj_property name="ObjectShortName">register_address[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/device_address">
+      <obj_property name="ElementShortName">device_address[6:0]</obj_property>
+      <obj_property name="ObjectShortName">device_address[6:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/miso_data">
+      <obj_property name="ElementShortName">miso_data[7:0]</obj_property>
+      <obj_property name="ObjectShortName">miso_data[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/busy">
+      <obj_property name="ElementShortName">busy</obj_property>
+      <obj_property name="ObjectShortName">busy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/slave_nack">
+      <obj_property name="ElementShortName">slave_nack</obj_property>
+      <obj_property name="ObjectShortName">slave_nack</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/read_spd_done">
+      <obj_property name="ElementShortName">read_spd_done</obj_property>
+      <obj_property name="ObjectShortName">read_spd_done</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/spd_reader_tb/DUT/spd_reader_inst/nack_unexpected_err">
+      <obj_property name="ElementShortName">nack_unexpected_err</obj_property>
+      <obj_property name="ObjectShortName">nack_unexpected_err</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/state_read_spd">
+      <obj_property name="ElementShortName">state_read_spd[2:0]</obj_property>
+      <obj_property name="ObjectShortName">state_read_spd[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/byte_address">
+      <obj_property name="ElementShortName">byte_address[5:0]</obj_property>
+      <obj_property name="ObjectShortName">byte_address[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/byte_data">
+      <obj_property name="ElementShortName">byte_data[63:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">byte_data[63:0][7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/I2C_ADDRESS">
+      <obj_property name="ElementShortName">I2C_ADDRESS[6:0]</obj_property>
+      <obj_property name="ObjectShortName">I2C_ADDRESS[6:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/IDLE">
+      <obj_property name="ElementShortName">IDLE[31:0]</obj_property>
+      <obj_property name="ObjectShortName">IDLE[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/READ_ADDRESS">
+      <obj_property name="ElementShortName">READ_ADDRESS[31:0]</obj_property>
+      <obj_property name="ObjectShortName">READ_ADDRESS[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/READ_BYTE">
+      <obj_property name="ElementShortName">READ_BYTE[31:0]</obj_property>
+      <obj_property name="ObjectShortName">READ_BYTE[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/spd_reader_tb/DUT/spd_reader_inst/WAIT_ACK">
+      <obj_property name="ElementShortName">WAIT_ACK[31:0]</obj_property>
+      <obj_property name="ObjectShortName">WAIT_ACK[31:0]</obj_property>
+   </wvobject>
+</wave_config>
