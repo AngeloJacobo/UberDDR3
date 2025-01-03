@@ -31,8 +31,8 @@
 `define sg125
 `define x16
 //`define USE_CLOCK_WIZARD
-`define TWO_LANES_x8
-//`define EIGHT_LANES_x8
+//`define TWO_LANES_x8
+`define EIGHT_LANES_x8
 `define RAM_8Gb
 
 module ddr3_dimm_micron_sim;
@@ -57,15 +57,18 @@ module ddr3_dimm_micron_sim;
 
 `ifdef EIGHT_LANES_x8
     localparam BYTE_LANES = 8,
-                ODELAY_SUPPORTED = 1;
+                ODELAY_SUPPORTED = 0;
 `endif
 
 
  localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 2500, //ps, period of clock input to DDR3 RAM device 
+            DDR3_CLK_PERIOD = 2500,//ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
-            SELF_REFRESH = 2'b11;
+            SELF_REFRESH = 2'b11,
+            DUAL_RANK_DIMM = 1,
+            TEST_SELF_REFRESH = 1;
+        
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -95,7 +98,7 @@ module ddr3_dimm_micron_sim;
   wire[$bits(ddr3_top.io_ddr3_dq)-1:0] dq;
   wire[$bits(ddr3_top.io_ddr3_dqs)-1:0] dqs;
   wire[$bits(ddr3_top.io_ddr3_dqs_n)-1:0] dqs_n;
-  wire o_ddr3_clk_p, o_ddr3_clk_n;
+  wire[1:0] o_ddr3_clk_p, o_ddr3_clk_n;
   integer index;
   // Wishbone 2 (PHY) inputs
   reg i_wb2_cyc; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -167,7 +170,8 @@ ddr3_top #(
     .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     .WB_ERROR(1), // set to 1 to support Wishbone error (asserts at ECC double bit error)
     .SKIP_INTERNAL_TEST(0), // skip built-in self test (would require >2 seconds of internal test right after calibration)
-    .SELF_REFRESH(SELF_REFRESH) // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
+    .SELF_REFRESH(SELF_REFRESH), // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
+    .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
     ) ddr3_top
     (
         //clock and reset
@@ -201,11 +205,11 @@ ddr3_top #(
         .o_wb2_ack(o_wb2_ack), //1 = read/write request has completed
         .o_wb2_data(o_wb2_data), //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         // PHY Interface (to be added later)
-        .o_ddr3_clk_p(o_ddr3_clk_p),
-        .o_ddr3_clk_n(o_ddr3_clk_n),
-        .o_ddr3_cke(ck_en[0]), // CKE
-        .o_ddr3_cs_n(cs_n[0]), // chip select signal
-        .o_ddr3_odt(odt[0]), // on-die termination
+        .o_ddr3_clk_p(o_ddr3_clk_p[DUAL_RANK_DIMM:0]),
+        .o_ddr3_clk_n(o_ddr3_clk_n[DUAL_RANK_DIMM:0]),
+        .o_ddr3_cke(ck_en[DUAL_RANK_DIMM:0]), // CKE
+        .o_ddr3_cs_n(cs_n[DUAL_RANK_DIMM:0]), // chip select signal
+        .o_ddr3_odt(odt[DUAL_RANK_DIMM:0]), // on-die termination
         .o_ddr3_ras_n(ras_n), // RAS#
         .o_ddr3_cas_n(cas_n), // CAS#
         .o_ddr3_we_n(we_n), // WE#
@@ -225,8 +229,8 @@ ddr3_top #(
     // 1 lane DDR3
     ddr3 ddr3_0(
         .rst_n(reset_n),
-        .ck(o_ddr3_clk_p),
-        .ck_n(o_ddr3_clk_n),
+        .ck(o_ddr3_clk_p[0]),
+        .ck_n(o_ddr3_clk_n[0]),
         .cke(ck_en[0]),
         .cs_n(cs_n[0]),
         .ras_n(ras_n),
@@ -241,30 +245,38 @@ ddr3_top #(
         .tdqs_n(),
         .odt(odt[0])
     );
-    assign ck_en[1]=0,
-           cs_n[1]=1,
-           odt[1]=0; 
 `endif
 
 `ifdef EIGHT_LANES_x8
     // DDR3 Device 
     ddr3_module ddr3_module(
         .reset_n(reset_n),
-        .ck(o_ddr3_clk_p),
-        .ck_n(o_ddr3_clk_n),
-        .cke(ck_en),
-        .s_n(cs_n), 
+        .ck(o_ddr3_clk_p), //[1:0]
+        .ck_n(o_ddr3_clk_n), //[1:0]
+        .cke(ck_en), //[1:0]
+        .s_n(cs_n), //[1:0]
         .ras_n(ras_n),
         .cas_n(cas_n),
         .we_n(we_n),
         .ba(ba_addr),
         .addr(addr),
-        .odt(odt),
+        .odt(odt), //[1:0]
         .dqs({ddr3_dm[0], ddr3_dm,ddr3_dm[0],dqs}), //ddr3_module uses last 8 MSB [16:9] as datamask
         .dqs_n(dqs_n),
         .dq(dq)
     );
+    generate
+        if(!DUAL_RANK_DIMM) begin // if dual rank disabled then rank 1 is idle
+            assign ck_en[1]=0,
+                   cs_n[1]=1,
+                   odt[1]=0,
+                   o_ddr3_clk_p[1]=0,
+                   o_ddr3_clk_n[1]=0; 
+        end
+    endgenerate
  `endif
+ 
+ 
     reg[ddr3_top.ddr3_controller_inst.wb_data_bits-1:0] orig_phy_data;
     // Force change for ECC tests
     // Uncommented since there is ECC_TEST parameter inside ddr3_controller to test ECC
@@ -728,17 +740,19 @@ ddr3_top #(
     end
     
     task self_refresh;
-        if(SELF_REFRESH == 2'b00) begin
-             // test self refresh 
-            @(posedge i_controller_clk)
-            i_user_self_refresh = 1;
-            #40_000_000; //40_000 ns of self-refresh
-            @(posedge i_controller_clk)
-            i_user_self_refresh = 0;
-        end
-        else begin
-            #10_000_000; // 10_000 ns of rest
-        end
+        if(TEST_SELF_REFRESH) begin
+            if(SELF_REFRESH == 2'b00) begin
+                 // test self refresh 
+                @(posedge i_controller_clk)
+                i_user_self_refresh = 1;
+                #40_000_000; //40_000 ns of self-refresh
+                @(posedge i_controller_clk)
+                i_user_self_refresh = 0;
+            end
+            else begin
+                #10_000_000; // 10_000 ns of rest
+            end
+         end
     endtask
         
     //check read data
@@ -945,7 +959,7 @@ ddr3_top #(
     reg[31:0] time_now;
     reg[3:0] repeats = 0; 
     //display commands issued
-    always @(posedge o_ddr3_clk_p) begin
+    always @(posedge o_ddr3_clk_p[0]) begin
         if(!cs_n[0]) begin //command is center-aligned to positive edge of clock, a valid command always has low cs_n
             case({cs_n[0], ras_n, cas_n, we_n})
                  4'b0000: command_used = "MRS";

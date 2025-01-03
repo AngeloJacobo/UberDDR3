@@ -39,6 +39,7 @@ module ddr3_phy #(
                   BA_BITS = 3,
                   DQ_BITS = 8,
                   LANES = 8,
+                  DUAL_RANK_DIMM = 0, // enable dual rank DIMM (1 =  enable, 0 = disable)
     parameter[0:0] ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    USE_IO_TERMINATION = 0, //use IOBUF_DCIEN and IOBUFDS_DCIEN when 1
                    NO_IOSERDES_LOOPBACK = 1, // don't use IOSERDES loopback for bitslip training
@@ -47,7 +48,7 @@ module ddr3_phy #(
               wb_data_bits = DQ_BITS*LANES*serdes_ratio*2,
               wb_sel_bits = wb_data_bits / 8,
               //4 is the width of a single ddr3 command {cs_n, ras_n, cas_n, we_n} plus 3 (ck_en, odt, reset_n) plus bank bits plus row bits
-              cmd_len = 4 + 3 + BA_BITS + ROW_BITS
+              cmd_len = 4 + 3 + BA_BITS + ROW_BITS + 2*DUAL_RANK_DIMM
     )(
         input wire i_controller_clk, i_ddr3_clk, i_ref_clk,
         input wire i_ddr3_clk_90, //required only when ODELAY_SUPPORTED is zero
@@ -70,10 +71,10 @@ module ddr3_phy #(
         output wire[LANES*8-1:0] o_controller_iserdes_bitslip_reference,
         output wire o_controller_idelayctrl_rdy,
         // DDR3 I/O Interface
-        output wire o_ddr3_clk_p,o_ddr3_clk_n,
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_clk_p,o_ddr3_clk_n,
         output wire o_ddr3_reset_n,
-        output wire o_ddr3_cke, // CKE
-        output wire o_ddr3_cs_n, // chip select signal
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_cke, // CKE
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_cs_n, // chip select signal
         output wire o_ddr3_ras_n, // RAS#
         output wire o_ddr3_cas_n, // CAS#
         output wire o_ddr3_we_n, // WE#
@@ -82,22 +83,24 @@ module ddr3_phy #(
         inout wire[(DQ_BITS*LANES)-1:0] io_ddr3_dq,
         inout wire[(DQ_BITS*LANES)/8-1:0] io_ddr3_dqs, io_ddr3_dqs_n,
         output wire[LANES-1:0] o_ddr3_dm,
-        output wire o_ddr3_odt, // on-die termination
+        output wire[DUAL_RANK_DIMM:0] o_ddr3_odt, // on-die termination
         // DEBUG PHY
         output wire[(DQ_BITS*LANES)/8-1:0] o_ddr3_debug_read_dqs_p,
         output wire[(DQ_BITS*LANES)/8-1:0] o_ddr3_debug_read_dqs_n
     );
 
     // cmd bit assignment
-    localparam CMD_CS_N = cmd_len - 1, 
-               CMD_RAS_N = cmd_len - 2,
-               CMD_CAS_N= cmd_len - 3,
-               CMD_WE_N = cmd_len - 4,
-               CMD_ODT = cmd_len - 5,
-               CMD_CKE = cmd_len - 6, 
-               CMD_RESET_N = cmd_len - 7,
-               CMD_BANK_START = BA_BITS + ROW_BITS - 1,
-               CMD_ADDRESS_START = ROW_BITS - 1;
+    localparam CMD_CS_N_2 = cmd_len - 1,
+                CMD_CS_N =  DUAL_RANK_DIMM[0]? cmd_len - 2 : cmd_len - 1,
+                CMD_RAS_N = DUAL_RANK_DIMM[0]? cmd_len - 3 : cmd_len - 2,
+                CMD_CAS_N = DUAL_RANK_DIMM[0]? cmd_len - 4 : cmd_len - 3,
+                CMD_WE_N =  DUAL_RANK_DIMM[0]? cmd_len - 5 : cmd_len - 4,
+                CMD_ODT =   DUAL_RANK_DIMM[0]? cmd_len - 6 : cmd_len - 5,
+                CMD_CKE_2 = DUAL_RANK_DIMM[0]? cmd_len - 7 : cmd_len - 6,
+                CMD_CKE =   DUAL_RANK_DIMM[0]? cmd_len - 8 : cmd_len - 6,
+                CMD_RESET_N = DUAL_RANK_DIMM[0]? cmd_len - 9 : cmd_len - 7,
+                CMD_BANK_START = BA_BITS + ROW_BITS - 1,
+                CMD_ADDRESS_START = ROW_BITS - 1;
     localparam SYNC_RESET_DELAY = $rtoi($ceil(52_000/CONTROLLER_CLK_PERIOD)); //52_000 ps of reset pulse width required for IDELAYCTRL 
     //cmd needs to be center-aligned to the positive edge of the 
     //ddr3_clk. This means cmd needs to be delayed by half the ddr3
@@ -223,14 +226,77 @@ module ddr3_phy #(
             // End of OSERDESE2_inst instantiation
       
         end
+
+        if(DUAL_RANK_DIMM) begin // if dual rank enabled, odt_2 and odt_1 will be generated separately
+            // OSERDESE2: Output SERial/DESerializer with bitslip
+            //7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OSERDESE2 #(
+                .DATA_RATE_OQ("SDR"), // DDR, SDR
+                .DATA_RATE_TQ("SDR"), // DDR, SDR
+                .DATA_WIDTH(4), // Parallel data width (2-8,10,14)
+                .INIT_OQ(1'b0), // Initial value of OQ output (1'b0,1'b1)
+                .TRISTATE_WIDTH(1)
+            )
+            OSERDESE2_cmd(
+                .OFB(), // 1-bit output: Feedback path for data
+                .OQ(o_ddr3_odt[1]), // 1-bit output: Data path output
+                .CLK(i_ddr3_clk), // 1-bit input: High speed clock
+                .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1(i_controller_cmd[cmd_len*0 + CMD_ODT]),
+                .D2(i_controller_cmd[cmd_len*1 + CMD_ODT]),
+                .D3(i_controller_cmd[cmd_len*2 + CMD_ODT]),
+                .D4(i_controller_cmd[cmd_len*3 + CMD_ODT]),
+                .OCE(1'b1), // 1-bit input: Output data clock enable
+                .RST(sync_rst), // 1-bit input: Reset
+                // unused signals but were added here to make vivado happy
+                .SHIFTOUT1(), // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT2(),
+                .TBYTEOUT(), // 1-bit output: Byte group tristate
+                .TFB(), // 1-bit output: 3-state control
+                .TQ(), // 1-bit output: 3-state control
+                .D5(),
+                .D6(),
+                .D7(),
+                .D8(),
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1(0),
+                .SHIFTIN2(0),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1(0),
+                .T2(0),
+                .T3(0),
+                .T4(0),
+                .TBYTEIN(0),
+                // 1-bit input: Byte group tristate
+                .TCE(0)
+                // 1-bit input: 3-state clock enable
+            );
+            // End of OSERDESE2_inst instantiation
+        end
     endgenerate 
 
-    assign o_ddr3_cs_n = oserdes_cmd[CMD_CS_N],
-           o_ddr3_ras_n = oserdes_cmd[CMD_RAS_N],
+    // cs[1] when DUAL_RANK_DIMM enabled
+    generate    
+        if(DUAL_RANK_DIMM) begin
+            assign o_ddr3_cs_n[1] = oserdes_cmd[CMD_CS_N_2];
+            assign o_ddr3_cs_n[0] = oserdes_cmd[CMD_CS_N];
+            assign o_ddr3_cke[1] = oserdes_cmd[CMD_CKE_2];
+            assign o_ddr3_cke[0] = oserdes_cmd[CMD_CKE];
+            assign o_ddr3_odt[0] = oserdes_cmd[CMD_ODT];
+            // o_ddr3_odt[1] will be generated directly by a separate OSERDES
+            // if odt[1] and odt[0] uses same output from oserdes, one of them will be unroutable
+        end
+        else begin
+            assign o_ddr3_cs_n = oserdes_cmd[CMD_CS_N];
+            assign o_ddr3_cke = oserdes_cmd[CMD_CKE];
+            assign o_ddr3_odt = oserdes_cmd[CMD_ODT];
+        end
+    endgenerate
+    assign o_ddr3_ras_n = oserdes_cmd[CMD_RAS_N],
            o_ddr3_cas_n = oserdes_cmd[CMD_CAS_N],
            o_ddr3_we_n = oserdes_cmd[CMD_WE_N],
-           o_ddr3_odt = oserdes_cmd[CMD_ODT],
-           o_ddr3_cke = oserdes_cmd[CMD_CKE],
            o_ddr3_reset_n = oserdes_cmd[CMD_RESET_N],
            o_ddr3_ba_addr = oserdes_cmd[CMD_BANK_START:CMD_ADDRESS_START+1],
            o_ddr3_addr = oserdes_cmd[CMD_ADDRESS_START:0];
@@ -308,26 +374,64 @@ module ddr3_phy #(
                 .ODATAIN(ddr3_clk), // 1-bit input: Output delay data input
                 .REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
             );
-        
-        // OBUFDS: Differential Output Buffer
-        // 7 Series
-        // Xilinx HDL Libraries Guide, version 13.4
-        OBUFDS OBUFDS_inst (
-        .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
-        .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
-        .I(ddr3_clk_delayed) // Buffer input
-        );
-        // End of OBUFDS_inst instantiation
+        // if dual rank enabled, then there will be two clk
+        if(DUAL_RANK_DIMM) begin
+            // OBUFDS: Differential Output Buffer
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OBUFDS OBUFDS0_inst (
+                .O(o_ddr3_clk_p[0]), // Diff_p output (connect directly to top-level port)
+                .OB(o_ddr3_clk_n[0]), // Diff_n output (connect directly to top-level port)
+                .I(ddr3_clk_delayed) // Buffer input
+            );
+            OBUFDS OBUFDS1_inst (
+                .O(o_ddr3_clk_p[1]), // Diff_p output (connect directly to top-level port)
+                .OB(o_ddr3_clk_n[1]), // Diff_n output (connect directly to top-level port)
+                .I(ddr3_clk_delayed) // Buffer input
+            );
+            // End of OBUFDS_inst instantiation
+        end
+        else begin
+            // OBUFDS: Differential Output Buffer
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OBUFDS OBUFDS_inst (
+                .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
+                .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
+                .I(ddr3_clk_delayed) // Buffer input
+            );
+            // End of OBUFDS_inst instantiation
+        end
     end
     else begin //ODELAY is not supported
-        // OBUFDS: Differential Output Buffer
-        // 7 Series
-        // Xilinx HDL Libraries Guide, version 13.4
-        OBUFDS OBUFDS_inst (
-        .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
-        .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
-        .I(!i_ddr3_clk) // Buffer input
-        );
+
+                // if dual rank enabled, then there will be two clk
+        if(DUAL_RANK_DIMM) begin
+            // OBUFDS: Differential Output Buffer
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OBUFDS OBUFDS0_inst (
+                .O(o_ddr3_clk_p[1]), // Diff_p output (connect directly to top-level port)
+                .OB(o_ddr3_clk_n[1]), // Diff_n output (connect directly to top-level port)
+                .I(!i_ddr3_clk) // Buffer input
+            );
+            OBUFDS OBUFDS1_inst (
+                .O(o_ddr3_clk_p[0]), // Diff_p output (connect directly to top-level port)
+                .OB(o_ddr3_clk_n[0]), // Diff_n output (connect directly to top-level port)
+                .I(!i_ddr3_clk) // Buffer input
+            );
+            // End of OBUFDS_inst instantiation
+        end
+        else begin
+            // OBUFDS: Differential Output Buffer
+            // 7 Series
+            // Xilinx HDL Libraries Guide, version 13.4
+            OBUFDS OBUFDS_inst (
+                .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
+                .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
+                .I(!i_ddr3_clk) // Buffer input
+            );
+        end
     end
     
     
