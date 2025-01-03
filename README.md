@@ -1,6 +1,7 @@
 
 # Table of Contents  
  - [Brief Description](https://github.com/AngeloJacobo/DDR3_Controller#brief-description)
+ - [Open IP Hub Blog Posts](https://github.com/AngeloJacobo/UberDDR3/edit/main/README.md#open-ip-hub-blog-posts)
  - [Getting Started](https://github.com/AngeloJacobo/DDR3_Controller#getting-started)
     - [Instantiate Design](https://github.com/AngeloJacobo/DDR3_Controller#heavy_check_mark-instantiate-design)
     - [Create Constraint File](https://github.com/AngeloJacobo/DDR3_Controller#heavy_check_mark-create-constraint-file)
@@ -8,18 +9,35 @@
  - [Lint and Formal Verification](https://github.com/AngeloJacobo/DDR3_Controller#lint-and-formal-verification)
  - [Simulation](https://github.com/AngeloJacobo/DDR3_Controller#simulation)
  - [Demo Projects](https://github.com/AngeloJacobo/UberDDR3/tree/main?tab=readme-ov-file#demo-projects)
- - [Other Open-Sourced DDR3 Controllers](https://github.com/AngeloJacobo/DDR3_Controller#other-open-sourced-ddr3-controllers)
- - [Developer Documentation](https://github.com/AngeloJacobo/DDR3_Controller#developer-documentation)
 
    
 # Brief Description
-This DDR3 controller was originally designed to be used on the [10-Gigabit Ethernet Project](https://github.com/ZipCPU/eth10g) for an 8-lane x8 DDR3 module running at 800 MHz DDR, but this is now being designed to be a more general DDR3 memory controller with multiple supported FPGA boards. This is a 4:1 memory controller with configurable timing parameters and mode registers so it can be configured to any DDR3 memory device. The user-interface is the basic Wishbone.
-
+This DDR3 controller was originally designed to be used on the [10-Gigabit Ethernet Project](https://github.com/ZipCPU/eth10g) for an 8-lane x8 DDR3 module running at 800 MHz DDR, but this is now being designed to be a more general-purpose DDR3 memory controller with multiple supported FPGA boards. This is a 4:1 memory controller with configurable timing parameters and mode registers so it can be configured to any DDR3 memory device. The user-interface is the basic Wishbone. Optional features include:
+- AXI4 User Interface ([blog post here](https://www.openiphub.com/post/uberddr3-new-feature-axi4-interface))
+- SECDEC for error correction ([blog post here](https://www.openiphub.com/post/uberddr3-feature-update-error-correction-part-1-post-5))
+- Self-Refresh ([blog post here](https://www.openiphub.com/post/uberddr3-self-refresh-reducing-power-consumption-in-idle-periods-post-9))
+- Dual-rank Support ([blog post here](https://www.openiphub.com/post/unlocking-more-memory-dual-rank-dimm-support-in-uberddr3-post-10))
+- Integratable with MicroBlaze ([blog post here](https://www.openiphub.com/post/uberddr3-microblaze-part-1-post-7))
+- Built-in self test
+  
 This memory controller is optimized to maintain a high data throughput and continuous sequential burst operations. The controller handles the reset sequence, refresh sequence, mode register configuration, bank status tracking, timing delay tracking, command issuing, and the PHY's calibration. The PHY's calibration handles the bitslip training, read-DQ/DQS alignment via MPR (read calibration), write-DQ/DQS alignment via write leveling (write calibration), and also an optional comprehensive read/write test. 
 
-The optional comprehensive read/write tests made it easier to test the memory controller without needing an external CPU. These tests include a burst access, random access, and alternating read-write access tests. Only if no error is found on these tests will the calibration end and user can start accessing the wishbone interface. 
+The optional built-in self read/write tests made it easier to test the memory controller without needing an external CPU. These tests include a burst access, random access, and alternating read-write access tests. Only if no error is found on these tests will the calibration end and user can start accessing the wishbone interface. 
 
 This design is [formally verified](https://github.com/AngeloJacobo/DDR3_Controller#lint-and-formal-verification) and [simulated using the Micron DDR3 model](https://github.com/AngeloJacobo/DDR3_Controller#simulation).
+
+# Open IP Hub Blog Posts
+Check out these blog posts for detailed explanations on new features of UberDDR3, how to use them, and project demos:  
+- [UberDDR3: An Opensource DDR3 Controller - Post #1](https://www.openiphub.com/post/uberddr3-an-opensource-ddr3-controller-post-1)  
+- [Getting Started with UberDDR3 (Part 1) - Post #2](https://www.openiphub.com/post/getting-started-with-uberddr3-part-1-post-2)  
+- [Getting Started with UberDDR3 (Part 2) - Post #3](https://www.openiphub.com/post/getting-started-with-uberddr3-part-2-post-3)  
+- [UberDDR3 Update: AXI4 Interface - Post #4](https://www.openiphub.com/post/uberddr3-new-feature-axi4-interface)  
+- [UberDDR3 Update: Error Correction (Part 1) - Post #5](https://www.openiphub.com/post/uberddr3-feature-update-error-correction-part-1-post-5)  
+- [UberDDR3 Feature Update: Error Correction (Part 2) - Post #6](https://www.openiphub.com/post/uberddr3-feature-update-error-correction-part-2-post-6)  
+- [UberDDR3 + MicroBlaze (Part 1) - Post #7](https://www.openiphub.com/post/uberddr3-microblaze-part-1-post-7)  
+- [UberDDR3 + MicroBlaze (Part 2) - Post #8](https://www.openiphub.com/post/uberddr3-microblaze-part-2-post-8)  
+- [UberDDR3 Self-Refresh: Reducing Power Consumption in Idle Periods - Post #9](https://www.openiphub.com/post/uberddr3-self-refresh-reducing-power-consumption-in-idle-periods-post-9)  
+- [Unlocking More Memory: Dual-Rank DIMM Support in UberDDR3 - Post #10](https://www.openiphub.com/post/unlocking-more-memory-dual-rank-dimm-support-in-uberddr3-post-10)   
 
 # Getting Started
 The recommended way to instantiate this IP is to use the top module [`rtl/ddr3_top.v`](https://github.com/AngeloJacobo/DDR3_Controller/blob/main/rtl/ddr3_top.v), a template for instantiation is also included in that file. Steps to include this DDR3 memory controller IP is to instantiate design, create the constraint file, then edit the localparams. 
@@ -41,8 +59,12 @@ The first thing to edit are the **top-level parameters**:
 | MICRON_SIM  | set to 1 if used in Micron DDR3 model to shorten power-on sequence, otherwise 0. |
 | ODELAY_SUPPORTED | set to 1 if ODELAYE2 primitive is supported by the FPGA, otherwise 0.  <sup>[[3]](https://github.com/AngeloJacobo/DDR3_Controller#note) </sup>  |
 | SECOND_WISHBONE | set to 1 if 2nd wishbone for debugging is needed , otherwise 0.|
-
-
+| WB_ERROR | set to 1 to support Wishbone error (asserts at ECC double bit error assuming ECCE_ENABLE != 0) |
+| SKIP_INTERNAL_TEST | set to 1 to skip built-in self test which usually takes > 2 seconds|
+| ECC_ENABLE |  set to 0 to disable ECC OR: 1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC (more about [ECC on this blog post](https://www.openiphub.com/post/uberddr3-feature-update-error-correction-part-1-post-5))|
+| DIC | Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change this when you know what you are doing) |
+| RTT_NOM | RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing) |
+| SELF_REFRESH | 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles (more on [self-refresh on this blog post](https://www.openiphub.com/post/uberddr3-self-refresh-reducing-power-consumption-in-idle-periods-post-9))|
 ***
 
 After the parameters, connect the ports of the top module to your design. Below are the **ports for clocks and reset**:
@@ -197,7 +219,6 @@ The summary under `TEST CALIBRATION` are the results from the **internal** read/
 - The [QMTech Wukong demo project](./example_demo/qmtech_wukong) is just the same as the arty-s7 demo mentioned above.
    - To run this project on your [QMTech Wukong board](https://github.com/ChinaQMTECH/QM_XC7A100T_WUKONG_BOARD/tree/master/V3), import all verilog files and xdc file under `example_demo/qmtech_wukong/` and `rtl/`. Run synthesis-to-bitstream generation then upload the bitfile. After around 2 seconds, the 2 LEDS should light up then you can start interacting with the UART line. SW2 button is for reset.
    - Or just upload the [bitfile already given in the repo](./example_demo/qmtech_wukong).
-- 
 - The [10Gb Ethernet Switch](https://github.com/ZipCPU/eth10g) project utilizes this DDR3 controller for accessing a single-rank DDR3 module (8 lanes of x8 DDR3) at DDR3-800 (100 MHz controller and 400 MHz PHY).
 
 # Other Open-Sourced DDR3 Controllers
