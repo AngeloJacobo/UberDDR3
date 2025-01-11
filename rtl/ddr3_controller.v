@@ -17,7 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2023-2024  Angelo Jacobo
+// Copyright (C) 2023-2025  Angelo Jacobo
 // 
 //     This program is free software: you can redistribute it and/or modify
 //     it under the terms of the GNU General Public License as published by
@@ -46,11 +46,6 @@
 //`define DDR3_1333_9_9_9 
 //`define DDR3_1066_7_7_7 
 //
-//DDR3 Capacity
-`define RAM_8Gb
-//`define RAM_2Gb 
-//`define RAM_4Gb 
-//`define RAM_8Gb
 
 module ddr3_controller #(
     parameter integer CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
@@ -64,6 +59,12 @@ module ddr3_controller #(
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
                    DUAL_RANK_DIMM = 0, // enable dual rank DIMM (1 =  enable, 0 = disable)
+    // DDR3 timing parameter values
+    parameter      SPEED_BIN = 3, // 0 = Use top-level parameters , 1 = DDR3-1066 (7-7-7) , 2 = DR3-1333 (9-9-9) , 3 = DDR3-1600 (11-11-11)
+                   SDRAM_CAPACITY = 5, // 0 = 256Mb, 1 = 512Mb, 2 = 1Gb, 3 = 2Gb, 4 = 4Gb, 5 = 8Gb, 6 = 16Gb
+                   TRCD = 13_750, // ps Active to Read/Write command time (only used if SPEED_BIN = 0)
+                   TRP = 13_750, // ps Precharge command period (only used if SPEED_BIN = 0)
+                   TRAS = 35_000, // ps ACT to PRE command period (only used if SPEED_BIN = 0)
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
@@ -208,36 +209,34 @@ module ddr3_controller #(
 
     /********************************************************** Timing Parameters ***********************************************************************************/
     localparam DELAY_SLOT_WIDTH = 19; //Bitwidth of the delay slot and mode register slot on the reset/refresh rom will be at the same size as the Mode Register
-    localparam POWER_ON_RESET_HIGH      =     200_000_000; // 200_000_000 ps (200 us) reset must be active at initialization
-    localparam INITIAL_CKE_LOW      =       500_000_000; // 500_000_000 ps (500 us) cke must be low before activating
-    `ifdef DDR3_1600_11_11_11 //DDR3-1600 (11-11-11) speed bin
-        localparam tRCD     =       13_750; // ps Active to Read/Write command time
-        localparam tRP      =      13_750; // ps Precharge command period
-        localparam tRAS     =      35_000; // ps ACT to PRE command period
-    `elsif DDR3_1333_9_9_9 //DDR3-1333 (9-9-9) speed bin
-        localparam tRCD     =       13_500; // ps Active to Read/Write command time
-        localparam tRP      =      13_500; // ps Precharge command period
-        localparam tRAS     =      36_000; // ps ACT to PRE command period
-    `elsif DDR3_1066_7_7_7 //DDR3-1066 (7-7-7) speed bin
-        localparam tRCD     =       13_125; // ps Active to Read/Write command time
-        localparam tRP      =      13_125; // ps Precharge command period
-        localparam tRAS     =      37_500; // ps ACT to PRE command period
-    `else
-        "Throw an error here if speed bin is not recognized (or not defined)"
-    `endif
+    localparam POWER_ON_RESET_HIGH = 200_000_000; // 200_000_000 ps (200 us) reset must be active at initialization
+    localparam INITIAL_CKE_LOW = 500_000_000; // 500_000_000 ps (500 us) cke must be low before activating
     
-    `ifdef RAM_1Gb
-        localparam tRFC         =           110_000;      // ps Refresh command  to ACT or REF 
-    `elsif RAM_2Gb
-        localparam tRFC         =           160_000;      // ps Refresh command  to ACT or REF 
-    `elsif RAM_4Gb
-        localparam tRFC         =           300_000;      // ps Refresh command  to ACT or REF 
-    `elsif RAM_8Gb
-        localparam tRFC             =       350_000;      // ps Refresh command  to ACT or REF 
-    `else
-        "Throw an error here if capacity is not recognized (or not defined)"
-    `endif
-    
+    // ps Active to Read/Write command time
+   localparam tRCD = (SPEED_BIN == 0) ? TRCD :  //  use top-level parameters
+                      (SPEED_BIN == 1) ? 13_750 : // DDR3-1066 (7-7-7) 
+                      (SPEED_BIN == 2) ? 13_500 :  // DDR3-1333 (9-9-9)
+                      (SPEED_BIN == 3) ? 13_750 : 13_750; // DDR3-1600 (11-11-11)
+
+    // ps Precharge command period
+    localparam tRP  = (SPEED_BIN == 0) ? TRP : //  use top-level parameters
+                      (SPEED_BIN == 1) ? 13_750 : // DDR3-1066 (7-7-7) 
+                      (SPEED_BIN == 2) ? 13_500 : // DDR3-1333 (9-9-9)
+                      (SPEED_BIN == 3) ? 13_750 : 13_750; // DDR3-1600 (11-11-11)
+
+     // ps ACT to PRE command period
+    localparam tRAS = (SPEED_BIN == 0) ? TRAS : //  use top-level parameters
+                      (SPEED_BIN == 1) ? 35_000 : // DDR3-1066 (7-7-7) 
+                      (SPEED_BIN == 2) ? 36_000 : // DDR3-1333 (9-9-9)
+                      (SPEED_BIN == 3) ? 35_000 : 35_000; // DDR3-1600 (11-11-11)
+
+    // ps Refresh command  to ACT or REF
+    localparam tRFC = ((SDRAM_CAPACITY == 4'b0000) || (SDRAM_CAPACITY == 4'b0001)) ? 90_000 : // 256Mb, 512Mb
+                    (SDRAM_CAPACITY == 4'b0010) ? 110_000 : // 1Gb
+                    (SDRAM_CAPACITY == 4'b0011) ? 160_000 : // 2Gb
+                    (SDRAM_CAPACITY == 4'b0100) ? 300_000 : // 4Gb
+                    (SDRAM_CAPACITY == 4'b0101) ? 350_000 : 350_000; // 8Gb
+
     localparam tREFI = 7_800_000; //ps Average periodic refresh interval
     localparam tXPR = max(5*DDR3_CLK_PERIOD, tRFC+10_000); // ps Exit Reset from CKE HIGH to a valid command
     localparam tWR = 15_000; // ps Write Recovery Time
@@ -3160,7 +3159,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
             // find anticipate activate command slot number
             if(CL_nCK > CWL_nCK) slot_number[1:0] = read_slot[1:0];
             else slot_number[1:0] = write_slot[1:0];
-                delay = ps_to_nCK(tRCD); 
+
+            // delay = ps_to_nCK(tRCD); 
+            delay = $rtoi( $ceil( tRCD*1.0/ DDR3_CLK_PERIOD ) );
             for(slot_number = slot_number;  delay != 0; delay = delay - 1) begin
                     slot_number[1:0] = slot_number[1:0] - 1'b1;
             end 
