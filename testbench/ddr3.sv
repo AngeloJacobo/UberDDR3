@@ -96,7 +96,7 @@
 `timescale 1ps / 1ps
 `define den8192Mb
 `define sg125
-`define x8
+`define x16
 `default_nettype wire
 
 module ddr3 (

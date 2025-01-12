@@ -31,9 +31,10 @@
 `define sg125
 `define x16
 //`define USE_CLOCK_WIZARD
-//`define TWO_LANES_x8
-`define EIGHT_LANES_x8
+`define TWO_LANES_x8
+//`define EIGHT_LANES_x8
 `define RAM_8Gb
+`define XADC
 
 module ddr3_dimm_micron_sim;
 `ifdef den1024Mb
@@ -65,9 +66,9 @@ module ddr3_dimm_micron_sim;
             DDR3_CLK_PERIOD = 2500,//ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
-            SELF_REFRESH = 2'b11,
-            DUAL_RANK_DIMM = 1,
-            TEST_SELF_REFRESH = 1;
+            SELF_REFRESH = 2'b00,
+            DUAL_RANK_DIMM = 0,
+            TEST_SELF_REFRESH = 0;
         
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
@@ -114,6 +115,9 @@ module ddr3_dimm_micron_sim;
   // User enabled self-refresh
   reg i_user_self_refresh;
   wire clk_locked;
+  // temperature
+  wire user_temp_alarm_out;
+  
   
   `ifdef USE_CLOCK_WIZARD
       // Use clock wizard
@@ -179,7 +183,7 @@ ddr3_top #(
         .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
         .i_ref_clk(i_ref_clk),
         .i_ddr3_clk_90(i_ddr3_clk_90),
-        .i_rst_n(i_rst_n && clk_locked), 
+        .i_rst_n(i_rst_n && clk_locked && !user_temp_alarm_out), 
         // Wishbone inputs
         .i_wb_cyc(i_wb_cyc), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
         .i_wb_stb(i_wb_stb), //request a transfer
@@ -274,6 +278,14 @@ ddr3_top #(
                    o_ddr3_clk_n[1]=0; 
         end
     endgenerate
+    
+ `endif
+ 
+ `ifdef XADC
+     xadc_wiz_0 xadc_inst (
+              .dclk_in(i_controller_clk), // Clock input for the dynamic reconfiguration port
+              .user_temp_alarm_out(user_temp_alarm_out) // Temperature-sensor alarm output
+        );
  `endif
  
  
