@@ -72,11 +72,13 @@
      wire[31:0] o_debug1;
      reg[7:0] i_wb_data;
      reg[7:0] i_wb_addr;
+     wire user_temp_alarm_out; // asserts if XADC detects internal temp to be above user temp alarm
+     
      // o_debug1 taps on value of state_calibrate (can be traced inside ddr3_controller module)
      assign led[0] = (o_debug1[4:0] != 23); //light up if not at DONE_CALIBRATE
-     assign led[1] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
-     assign led[2] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
-     assign led[3] = (o_debug1[4:0] == 23); //light up if at DONE_CALIBRATE
+     assign led[1] = (o_debug1[4:0] == 23 && !user_temp_alarm_out); //light up if at DONE_CALIBRATE
+     assign led[2] = (o_debug1[4:0] == 23 && !user_temp_alarm_out); //light up if at DONE_CALIBRATE
+     assign led[3] = (o_debug1[4:0] == 23 && !user_temp_alarm_out); //light up if at DONE_CALIBRATE
      
     always @(posedge i_controller_clk) begin
         begin
@@ -144,6 +146,15 @@
         .uart_rx_data(rd_data)   // The recieved data.
     );
     
+    `define XADC
+     `ifdef XADC
+         xadc_wiz_0 xadc_inst (
+              .dclk_in(i_controller_clk), // Clock input for the dynamic reconfiguration port
+              .user_temp_alarm_out(user_temp_alarm_out) // Temperature-sensor alarm output
+            );
+      `else
+            user_temp_alarm_out = 1'b0;
+    `endif
 
     // UART module from https://github.com/alexforencich/verilog-uart (DOES NOT WORK ON OPENXC7, UberDDR3 cannot finish calibration when this UART is used)
     //    uart #(.DATA_WIDTH(8)) uart_m
@@ -184,7 +195,7 @@
             .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
             .i_ref_clk(i_ref_clk),
             .i_ddr3_clk_90(i_ddr3_clk_90),
-            .i_rst_n(!i_rst && clk_locked), 
+            .i_rst_n(!i_rst && clk_locked && !user_temp_alarm_out), 
             // Wishbone inputs
             .i_wb_cyc(1), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
             .i_wb_stb(i_wb_stb), //request a transfer
@@ -227,9 +238,7 @@
             .io_ddr3_dqs_n(ddr3_dqs_n),
             .o_ddr3_dm(ddr3_dm),
             .o_ddr3_odt(ddr3_odt), // on-die termination
-            .o_debug1(o_debug1),
-            .o_debug2(),
-            .o_debug3()
+            .o_debug1(o_debug1)
         );
 
 endmodule
