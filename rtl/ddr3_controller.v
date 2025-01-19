@@ -1457,14 +1457,7 @@ module ddr3_controller #(
         cmd_d[PRECHARGE_SLOT][10] = instruction[A10_CONTROL];
         cmd_d[READ_SLOT][cmd_len-1-DUAL_RANK_DIMM:0] = {(!issue_read_command), CMD_RD[2:0] | {3{(!issue_read_command)}}, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // issued during MPR reads (address does not matter)
         cmd_d[ACTIVATE_SLOT][cmd_len-1-DUAL_RANK_DIMM:0] = {1'b0, 3'b111 , cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}};  // always NOP by default
-        if(PRECHARGE_SLOT != 0) begin // if precharge slot is not the 0th slot, then all slots before precharge will have the previous value of cmd_ck_en
-            for(index = 0; index < PRECHARGE_SLOT; index=index+1) begin // slots before
-                if(DUAL_RANK_DIMM[0]) begin
-                    cmd_d[index][CMD_CKE_2] = prev_cmd_ck_en[DUAL_RANK_DIMM];
-                end
-                cmd_d[index][CMD_CKE] = prev_cmd_ck_en[0];
-            end
-        end
+
         // extra slot is created when READ and WRITE slots are the same
         // this remaining slot should be NOP by default
         if(WRITE_SLOT == READ_SLOT) begin
@@ -1474,6 +1467,17 @@ module ddr3_controller #(
         else begin
             cmd_d[WRITE_SLOT][cmd_len-1-DUAL_RANK_DIMM:0] = {1'b0, 3'b111, cmd_odt, cmd_ck_en, cmd_reset_n, {(ROW_BITS+BA_BITS){1'b0}}}; // always NOP by default
         end
+
+        // if precharge slot is not the 0th slot, then all slots before precharge will have the previous value of cmd_ck_en
+        if(PRECHARGE_SLOT != 0) begin 
+            for(index = 0; index < PRECHARGE_SLOT; index=index+1) begin // slots before
+                if(DUAL_RANK_DIMM[0]) begin
+                    cmd_d[index][CMD_CKE_2] = prev_cmd_ck_en[DUAL_RANK_DIMM];
+                end
+                cmd_d[index][CMD_CKE] = prev_cmd_ck_en[0];
+            end
+        end
+
         /////////////////////////////////////////////////////////////////////////////////////////
         // if dual rank is enabled, last 2 bits are {cs_2, cs_1}
         if(DUAL_RANK_DIMM[0]) begin
@@ -2378,7 +2382,7 @@ module ddr3_controller #(
                             if(sample_clk_repeat == REPEAT_CLK_SAMPLING) begin
                                 sample_clk_repeat <= 0;
                                 prev_write_level_feedback <= stored_write_level_feedback;
-                                if(({prev_write_level_feedback, stored_write_level_feedback} == 2'b01) || write_level_fail[lane]) begin
+                                if(({prev_write_level_feedback, stored_write_level_feedback} == 2'b01) /*|| write_level_fail[lane]*/) begin
                                     /* verilator lint_on WIDTH */
                                     /* verilator lint_off WIDTH */
                                     if(lane == LANES - 1) begin
@@ -2401,10 +2405,10 @@ module ddr3_controller #(
                                     o_phy_odelay_data_ld[lane] <= 1;
                                     o_phy_odelay_dqs_ld[lane] <= 1;
                                     write_level_fail[lane] <= odelay_cntvalue_halfway;
-                                    if(odelay_cntvalue_halfway) begin // if halfway cntvalue is reached which is illegal (or impossible to happen), then we load the original cntvalues
-                                        odelay_data_cntvaluein[lane] <= DATA_INITIAL_ODELAY_TAP[4:0];
-                                        odelay_dqs_cntvaluein[lane] <= DQS_INITIAL_ODELAY_TAP[4:0];                
-                                    end
+                                    // if(odelay_cntvalue_halfway) begin // if halfway cntvalue is reached which is illegal (or impossible to happen), then we load the original cntvalues
+                                    //     odelay_data_cntvaluein[lane] <= DATA_INITIAL_ODELAY_TAP[4:0];
+                                    //     odelay_dqs_cntvaluein[lane] <= DQS_INITIAL_ODELAY_TAP[4:0];                
+                                    // end
                                     state_calibrate <= START_WRITE_LEVEL; 
                                 end
                              end     

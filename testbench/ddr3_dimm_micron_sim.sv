@@ -27,16 +27,11 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 `timescale 1ps / 1ps
-`define den8192Mb
-`define sg125
-`define x16
 //`define USE_CLOCK_WIZARD
-`define TWO_LANES_x8
-//`define EIGHT_LANES_x8
-`define RAM_8Gb
-`define XADC
+//`define XADC
 
 module ddr3_dimm_micron_sim;
+`include "sim_defines.vh" // contains defines for simulation
 `ifdef den1024Mb
     `include "1024Mb_ddr3_parameters.vh"
 `elsif den2048Mb
@@ -62,8 +57,8 @@ module ddr3_dimm_micron_sim;
 `endif
 
 
- localparam CONTROLLER_CLK_PERIOD = 10_000, //ps, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 2500,//ps, period of clock input to DDR3 RAM device 
+ localparam CONTROLLER_CLK_PERIOD = 5_000, //7_504, //ps, period of clock input to this DDR3 controller module
+            DDR3_CLK_PERIOD = 1250, //1_876,//ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
             SELF_REFRESH = 2'b00,
@@ -286,6 +281,8 @@ ddr3_top #(
               .dclk_in(i_controller_clk), // Clock input for the dynamic reconfiguration port
               .user_temp_alarm_out(user_temp_alarm_out) // Temperature-sensor alarm output
         );
+  `else
+    assign user_temp_alarm_out = 0;
  `endif
  
  

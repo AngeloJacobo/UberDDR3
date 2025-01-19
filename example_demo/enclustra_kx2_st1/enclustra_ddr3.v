@@ -110,25 +110,38 @@
     end
      
     wire clk_locked;
-    wire i_ddr3_clk_90;
-    clk_wiz clk_wiz_inst
+    // PLL
+    // clk_wiz clk_wiz_inst
+    // (
+    // // Clock out ports
+    // .clk_out1(i_controller_clk), // 166.67 Mhz
+    // .clk_out2(i_ddr3_clk), // 666.67 MHz
+    // .clk_out3(i_ref_clk), // 200 MHz 
+    // // Status and control signals
+    // .reset(!i_rst_n),
+    // .locked(clk_locked),
+    // // Clock in ports
+    // .clk_in1(sys_clk_200MHz)
+    // );
+
+    // Clock Wizard
+    clk_wiz_0 clk_wiz_inst
     (
-    // Clock out ports
-    .clk_out1(i_controller_clk), //83.333 Mhz
-    .clk_out2(i_ddr3_clk), // 333.333 MHz
-    .clk_out3(i_ref_clk), // 200 MHz 
-    .clk_out4(i_ddr3_clk_90), // 333.333 MHz with 90 degrees shift
-    // Status and control signals
-    .reset(!i_rst_n),
-    .locked(clk_locked),
-    // Clock in ports
-    .clk_in1(sys_clk_200MHz)
+        // Clock out ports
+        .controller_clk(i_controller_clk),
+        .ddr3_clk(i_ddr3_clk),
+        // Status and control signals
+        .reset(!i_rst_n),
+        .locked(clk_locked),
+        // Clock in ports
+        .clk_in1(sys_clk_200MHz)
     );
+
 
     // UART TX/RX module from https://github.com/ben-marshall/uart
     uart_tx #(
         .BIT_RATE(9600),
-        .CLK_HZ(83_333_333),
+        .CLK_HZ(200_000_000),
         .PAYLOAD_BITS(8),
         .STOP_BITS(1)
         ) uart_tx_inst (
@@ -141,7 +154,7 @@
     );
     uart_rx #(
         .BIT_RATE(9600),
-        .CLK_HZ(83_333_333),
+        .CLK_HZ(200_000_000),
         .PAYLOAD_BITS(8),
         .STOP_BITS(1)
     ) uart_rx_inst (
@@ -173,8 +186,8 @@
     
     // DDR3 Controller 
     ddr3_top #(
-        .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
-        .DDR3_CLK_PERIOD(3_000), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+        .CONTROLLER_CLK_PERIOD(5_000), //ps, clock period of the controller interface
+        .DDR3_CLK_PERIOD(1_250), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
         .ROW_BITS(15), //width of row address
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
@@ -192,8 +205,8 @@
             //clock and reset
             .i_controller_clk(i_controller_clk),
             .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
-            .i_ref_clk(i_ref_clk),
-            .i_ddr3_clk_90(i_ddr3_clk_90),
+            .i_ref_clk(/*i_ref_clk*/sys_clk_200MHz),
+            .i_ddr3_clk_90(),
             .i_rst_n(i_rst_n && clk_locked), 
             // Wishbone inputs
             .i_wb_cyc(1), //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
@@ -236,9 +249,7 @@
             .io_ddr3_dqs_n(ddr3_dqs_n),
             .o_ddr3_dm(ddr3_dm),
             .o_ddr3_odt(ddr3_odt), // on-die termination
-            .o_debug1(o_debug1),
-            .o_debug2(),
-            .o_debug3()
+            .o_debug1(o_debug1)
         );
 
 endmodule
