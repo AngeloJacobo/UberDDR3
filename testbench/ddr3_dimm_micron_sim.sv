@@ -57,13 +57,14 @@ module ddr3_dimm_micron_sim;
 `endif
 
 
- localparam CONTROLLER_CLK_PERIOD = 5_000, //7_504, //ps, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 1250, //1_876,//ps, period of clock input to DDR3 RAM device 
+ localparam CONTROLLER_CLK_PERIOD = 5_000, //ps, period of clock input to this DDR3 controller module
+            DDR3_CLK_PERIOD = 1_250, //ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
             SELF_REFRESH = 2'b00,
             DUAL_RANK_DIMM = 0,
-            TEST_SELF_REFRESH = 0;
+            TEST_SELF_REFRESH = 0,
+            SKIP_INTERNAL_TEST = 0;
         
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
@@ -112,7 +113,6 @@ module ddr3_dimm_micron_sim;
   wire clk_locked;
   // temperature
   wire user_temp_alarm_out;
-  
   
   `ifdef USE_CLOCK_WIZARD
       // Use clock wizard
@@ -168,7 +168,7 @@ ddr3_top #(
     .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone for debugging is needed 
     .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     .WB_ERROR(1), // set to 1 to support Wishbone error (asserts at ECC double bit error)
-    .SKIP_INTERNAL_TEST(0), // skip built-in self test (would require >2 seconds of internal test right after calibration)
+    .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
     .SELF_REFRESH(SELF_REFRESH), // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
     .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
     ) ddr3_top

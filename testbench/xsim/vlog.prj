@@ -1,15 +1,13 @@
-verilog xil_defaultlib --include "../" \
-"../../rtl/ddr3_controller.v" \
-"../../rtl/ddr3_phy.v" \
-"../../rtl/ddr3_top.v" \
+verilog xil_defaultlib --include "/home/ajacobo/Desktop/UberDDR3/testbench" --include "/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0" \
+"/home/ajacobo/Desktop/UberDDR3/rtl/ddr3_controller.v" \
+"/home/ajacobo/Desktop/UberDDR3/rtl/ddr3_phy.v" \
+"/home/ajacobo/Desktop/UberDDR3/rtl/ddr3_top.v" \
 
-sv xil_defaultlib --include "../" \
-"../ddr3.sv" \
-"../../rtl/ecc/ecc_dec.sv" \
-"../../rtl/ecc/ecc_enc.sv" \
-"../ddr3_dimm_micron_sim.sv" \
-"../ddr3_module.sv" \
+sv xil_defaultlib --include "/home/ajacobo/Desktop/UberDDR3/testbench" --include "/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0" \
+"/home/ajacobo/Desktop/UberDDR3/testbench/ddr3.sv" \
+"/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_module.sv" \
+"/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv" \
 
-verilog xil_defaultlib "glbl.v"
+verilog xil_defaultlib "/home/ajacobo/Desktop/UberDDR3/testbench/xsim/glbl.v"
 
 nosort

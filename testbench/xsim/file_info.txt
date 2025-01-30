@@ -1,9 +1,7 @@
-ddr3_controller.v,verilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ddr3_controller.v,incdir="../"
-ddr3_phy.v,verilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ddr3_phy.v,incdir="../"
-ddr3_top.v,verilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ddr3_top.v,incdir="../"
-ddr3.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/testbench/ddr3.sv,incdir="../"
-ddr3.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/testbench/ddr3_module.sv,incdir="../"
-ecc_dec.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ecc/ecc_dec.sv,incdir="../"
-ecc_enc.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/rtl/ecc/ecc_enc.sv,incdir="../"
-ddr3_dimm_micron_sim.sv,systemverilog,xil_defaultlib,../Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv,incdir="../"
-glbl.v,Verilog,xil_defaultlib,glbl.v
+ddr3_controller.v,verilog,xil_defaultlib,/home/ajacobo/Desktop/UberDDR3/rtl/ddr3_controller.v,incdir="/home/ajacobo/Desktop/UberDDR3/testbench"incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"
+ddr3_phy.v,verilog,xil_defaultlib,/home/ajacobo/Desktop/UberDDR3/rtl/ddr3_phy.v,incdir="/home/ajacobo/Desktop/UberDDR3/testbench"incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"
+ddr3_top.v,verilog,xil_defaultlib,/home/ajacobo/Desktop/UberDDR3/rtl/ddr3_top.v,incdir="/home/ajacobo/Desktop/UberDDR3/testbench"incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"
+ddr3.sv,systemverilog,xil_defaultlib,/home/ajacobo/Desktop/UberDDR3/testbench/ddr3.sv,incdir="/home/ajacobo/Desktop/UberDDR3/testbench"incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"
+ddr3_module.sv,systemverilog,xil_defaultlib,/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_module.sv,incdir="/home/ajacobo/Desktop/UberDDR3/testbench"incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"
+ddr3_dimm_micron_sim.sv,systemverilog,xil_defaultlib,/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv,incdir="/home/ajacobo/Desktop/UberDDR3/testbench"incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"
+glbl.v,Verilog,xil_defaultlib,/home/ajacobo/incdir="/home/ajacobo/Desktop/enclustra_vivado/enclustra_vivado.gen/sources_1/ip/clk_wiz_0"/glbl.v
