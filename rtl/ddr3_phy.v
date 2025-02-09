@@ -28,7 +28,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-`default_nettype none
+// `default_nettype none
 `timescale 1ps / 1ps
 //`define DEBUG_DQS // uncomment to route the raw DQS to output port for debugging
 

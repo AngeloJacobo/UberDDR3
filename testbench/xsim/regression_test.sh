@@ -2,28 +2,28 @@
 
 #################################################################################################################
 
-# Define the test configurations (CONTROLLER_CLK_PERIOD, DDR3_CLK_PERIOD, ODELAY_SUPPORTED, LANES_OPTION, ADD_BUS_DELAY)
+# Define the test configurations (CONTROLLER_CLK_PERIOD, DDR3_CLK_PERIOD, ODELAY_SUPPORTED, LANES_OPTION, ADD_BUS_DELAY, BIST_MODE)
 TESTS=(
     # with bus delay
-    "12_000 3_000 1 EIGHT_LANES 1" # DDR3-666
-    "10_000 2_500 1 EIGHT_LANES 1" # DDR3-800
-    "6_000  1_500 1 EIGHT_LANES 1" # DDR3-1333 write dm is weird (two happens at same time???)
-    "5_000  1_250 1 EIGHT_LANES 1" # DDR3-1600
+    "12_000 3_000 1 EIGHT_LANES 1 1" # DDR3-666
+    "10_000 2_500 1 EIGHT_LANES 1 1" # DDR3-800
+    "6_000  1_500 1 EIGHT_LANES 1 2" # DDR3-1333 write dm is weird (two happens at same time???)
+    "5_000  1_250 1 EIGHT_LANES 1 2" # DDR3-1600
     # No bus delays
-    "12_000 3_000 1 EIGHT_LANES 0"
-    "10_000 2_500 1 EIGHT_LANES 0"
-    "6_000  1_500 1 EIGHT_LANES 0"
-    "5_000  1_250 1 EIGHT_LANES 0"
+    "12_000 3_000 1 EIGHT_LANES 0 2"
+    "10_000 2_500 1 EIGHT_LANES 0 2"
+    "6_000  1_500 1 EIGHT_LANES 0 1"
+    "5_000  1_250 1 EIGHT_LANES 0 1"
     # x16
-    "12_000 3_000 1 TWO_LANES 0"
-    "10_000 2_500 1 TWO_LANES 0"
-    "6_000  1_500 1 TWO_LANES 0"
-    "5_000  1_250 1 TWO_LANES 0"
+    "12_000 3_000 1 TWO_LANES 1 1"
+    "10_000 2_500 1 TWO_LANES 1 1"
+    "6_000  1_500 1 TWO_LANES 1 2"
+    "5_000  1_250 1 TWO_LANES 1 2"
     # no odelay
-    "12_000 3_000 0 TWO_LANES 0"
-    "10_000 2_500 0 TWO_LANES 0"
-    "6_000  1_500 0 TWO_LANES 0"
-    "5_000  1_250 0 TWO_LANES 0"
+    "12_000 3_000 0 TWO_LANES 0 2"
+    "10_000 2_500 0 TWO_LANES 0 2"
+    "6_000  1_500 0 TWO_LANES 0 1"
+    "5_000  1_250 0 TWO_LANES 0 1"
 )
 
 #################################################################################################################
@@ -57,14 +57,14 @@ fi
 index=1
 for TEST in "${TESTS[@]}"; do
     # Parse the test configuration into individual variables
-    read -r CONTROLLER_CLK_PERIOD DDR3_CLK_PERIOD ODELAY_SUPPORTED LANES_OPTION ADD_BUS_DELAY <<< "$TEST"
+    read -r CONTROLLER_CLK_PERIOD DDR3_CLK_PERIOD ODELAY_SUPPORTED LANES_OPTION ADD_BUS_DELAY BIST_MODE <<< "$TEST"
     
     # Record the start time
     start_time=$(date +%s)
     start_time_am_pm=$(date +"%I:%M %p")  # Time in AM-PM format
     
     # Print the current test configuration with the start time
-    echo "$index. Running test with CONTROLLER_CLK_PERIOD=$CONTROLLER_CLK_PERIOD, DDR3_CLK_PERIOD=$DDR3_CLK_PERIOD, ODELAY_SUPPORTED=$ODELAY_SUPPORTED, LANES_OPTION=$LANES_OPTION, ADD_BUS_DELAY=$ADD_BUS_DELAY"
+    echo "$index. Running test with CONTROLLER_CLK_PERIOD=$CONTROLLER_CLK_PERIOD, DDR3_CLK_PERIOD=$DDR3_CLK_PERIOD, ODELAY_SUPPORTED=$ODELAY_SUPPORTED, LANES_OPTION=$LANES_OPTION, ADD_BUS_DELAY=$ADD_BUS_DELAY, BIST_MODE=$BIST_MODE"
     echo "     Test started at: $start_time_am_pm"
     
     # Use sed to perform the replacements in the main file
@@ -72,6 +72,7 @@ for TEST in "${TESTS[@]}"; do
         -e "s/CONTROLLER_CLK_PERIOD = [0-9_]\+/CONTROLLER_CLK_PERIOD = $CONTROLLER_CLK_PERIOD/" \
         -e "s/DDR3_CLK_PERIOD = [0-9_]\+/DDR3_CLK_PERIOD = $DDR3_CLK_PERIOD/" \
         -e "s/ODELAY_SUPPORTED = [01]/ODELAY_SUPPORTED = $ODELAY_SUPPORTED/" \
+        -e "s/BIST_MODE = [0-2]/BIST_MODE = $BIST_MODE/" \
         "$FILENAME"
 
     # Modify the sim_defines.vh file based on LANES_OPTION
@@ -118,9 +119,10 @@ for TEST in "${TESTS[@]}"; do
     fi
 
     # Run the simulation script with the respective log file
-    LOG_FILE="./test_${CONTROLLER_CLK_PERIOD}_ddr3_${DDR3_CLK_PERIOD}_odelay_${ODELAY_SUPPORTED}_lanes_${LANES_OPTION,,}_bus_delay_${ADD_BUS_DELAY}.log"
+    LOG_FILE="./test_${CONTROLLER_CLK_PERIOD}_ddr3_${DDR3_CLK_PERIOD}_odelay_${ODELAY_SUPPORTED}_lanes_${LANES_OPTION,,}_bus_delay_${ADD_BUS_DELAY}_bist_${BIST_MODE}.log"
     # ./ddr3_dimm_micron_sim.sh >> "$LOG_FILE"
-    timeout 1h ./ddr3_dimm_micron_sim.sh >> "$LOG_FILE" 2>&1
+    # add timeout if simulation takes too long
+    timeout 3h ./ddr3_dimm_micron_sim.sh >> "$LOG_FILE" 2>&1
     EXIT_CODE=$?  # Capture exit code immediately
     if [ $EXIT_CODE -eq 124 ]; then
         echo "     Error: Simulation timed out after 1 hour!" | tee -a "$LOG_FILE"

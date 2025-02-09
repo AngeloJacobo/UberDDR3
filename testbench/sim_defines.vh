@@ -1,6 +1,6 @@
 // Define either TWO_LANES_x8 or EIGHT_LANES_x8
-`define TWO_LANES_x8
-//`define EIGHT_LANES_x8
+//`define TWO_LANES_x8
+`define EIGHT_LANES_x8
 
 `ifdef EIGHT_LANES_x8
   `ifdef TWO_LANES_x8
