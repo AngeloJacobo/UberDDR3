@@ -34,7 +34,7 @@
 `define TWO_LANES_x8
 //`define EIGHT_LANES_x8
 `define RAM_8Gb
-`define XADC
+//`define XADC
 
 module ddr3_dimm_micron_sim;
 `ifdef den1024Mb
