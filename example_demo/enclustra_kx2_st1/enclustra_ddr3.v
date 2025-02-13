@@ -111,25 +111,27 @@
      
     wire clk_locked;
     // PLL
-    // clk_wiz clk_wiz_inst
-    // (
-    // // Clock out ports
-    // .clk_out1(i_controller_clk), // 166.67 Mhz
-    // .clk_out2(i_ddr3_clk), // 666.67 MHz
-    // .clk_out3(i_ref_clk), // 200 MHz 
-    // // Status and control signals
-    // .reset(!i_rst_n),
-    // .locked(clk_locked),
-    // // Clock in ports
-    // .clk_in1(sys_clk_200MHz)
-    // );
+//     clk_wiz clk_wiz_inst
+//     (
+//     // Clock out ports
+//     .clk_out1(i_controller_clk), // 166 Mhz
+//     .clk_out2(i_ddr3_clk), // 1333 MHz
+//     .clk_out3(i_ref_clk), // 200 MHz 
+//     // Status and control signals
+//     .reset(!i_rst_n),
+//     .locked(clk_locked),
+//     // Clock in ports
+//     .clk_in1(sys_clk_200MHz)
+//     );
 
     // Clock Wizard
+    wire clkfb_out; 
     clk_wiz_0 clk_wiz_inst
     (
         // Clock out ports
         .controller_clk(i_controller_clk),
         .ddr3_clk(i_ddr3_clk),
+        .ref200_clk(i_ref_clk),
         // Status and control signals
         .reset(!i_rst_n),
         .locked(clk_locked),
@@ -205,7 +207,7 @@
             //clock and reset
             .i_controller_clk(i_controller_clk),
             .i_ddr3_clk(i_ddr3_clk), //i_controller_clk has period of CONTROLLER_CLK_PERIOD, i_ddr3_clk has period of DDR3_CLK_PERIOD 
-            .i_ref_clk(/*i_ref_clk*/sys_clk_200MHz),
+            .i_ref_clk(i_ref_clk/*sys_clk_200MHz*/),
             .i_ddr3_clk_90(),
             .i_rst_n(i_rst_n && clk_locked), 
             // Wishbone inputs
