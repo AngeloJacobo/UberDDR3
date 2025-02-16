@@ -23,8 +23,8 @@ proc init_gui { IPINST } {
   set_property tooltip {Type of ECC (0,1,2,3)} ${ECC_ENABLE}
   set SELF_REFRESH [ipgui::add_param $IPINST -name "SELF_REFRESH" -parent ${Page_0} -widget comboBox]
   set_property tooltip {Enable option for self-refresh} ${SELF_REFRESH}
-  set SKIP_INTERNAL_TEST [ipgui::add_param $IPINST -name "SKIP_INTERNAL_TEST" -parent ${Page_0}]
-  set_property tooltip {Check to skip built-in self-test (check this if UberDDR3 will be connected to Microblaze)} ${SKIP_INTERNAL_TEST}
+  set BIST_MODE [ipgui::add_param $IPINST -name "BIST_MODE" -parent ${Page_0} -widget comboBox]
+  set_property tooltip {Type of Built-In Self Test (BIST)} ${BIST_MODE}
   set ODELAY_SUPPORTED [ipgui::add_param $IPINST -name "ODELAY_SUPPORTED" -parent ${Page_0}]
   set_property tooltip {Check if FPGA supports ODELAYE2 primitive (e.g. FPGA with HP banks like Kintex-7)} ${ODELAY_SUPPORTED}
   set MICRON_SIM [ipgui::add_param $IPINST -name "MICRON_SIM" -parent ${Page_0}]
@@ -187,6 +187,15 @@ proc validate_PARAM_VALUE.BA_BITS { PARAM_VALUE.BA_BITS } {
 	return true
 }
 
+proc update_PARAM_VALUE.BIST_MODE { PARAM_VALUE.BIST_MODE } {
+	# Procedure called to update BIST_MODE when any of the dependent parameters in the arguments change
+}
+
+proc validate_PARAM_VALUE.BIST_MODE { PARAM_VALUE.BIST_MODE } {
+	# Procedure called to validate BIST_MODE
+	return true
+}
+
 proc update_PARAM_VALUE.BYTE_LANES { PARAM_VALUE.BYTE_LANES } {
 	# Procedure called to update BYTE_LANES when any of the dependent parameters in the arguments change
 }
@@ -295,15 +304,6 @@ proc validate_PARAM_VALUE.SELF_REFRESH { PARAM_VALUE.SELF_REFRESH } {
 	return true
 }
 
-proc update_PARAM_VALUE.SKIP_INTERNAL_TEST { PARAM_VALUE.SKIP_INTERNAL_TEST } {
-	# Procedure called to update SKIP_INTERNAL_TEST when any of the dependent parameters in the arguments change
-}
-
-proc validate_PARAM_VALUE.SKIP_INTERNAL_TEST { PARAM_VALUE.SKIP_INTERNAL_TEST } {
-	# Procedure called to validate SKIP_INTERNAL_TEST
-	return true
-}
-
 proc update_PARAM_VALUE.WB2_ADDR_BITS { PARAM_VALUE.WB2_ADDR_BITS } {
 	# Procedure called to update WB2_ADDR_BITS when any of the dependent parameters in the arguments change
 }
@@ -406,11 +406,6 @@ proc update_MODELPARAM_VALUE.WB_ERROR { MODELPARAM_VALUE.WB_ERROR PARAM_VALUE.WB
 	set_property value [get_property value ${PARAM_VALUE.WB_ERROR}] ${MODELPARAM_VALUE.WB_ERROR}
 }
 
-proc update_MODELPARAM_VALUE.SKIP_INTERNAL_TEST { MODELPARAM_VALUE.SKIP_INTERNAL_TEST PARAM_VALUE.SKIP_INTERNAL_TEST } {
-	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
-	set_property value [get_property value ${PARAM_VALUE.SKIP_INTERNAL_TEST}] ${MODELPARAM_VALUE.SKIP_INTERNAL_TEST}
-}
-
 proc update_MODELPARAM_VALUE.ECC_ENABLE { MODELPARAM_VALUE.ECC_ENABLE PARAM_VALUE.ECC_ENABLE } {
 	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
 	set_property value [get_property value ${PARAM_VALUE.ECC_ENABLE}] ${MODELPARAM_VALUE.ECC_ENABLE}
@@ -479,5 +474,10 @@ proc update_MODELPARAM_VALUE.AXI_ADDR_WIDTH { MODELPARAM_VALUE.AXI_ADDR_WIDTH PA
 proc update_MODELPARAM_VALUE.AXI_DATA_WIDTH { MODELPARAM_VALUE.AXI_DATA_WIDTH PARAM_VALUE.AXI_DATA_WIDTH } {
 	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
 	set_property value [get_property value ${PARAM_VALUE.AXI_DATA_WIDTH}] ${MODELPARAM_VALUE.AXI_DATA_WIDTH}
+}
+
+proc update_MODELPARAM_VALUE.BIST_MODE { MODELPARAM_VALUE.BIST_MODE PARAM_VALUE.BIST_MODE } {
+	# Procedure called to set VHDL generic/Verilog parameter value(s) based on TCL parameter value
+	set_property value [get_property value ${PARAM_VALUE.BIST_MODE}] ${MODELPARAM_VALUE.BIST_MODE}
 }
 
