@@ -64,7 +64,7 @@ module ddr3_dimm_micron_sim;
             SELF_REFRESH = 2'b00,
             DUAL_RANK_DIMM = 0,
             TEST_SELF_REFRESH = 0,
-            BIST_MODE = ; // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+            BIST_MODE = 1; // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
         
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
