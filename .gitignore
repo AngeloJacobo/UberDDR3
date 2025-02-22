@@ -2,3 +2,11 @@ formal/ddr3_multiconfig*prf*
 formal/ecc/
 formal/ddr3_singleconfig/
 example_demo/nexys_video/build/
+testbench/xsim/xsim*
+testbench/xsim/*backup*
+testbench/xsim/*.log
+testbench/xsim/*.pb
+testbench/xsim/*.wdb
+
+# But do not ignore testbench/xsim/test_*.log
+!testbench/xsim/test_*.log

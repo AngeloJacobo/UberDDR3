@@ -27,7 +27,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-`default_nettype none
+//`default_nettype none
 `timescale 1ps / 1ps
 
 module ddr3_top #(
@@ -51,7 +51,7 @@ module ddr3_top #(
                    ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
-                   SKIP_INTERNAL_TEST = 0, // skip built-in self test (would require >2 seconds of internal test right after calibration)
+    parameter[1:0] BIST_MODE = 1, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
@@ -259,7 +259,7 @@ ddr3_top #(
             .SECOND_WISHBONE(SECOND_WISHBONE), //set to 1 if 2nd wishbone is needed 
             .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
             .WB_ERROR(WB_ERROR), // set to 1 to support Wishbone error (asserts at ECC double bit error)
-            .SKIP_INTERNAL_TEST(SKIP_INTERNAL_TEST), // skip built-in self test (would require >2 seconds of internal test right after calibration)
+            .BIST_MODE(BIST_MODE), // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
             .DIC(DIC), //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
             .RTT_NOM(RTT_NOM), //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
             .DUAL_RANK_DIMM(DUAL_RANK_DIMM), // enable dual rank DIMM (1 =  enable, 0 = disable)
@@ -386,29 +386,29 @@ ddr3_top #(
             .o_ddr3_debug_read_dqs_n(/*o_ddr3_debug_read_dqs_n*/)
         );
 
-        // display value of parameters for easy debugging
-        initial begin
-            $display("\nDDR3 TOP PARAMETERS:\n-----------------------------");
-            $display("CONTROLLER_CLK_PERIOD = %0d", CONTROLLER_CLK_PERIOD);
-            $display("DDR3_CLK_PERIOD = %0d", DDR3_CLK_PERIOD);
-            $display("ROW_BITS = %0d", ROW_BITS);
-            $display("COL_BITS = %0d", COL_BITS);
-            $display("BA_BITS = %0d", BA_BITS);
-            $display("BYTE_LANES = %0d", BYTE_LANES);
-            $display("AUX_WIDTH = %0d", AUX_WIDTH);
-            $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
-            $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
-            $display("MICRON_SIM = %0d", MICRON_SIM);
-            $display("ODELAY_SUPPORTED = %0d", ODELAY_SUPPORTED);
-            $display("SECOND_WISHBONE = %0d", SECOND_WISHBONE);
-            $display("WB_ERROR = %0d", WB_ERROR);
-            $display("SKIP_INTERNAL_TEST = %0d", SKIP_INTERNAL_TEST);
-            $display("ECC_ENABLE = %0d", ECC_ENABLE);
-            $display("DIC = %0d", DIC);
-            $display("RTT_NOM = %0d", RTT_NOM);
-            $display("SELF_REFRESH = %0d", SELF_REFRESH);
-            $display("DUAL_RANK_DIMM = %0d", DUAL_RANK_DIMM);
-            $display("End of DDR3 TOP PARAMETERS\n-----------------------------");
-        end
+        // // display value of parameters for easy debugging
+        // initial begin
+        //     $display("\nDDR3 TOP PARAMETERS:\n-----------------------------");
+        //     $display("CONTROLLER_CLK_PERIOD = %0d", CONTROLLER_CLK_PERIOD);
+        //     $display("DDR3_CLK_PERIOD = %0d", DDR3_CLK_PERIOD);
+        //     $display("ROW_BITS = %0d", ROW_BITS);
+        //     $display("COL_BITS = %0d", COL_BITS);
+        //     $display("BA_BITS = %0d", BA_BITS);
+        //     $display("BYTE_LANES = %0d", BYTE_LANES);
+        //     $display("AUX_WIDTH = %0d", AUX_WIDTH);
+        //     $display("WB2_ADDR_BITS = %0d", WB2_ADDR_BITS);
+        //     $display("WB2_DATA_BITS = %0d", WB2_DATA_BITS);
+        //     $display("MICRON_SIM = %0d", MICRON_SIM);
+        //     $display("ODELAY_SUPPORTED = %0d", ODELAY_SUPPORTED);
+        //     $display("SECOND_WISHBONE = %0d", SECOND_WISHBONE);
+        //     $display("WB_ERROR = %0d", WB_ERROR);
+        //     $display("BIST_MODE = %0d", BIST_MODE);
+        //     $display("ECC_ENABLE = %0d", ECC_ENABLE);
+        //     $display("DIC = %0d", DIC);
+        //     $display("RTT_NOM = %0d", RTT_NOM);
+        //     $display("SELF_REFRESH = %0d", SELF_REFRESH);
+        //     $display("DUAL_RANK_DIMM = %0d", DUAL_RANK_DIMM);
+        //     $display("End of DDR3 TOP PARAMETERS\n-----------------------------");
+        // end
 
 endmodule

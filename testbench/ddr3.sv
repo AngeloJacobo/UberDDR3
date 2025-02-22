@@ -94,9 +94,6 @@
 // DO NOT CHANGE THE TIMESCALE
 // MAKE SURE YOUR SIMULATOR USES "PS" RESOLUTION
 `timescale 1ps / 1ps
-`define den8192Mb
-`define sg125
-`define x16
 `default_nettype wire
 
 module ddr3 (
@@ -117,6 +114,7 @@ module ddr3 (
     tdqs_n,
     odt
 );
+`include "sim_defines.vh"
 
 `ifdef den1024Mb
     `include "1024Mb_ddr3_parameters.vh"

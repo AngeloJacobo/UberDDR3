@@ -11,15 +11,20 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="55.000001 us"></ZoomEndTime>
-      <Cursor1Time time="33.460000 us"></Cursor1Time>
+      <ZoomStartTime time="60.369478 us"></ZoomStartTime>
+      <ZoomEndTime time="168.769479 us"></ZoomEndTime>
+      <Cursor1Time time="150.702812 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="272"></NameColumnWidth>
-      <ValueColumnWidth column_width="125"></ValueColumnWidth>
+      <ValueColumnWidth column_width="113"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="52" />
+   <WVObjectSize size="69" />
+   <wave_markers>
+      <marker label="" time="37605000" />
+      <marker label="" time="37825000" />
+      <marker label="" time="35865000" />
+   </wave_markers>
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Clocks and Reset</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -44,6 +49,14 @@
       <obj_property name="ElementShortName">i_ref_clk</obj_property>
       <obj_property name="ObjectShortName">i_ref_clk</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_rst_n">
+      <obj_property name="ElementShortName">i_rst_n</obj_property>
+      <obj_property name="ObjectShortName">i_rst_n</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/sync_rst">
+      <obj_property name="ElementShortName">sync_rst</obj_property>
+      <obj_property name="ObjectShortName">sync_rst</obj_property>
+   </wvobject>
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Self-refresh</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -56,9 +69,10 @@
       <obj_property name="ElementShortName">user_self_refresh_q</obj_property>
       <obj_property name="ObjectShortName">user_self_refresh_q</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cke">
-      <obj_property name="ElementShortName">o_ddr3_cke</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_cke</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cke">
+      <obj_property name="ElementShortName">o_ddr3_cke[0:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_cke[0:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/refresh_counter">
       <obj_property name="ElementShortName">refresh_counter[8:0]</obj_property>
@@ -73,13 +87,492 @@
       <obj_property name="ElementShortName">i_wb_stb</obj_property>
       <obj_property name="ObjectShortName">i_wb_stb</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_ck_en">
+      <obj_property name="ElementShortName">cmd_ck_en[0:0]</obj_property>
+      <obj_property name="ObjectShortName">cmd_ck_en[0:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/cmd_ck_en[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+         <obj_property name="CustomSignalColor">#FF0080</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/prev_cmd_ck_en">
+      <obj_property name="ElementShortName">prev_cmd_ck_en[0:0]</obj_property>
+      <obj_property name="ObjectShortName">prev_cmd_ck_en[0:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/prev_cmd_ck_en[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+         <obj_property name="CustomSignalColor">#FFA500</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd">
+      <obj_property name="ElementShortName">i_controller_cmd[103:0]</obj_property>
+      <obj_property name="ObjectShortName">i_controller_cmd[103:0]</obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[103]">
+         <obj_property name="ElementShortName">[103]</obj_property>
+         <obj_property name="ObjectShortName">[103]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[102]">
+         <obj_property name="ElementShortName">[102]</obj_property>
+         <obj_property name="ObjectShortName">[102]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[101]">
+         <obj_property name="ElementShortName">[101]</obj_property>
+         <obj_property name="ObjectShortName">[101]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[100]">
+         <obj_property name="ElementShortName">[100]</obj_property>
+         <obj_property name="ObjectShortName">[100]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[99]">
+         <obj_property name="ElementShortName">[99]</obj_property>
+         <obj_property name="ObjectShortName">[99]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[98]">
+         <obj_property name="ElementShortName">[98]</obj_property>
+         <obj_property name="ObjectShortName">[98]</obj_property>
+         <obj_property name="CustomSignalColor">#FF0080</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[97]">
+         <obj_property name="ElementShortName">[97]</obj_property>
+         <obj_property name="ObjectShortName">[97]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[96]">
+         <obj_property name="ElementShortName">[96]</obj_property>
+         <obj_property name="ObjectShortName">[96]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[95]">
+         <obj_property name="ElementShortName">[95]</obj_property>
+         <obj_property name="ObjectShortName">[95]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[94]">
+         <obj_property name="ElementShortName">[94]</obj_property>
+         <obj_property name="ObjectShortName">[94]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[93]">
+         <obj_property name="ElementShortName">[93]</obj_property>
+         <obj_property name="ObjectShortName">[93]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[92]">
+         <obj_property name="ElementShortName">[92]</obj_property>
+         <obj_property name="ObjectShortName">[92]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[91]">
+         <obj_property name="ElementShortName">[91]</obj_property>
+         <obj_property name="ObjectShortName">[91]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[90]">
+         <obj_property name="ElementShortName">[90]</obj_property>
+         <obj_property name="ObjectShortName">[90]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[89]">
+         <obj_property name="ElementShortName">[89]</obj_property>
+         <obj_property name="ObjectShortName">[89]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[88]">
+         <obj_property name="ElementShortName">[88]</obj_property>
+         <obj_property name="ObjectShortName">[88]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[87]">
+         <obj_property name="ElementShortName">[87]</obj_property>
+         <obj_property name="ObjectShortName">[87]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[86]">
+         <obj_property name="ElementShortName">[86]</obj_property>
+         <obj_property name="ObjectShortName">[86]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[85]">
+         <obj_property name="ElementShortName">[85]</obj_property>
+         <obj_property name="ObjectShortName">[85]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[84]">
+         <obj_property name="ElementShortName">[84]</obj_property>
+         <obj_property name="ObjectShortName">[84]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[83]">
+         <obj_property name="ElementShortName">[83]</obj_property>
+         <obj_property name="ObjectShortName">[83]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[82]">
+         <obj_property name="ElementShortName">[82]</obj_property>
+         <obj_property name="ObjectShortName">[82]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[81]">
+         <obj_property name="ElementShortName">[81]</obj_property>
+         <obj_property name="ObjectShortName">[81]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[80]">
+         <obj_property name="ElementShortName">[80]</obj_property>
+         <obj_property name="ObjectShortName">[80]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[79]">
+         <obj_property name="ElementShortName">[79]</obj_property>
+         <obj_property name="ObjectShortName">[79]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[78]">
+         <obj_property name="ElementShortName">[78]</obj_property>
+         <obj_property name="ObjectShortName">[78]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[77]">
+         <obj_property name="ElementShortName">[77]</obj_property>
+         <obj_property name="ObjectShortName">[77]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[76]">
+         <obj_property name="ElementShortName">[76]</obj_property>
+         <obj_property name="ObjectShortName">[76]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[75]">
+         <obj_property name="ElementShortName">[75]</obj_property>
+         <obj_property name="ObjectShortName">[75]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[74]">
+         <obj_property name="ElementShortName">[74]</obj_property>
+         <obj_property name="ObjectShortName">[74]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[73]">
+         <obj_property name="ElementShortName">[73]</obj_property>
+         <obj_property name="ObjectShortName">[73]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[72]">
+         <obj_property name="ElementShortName">[72]</obj_property>
+         <obj_property name="ObjectShortName">[72]</obj_property>
+         <obj_property name="CustomSignalColor">#FF0080</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[71]">
+         <obj_property name="ElementShortName">[71]</obj_property>
+         <obj_property name="ObjectShortName">[71]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[70]">
+         <obj_property name="ElementShortName">[70]</obj_property>
+         <obj_property name="ObjectShortName">[70]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[69]">
+         <obj_property name="ElementShortName">[69]</obj_property>
+         <obj_property name="ObjectShortName">[69]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[68]">
+         <obj_property name="ElementShortName">[68]</obj_property>
+         <obj_property name="ObjectShortName">[68]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[67]">
+         <obj_property name="ElementShortName">[67]</obj_property>
+         <obj_property name="ObjectShortName">[67]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[66]">
+         <obj_property name="ElementShortName">[66]</obj_property>
+         <obj_property name="ObjectShortName">[66]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[65]">
+         <obj_property name="ElementShortName">[65]</obj_property>
+         <obj_property name="ObjectShortName">[65]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[64]">
+         <obj_property name="ElementShortName">[64]</obj_property>
+         <obj_property name="ObjectShortName">[64]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[63]">
+         <obj_property name="ElementShortName">[63]</obj_property>
+         <obj_property name="ObjectShortName">[63]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[62]">
+         <obj_property name="ElementShortName">[62]</obj_property>
+         <obj_property name="ObjectShortName">[62]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[61]">
+         <obj_property name="ElementShortName">[61]</obj_property>
+         <obj_property name="ObjectShortName">[61]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[60]">
+         <obj_property name="ElementShortName">[60]</obj_property>
+         <obj_property name="ObjectShortName">[60]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[59]">
+         <obj_property name="ElementShortName">[59]</obj_property>
+         <obj_property name="ObjectShortName">[59]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[58]">
+         <obj_property name="ElementShortName">[58]</obj_property>
+         <obj_property name="ObjectShortName">[58]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[57]">
+         <obj_property name="ElementShortName">[57]</obj_property>
+         <obj_property name="ObjectShortName">[57]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[56]">
+         <obj_property name="ElementShortName">[56]</obj_property>
+         <obj_property name="ObjectShortName">[56]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[55]">
+         <obj_property name="ElementShortName">[55]</obj_property>
+         <obj_property name="ObjectShortName">[55]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[54]">
+         <obj_property name="ElementShortName">[54]</obj_property>
+         <obj_property name="ObjectShortName">[54]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[53]">
+         <obj_property name="ElementShortName">[53]</obj_property>
+         <obj_property name="ObjectShortName">[53]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[52]">
+         <obj_property name="ElementShortName">[52]</obj_property>
+         <obj_property name="ObjectShortName">[52]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[51]">
+         <obj_property name="ElementShortName">[51]</obj_property>
+         <obj_property name="ObjectShortName">[51]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[50]">
+         <obj_property name="ElementShortName">[50]</obj_property>
+         <obj_property name="ObjectShortName">[50]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[49]">
+         <obj_property name="ElementShortName">[49]</obj_property>
+         <obj_property name="ObjectShortName">[49]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[48]">
+         <obj_property name="ElementShortName">[48]</obj_property>
+         <obj_property name="ObjectShortName">[48]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[47]">
+         <obj_property name="ElementShortName">[47]</obj_property>
+         <obj_property name="ObjectShortName">[47]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[46]">
+         <obj_property name="ElementShortName">[46]</obj_property>
+         <obj_property name="ObjectShortName">[46]</obj_property>
+         <obj_property name="CustomSignalColor">#FF0080</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[45]">
+         <obj_property name="ElementShortName">[45]</obj_property>
+         <obj_property name="ObjectShortName">[45]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[44]">
+         <obj_property name="ElementShortName">[44]</obj_property>
+         <obj_property name="ObjectShortName">[44]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[43]">
+         <obj_property name="ElementShortName">[43]</obj_property>
+         <obj_property name="ObjectShortName">[43]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[42]">
+         <obj_property name="ElementShortName">[42]</obj_property>
+         <obj_property name="ObjectShortName">[42]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[41]">
+         <obj_property name="ElementShortName">[41]</obj_property>
+         <obj_property name="ObjectShortName">[41]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[40]">
+         <obj_property name="ElementShortName">[40]</obj_property>
+         <obj_property name="ObjectShortName">[40]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[39]">
+         <obj_property name="ElementShortName">[39]</obj_property>
+         <obj_property name="ObjectShortName">[39]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[38]">
+         <obj_property name="ElementShortName">[38]</obj_property>
+         <obj_property name="ObjectShortName">[38]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[37]">
+         <obj_property name="ElementShortName">[37]</obj_property>
+         <obj_property name="ObjectShortName">[37]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[36]">
+         <obj_property name="ElementShortName">[36]</obj_property>
+         <obj_property name="ObjectShortName">[36]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[35]">
+         <obj_property name="ElementShortName">[35]</obj_property>
+         <obj_property name="ObjectShortName">[35]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[34]">
+         <obj_property name="ElementShortName">[34]</obj_property>
+         <obj_property name="ObjectShortName">[34]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[33]">
+         <obj_property name="ElementShortName">[33]</obj_property>
+         <obj_property name="ObjectShortName">[33]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[32]">
+         <obj_property name="ElementShortName">[32]</obj_property>
+         <obj_property name="ObjectShortName">[32]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[31]">
+         <obj_property name="ElementShortName">[31]</obj_property>
+         <obj_property name="ObjectShortName">[31]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[30]">
+         <obj_property name="ElementShortName">[30]</obj_property>
+         <obj_property name="ObjectShortName">[30]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[29]">
+         <obj_property name="ElementShortName">[29]</obj_property>
+         <obj_property name="ObjectShortName">[29]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[28]">
+         <obj_property name="ElementShortName">[28]</obj_property>
+         <obj_property name="ObjectShortName">[28]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[27]">
+         <obj_property name="ElementShortName">[27]</obj_property>
+         <obj_property name="ObjectShortName">[27]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[26]">
+         <obj_property name="ElementShortName">[26]</obj_property>
+         <obj_property name="ObjectShortName">[26]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[25]">
+         <obj_property name="ElementShortName">[25]</obj_property>
+         <obj_property name="ObjectShortName">[25]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[24]">
+         <obj_property name="ElementShortName">[24]</obj_property>
+         <obj_property name="ObjectShortName">[24]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[23]">
+         <obj_property name="ElementShortName">[23]</obj_property>
+         <obj_property name="ObjectShortName">[23]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[22]">
+         <obj_property name="ElementShortName">[22]</obj_property>
+         <obj_property name="ObjectShortName">[22]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[21]">
+         <obj_property name="ElementShortName">[21]</obj_property>
+         <obj_property name="ObjectShortName">[21]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[20]">
+         <obj_property name="ElementShortName">[20]</obj_property>
+         <obj_property name="ObjectShortName">[20]</obj_property>
+         <obj_property name="CustomSignalColor">#FF00FF</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[19]">
+         <obj_property name="ElementShortName">[19]</obj_property>
+         <obj_property name="ObjectShortName">[19]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[18]">
+         <obj_property name="ElementShortName">[18]</obj_property>
+         <obj_property name="ObjectShortName">[18]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[17]">
+         <obj_property name="ElementShortName">[17]</obj_property>
+         <obj_property name="ObjectShortName">[17]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[16]">
+         <obj_property name="ElementShortName">[16]</obj_property>
+         <obj_property name="ObjectShortName">[16]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[15]">
+         <obj_property name="ElementShortName">[15]</obj_property>
+         <obj_property name="ObjectShortName">[15]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[14]">
+         <obj_property name="ElementShortName">[14]</obj_property>
+         <obj_property name="ObjectShortName">[14]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[13]">
+         <obj_property name="ElementShortName">[13]</obj_property>
+         <obj_property name="ObjectShortName">[13]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[12]">
+         <obj_property name="ElementShortName">[12]</obj_property>
+         <obj_property name="ObjectShortName">[12]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[11]">
+         <obj_property name="ElementShortName">[11]</obj_property>
+         <obj_property name="ObjectShortName">[11]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[10]">
+         <obj_property name="ElementShortName">[10]</obj_property>
+         <obj_property name="ObjectShortName">[10]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[9]">
+         <obj_property name="ElementShortName">[9]</obj_property>
+         <obj_property name="ObjectShortName">[9]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[8]">
+         <obj_property name="ElementShortName">[8]</obj_property>
+         <obj_property name="ObjectShortName">[8]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[7]">
+         <obj_property name="ElementShortName">[7]</obj_property>
+         <obj_property name="ObjectShortName">[7]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[6]">
+         <obj_property name="ElementShortName">[6]</obj_property>
+         <obj_property name="ObjectShortName">[6]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[5]">
+         <obj_property name="ElementShortName">[5]</obj_property>
+         <obj_property name="ObjectShortName">[5]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[4]">
+         <obj_property name="ElementShortName">[4]</obj_property>
+         <obj_property name="ObjectShortName">[4]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[3]">
+         <obj_property name="ElementShortName">[3]</obj_property>
+         <obj_property name="ObjectShortName">[3]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[2]">
+         <obj_property name="ElementShortName">[2]</obj_property>
+         <obj_property name="ObjectShortName">[2]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[1]">
+         <obj_property name="ElementShortName">[1]</obj_property>
+         <obj_property name="ObjectShortName">[1]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/i_controller_cmd[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+      </wvobject>
+   </wvobject>
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">Calibration</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/odelay_cntvalue_halfway">
+      <obj_property name="ElementShortName">odelay_cntvalue_halfway</obj_property>
+      <obj_property name="ObjectShortName">odelay_cntvalue_halfway</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/write_level_fail">
+      <obj_property name="ElementShortName">write_level_fail[7:0]</obj_property>
+      <obj_property name="ObjectShortName">write_level_fail[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/prev_write_level_feedback">
+      <obj_property name="ElementShortName">prev_write_level_feedback</obj_property>
+      <obj_property name="ObjectShortName">prev_write_level_feedback</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/stored_write_level_feedback">
+      <obj_property name="ElementShortName">stored_write_level_feedback</obj_property>
+      <obj_property name="ObjectShortName">stored_write_level_feedback</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/sample_clk_repeat">
+      <obj_property name="ElementShortName">sample_clk_repeat[3:0]</obj_property>
+      <obj_property name="ObjectShortName">sample_clk_repeat[3:0]</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/initial_calibration_done">
       <obj_property name="ElementShortName">initial_calibration_done</obj_property>
       <obj_property name="ObjectShortName">initial_calibration_done</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/state_calibrate">
+      <obj_property name="ElementShortName">state_calibrate[4:0]</obj_property>
+      <obj_property name="ObjectShortName">state_calibrate[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
+      <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
+      <obj_property name="ObjectShortName">instruction_address[4:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/calibration_state">
       <obj_property name="ElementShortName">calibration_state[319:0]</obj_property>
@@ -93,26 +586,94 @@
       <obj_property name="CustomSignalColor">#FFD700</obj_property>
       <obj_property name="UseCustomSignalColor">true</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_odelay_dqs_cntvaluein">
+      <obj_property name="ElementShortName">o_phy_odelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_odelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/o_phy_idelay_dqs_cntvaluein">
+      <obj_property name="ElementShortName">o_phy_idelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="ObjectShortName">o_phy_idelay_dqs_cntvaluein[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/i_ddr3_clk">
       <obj_property name="ElementShortName">i_ddr3_clk</obj_property>
       <obj_property name="ObjectShortName">i_ddr3_clk</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dq">
-      <obj_property name="ElementShortName">io_ddr3_dq[15:0]</obj_property>
-      <obj_property name="ObjectShortName">io_ddr3_dq[15:0]</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_clk_n">
+      <obj_property name="ElementShortName">o_ddr3_clk_n[0:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_clk_n[0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_clk_p">
+      <obj_property name="ElementShortName">o_ddr3_clk_p[0:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_clk_p[0:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_clk_p[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+         <obj_property name="CustomSignalColor">#FF0080</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs">
-      <obj_property name="ElementShortName">io_ddr3_dqs[1:0]</obj_property>
-      <obj_property name="ObjectShortName">io_ddr3_dqs[1:0]</obj_property>
+      <obj_property name="ElementShortName">io_ddr3_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dqs[7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[7]">
+         <obj_property name="ElementShortName">[7]</obj_property>
+         <obj_property name="ObjectShortName">[7]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[6]">
+         <obj_property name="ElementShortName">[6]</obj_property>
+         <obj_property name="ObjectShortName">[6]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[5]">
+         <obj_property name="ElementShortName">[5]</obj_property>
+         <obj_property name="ObjectShortName">[5]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[4]">
+         <obj_property name="ElementShortName">[4]</obj_property>
+         <obj_property name="ObjectShortName">[4]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[3]">
+         <obj_property name="ElementShortName">[3]</obj_property>
+         <obj_property name="ObjectShortName">[3]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[2]">
+         <obj_property name="ElementShortName">[2]</obj_property>
+         <obj_property name="ObjectShortName">[2]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[1]">
+         <obj_property name="ElementShortName">[1]</obj_property>
+         <obj_property name="ObjectShortName">[1]</obj_property>
+         <obj_property name="CustomSignalColor">#FFFF00</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+         <obj_property name="CustomSignalColor">#FF0080</obj_property>
+         <obj_property name="UseCustomSignalColor">true</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs_n">
+      <obj_property name="ElementShortName">io_ddr3_dqs_n[7:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dqs_n[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dq">
+      <obj_property name="ElementShortName">io_ddr3_dq[63:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dq[63:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_phy_inst/idelay_dqs">
-      <obj_property name="ElementShortName">idelay_dqs[1:0]</obj_property>
-      <obj_property name="ObjectShortName">idelay_dqs[1:0]</obj_property>
+      <obj_property name="ElementShortName">idelay_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">idelay_dqs[7:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/lane">
-      <obj_property name="ElementShortName">lane[0:0]</obj_property>
-      <obj_property name="ObjectShortName">lane[0:0]</obj_property>
+      <obj_property name="ElementShortName">lane[2:0]</obj_property>
+      <obj_property name="ObjectShortName">lane[2:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="CustomSignalColor">#FF00FF</obj_property>
+      <obj_property name="UseCustomSignalColor">true</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/ddr3_controller_inst/instruction_address">
       <obj_property name="ElementShortName">instruction_address[4:0]</obj_property>
@@ -169,12 +730,12 @@
       <obj_property name="ObjectShortName">i_wb_addr[25:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/i_wb_data">
-      <obj_property name="ElementShortName">i_wb_data[127:0]</obj_property>
-      <obj_property name="ObjectShortName">i_wb_data[127:0]</obj_property>
+      <obj_property name="ElementShortName">i_wb_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">i_wb_data[511:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/i_wb_sel">
-      <obj_property name="ElementShortName">i_wb_sel[15:0]</obj_property>
-      <obj_property name="ObjectShortName">i_wb_sel[15:0]</obj_property>
+      <obj_property name="ElementShortName">i_wb_sel[63:0]</obj_property>
+      <obj_property name="ObjectShortName">i_wb_sel[63:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_wb_stall">
       <obj_property name="ElementShortName">o_wb_stall</obj_property>
@@ -185,20 +746,20 @@
       <obj_property name="ObjectShortName">o_wb_ack</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_wb_data">
-      <obj_property name="ElementShortName">o_wb_data[127:0]</obj_property>
-      <obj_property name="ObjectShortName">o_wb_data[127:0]</obj_property>
+      <obj_property name="ElementShortName">o_wb_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_wb_data[511:0]</obj_property>
    </wvobject>
    <wvobject fp_name="divider869" type="divider">
       <obj_property name="label">DDR3 Interface</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cke">
-      <obj_property name="ElementShortName">o_ddr3_cke</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_cke</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cke">
+      <obj_property name="ElementShortName">o_ddr3_cke[0:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_cke[0:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cs_n">
-      <obj_property name="ElementShortName">o_ddr3_cs_n</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_cs_n</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_cs_n">
+      <obj_property name="ElementShortName">o_ddr3_cs_n[0:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_cs_n[0:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_ras_n">
       <obj_property name="ElementShortName">o_ddr3_ras_n</obj_property>
@@ -221,23 +782,24 @@
       <obj_property name="ObjectShortName">o_ddr3_ba_addr[2:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dq">
-      <obj_property name="ElementShortName">io_ddr3_dq[15:0]</obj_property>
-      <obj_property name="ObjectShortName">io_ddr3_dq[15:0]</obj_property>
+      <obj_property name="ElementShortName">io_ddr3_dq[63:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dq[63:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs">
-      <obj_property name="ElementShortName">io_ddr3_dqs[1:0]</obj_property>
-      <obj_property name="ObjectShortName">io_ddr3_dqs[1:0]</obj_property>
+      <obj_property name="ElementShortName">io_ddr3_dqs[7:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dqs[7:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/io_ddr3_dqs_n">
-      <obj_property name="ElementShortName">io_ddr3_dqs_n[1:0]</obj_property>
-      <obj_property name="ObjectShortName">io_ddr3_dqs_n[1:0]</obj_property>
+      <obj_property name="ElementShortName">io_ddr3_dqs_n[7:0]</obj_property>
+      <obj_property name="ObjectShortName">io_ddr3_dqs_n[7:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_dm">
-      <obj_property name="ElementShortName">o_ddr3_dm[1:0]</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_dm[1:0]</obj_property>
+      <obj_property name="ElementShortName">o_ddr3_dm[7:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_dm[7:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_odt">
-      <obj_property name="ElementShortName">o_ddr3_odt</obj_property>
-      <obj_property name="ObjectShortName">o_ddr3_odt</obj_property>
+   <wvobject type="array" fp_name="/ddr3_dimm_micron_sim/ddr3_top/o_ddr3_odt">
+      <obj_property name="ElementShortName">o_ddr3_odt[0:0]</obj_property>
+      <obj_property name="ObjectShortName">o_ddr3_odt[0:0]</obj_property>
    </wvobject>
 </wave_config>

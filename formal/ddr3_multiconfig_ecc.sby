@@ -13,7 +13,7 @@ prf8lanes_100MHz_ECC_3_err  prf_ECC3  opt_8lanes   opt_100MHz                   
 prf: mode prove
 prf: depth  7
 prf_ECC3: mode prove
-prf_ECC3: depth 5
+prf_ECC3: depth 7
 
 [engines]
 prf: smtbmc
