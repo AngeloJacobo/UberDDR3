@@ -536,6 +536,7 @@ module ddr3_controller #(
     //contains the ack shift reg for both read and write
     reg[AUX_WIDTH:0] shift_reg_read_pipe_q[READ_ACK_PIPE_WIDTH-1:0]; 
     reg[AUX_WIDTH:0] shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1:0]; //issue ack and AUX value , 1=issue command delay (OSERDES delay), 2 =  ISERDES delay 
+    reg[$clog2(READ_ACK_PIPE_WIDTH-1):0] write_ack_index_q = 1, write_ack_index_d = 1;
     reg index_read_pipe; //tells which delay_read_pipe will be updated (there are two delay_read_pipe)
     reg index_wb_data; //tells which o_wb_data_q will be sent to o_wb_data
     reg[15:0] delay_read_pipe[1:0]; //delay when each lane will retrieve i_phy_iserdes_data (since different lanes might not be aligned with each other and needs to be retrieved at a different time)
@@ -1544,6 +1545,8 @@ module ddr3_controller #(
             // shift is rightward where LSB gets MSB ([MSB] -> [] -> [] -> .... -> [] -[LSB])
             shift_reg_read_pipe_d[index-1] = shift_reg_read_pipe_q[index];
         end
+        write_ack_index_d = (write_ack_index_q != 1)? write_ack_index_q - 1 : 1; // decrease write index as shift_reg_read_pipe_d is shifted
+        // earliest write ack is on index 1 shift_reg_read_pipe_q[1] since [0] will fail the alternating index_wb_data
         shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = 0; //MSB just receives zero when shifted rightward
 
 
@@ -1563,8 +1566,8 @@ module ddr3_controller #(
                     stage2_update = 1;
                     cmd_odt = 1'b1;
                     // don't acknowledge if ECC request
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
-                    
+                    shift_reg_read_pipe_d[write_ack_index_q] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
+                    write_ack_index_d = write_ack_index_q; // write index stay when write
                     //write acknowledge will use the same logic pipeline as the read acknowledge. 
                     //This would mean write ack latency will be the same for
                     //read ack latency. If it takes 8 clocks for read ack, write
@@ -1661,7 +1664,7 @@ module ddr3_controller #(
                     end
                     // don't acknowledge if ECC request
                     shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
-
+                    write_ack_index_d = READ_ACK_PIPE_WIDTH[$clog2(READ_ACK_PIPE_WIDTH)-1:0]-1'b1; // next index for write is the last index of shift_reg_read_pipe_d
                     //issue read command
                     if(DUAL_RANK_DIMM[0]) begin
                         if(COL_BITS <= 10) begin
@@ -1911,6 +1914,7 @@ module ddr3_controller #(
             write_dqs <= 0;
             write_dq_q <= 0;
             write_dq <= 0;
+            write_ack_index_q <= 1;
             if(ECC_ENABLE == 1 || ECC_ENABLE == 2) begin
                 o_wb_ack_q <= 0;
                 o_wb_ack_uncalibrated <= 0;
@@ -1953,7 +1957,7 @@ module ddr3_controller #(
                 // shifted rightward where LSB gets MSB ([MSB] -> [] -> [] -> .... -> [] -[LSB])
                 shift_reg_read_pipe_q[index] <= shift_reg_read_pipe_d[index];
             end
-
+            write_ack_index_q <= write_ack_index_d; // determines next index in pipe for write ack
             for(index = 0; index < 2; index = index + 1) begin 
                 // there are 2 read_pipes (each with 16 space for shifting), and each read pipes shift rightward
                 // so the bit 1 will be shifted to the right until it reach LSB which means data is already on ISERDES output of PHY
@@ -4620,7 +4624,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         shift_reg_read_pipe_q[4][0]
                     };
                 end
-
+                // write_ack_index_q must be less than READ_ACK_PIPE_WIDTH
+                assert(write_ack_index_q < READ_ACK_PIPE_WIDTH);
+                assert(write_ack_index_q != 0); //always greater than 1
                 if(f_ackwait_count > F_MAX_STALL && (ECC_ENABLE != 3)) begin
                     assert(|f_ack_pipe_after_stage2[(READ_ACK_PIPE_WIDTH+1) : (f_ackwait_count - F_MAX_STALL - 1)]); //at least one stage must be high
                 end
