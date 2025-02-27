@@ -94,6 +94,8 @@ module ddr3_test #(
     reg[WB_ADDR_BITS-1:0] check_test_address_counter = 0; 
     reg[$clog2(WB_SEL_BITS)-1:0] write_by_byte_counter = 0;
     (* mark_debug = "true" *) reg[63:0] correct_read_data_counter = 0, wrong_read_data_counter = 0; // 64-bit counter for correct and wrong read data, this make sure the counter will not overflow when several day's worth of DDR3 test is done on hardware
+    reg increment_wrong_read_data_counter = 0;
+    reg increment_correct_read_data_counter = 0;
     (* mark_debug = "true" *) reg[WB_DATA_BITS-1:0] wrong_data, expected_data;
     reg[63:0] time_counter = 0; 
     (* mark_debug = "true" *) reg[31:0] injected_faults_counter = 0;
@@ -287,15 +289,18 @@ module ddr3_test #(
             wrong_read_data_counter <= 64'd0;
             wrong_data <= 512'd0;
             expected_data <= 512'd0;
+            increment_wrong_read_data_counter <= 0;
         end
         else begin
             if(i_calib_complete) begin          
+                increment_wrong_read_data_counter <= 1'b0;
+                increment_correct_read_data_counter <= 1'b0;
                 if ( i_wb_ack && i_aux[2:0] == 3'd3 ) begin //o_aux = 3 is for read requests from DDR3 test
                     if(i_wb_data == correct_data) begin // if read data matches the expected, increment correct_read_data_counter
-                        correct_read_data_counter <= correct_read_data_counter + 64'd1;
+                        increment_correct_read_data_counter <= 1'b1;
                     end
                     else begin
-                        wrong_read_data_counter <= wrong_read_data_counter + 64'd1;
+                        increment_wrong_read_data_counter <= 1'b1;
                         wrong_data <= i_wb_data;
                         expected_data <= correct_data;
                     end
@@ -313,6 +318,12 @@ module ddr3_test #(
                 wrong_read_data_counter <= 64'd0;
                 wrong_data <= 512'd0;
                 expected_data <= 512'd0;
+            end
+            if(increment_wrong_read_data_counter) begin
+                wrong_read_data_counter <= wrong_read_data_counter + 64'd1;
+            end
+            if(increment_correct_read_data_counter) begin
+                correct_read_data_counter <= correct_read_data_counter + 64'd1;
             end
         end
 
@@ -365,3 +376,4 @@ module ddr3_test #(
         .wrong_read_data_counter_0(wrong_read_data_counter)
     );
 endmodule
+
