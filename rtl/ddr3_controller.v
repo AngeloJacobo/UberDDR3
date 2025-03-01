@@ -38,7 +38,7 @@
 // Comments are continuously added on this RTL for better readability
 
 //`define FORMAL_COVER //skip reset sequence during formal verification to fit in cover depth
-// `default_nettype none
+`default_nettype none
 `timescale 1ps / 1ps
 //
 // speed bin
