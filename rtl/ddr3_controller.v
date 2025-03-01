@@ -90,17 +90,17 @@ module ddr3_controller #(
         input wire i_rst_n, //200MHz input clock
         // Wishbone inputs
         input wire i_wb_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-        (* mark_debug = "true" *)input wire i_wb_stb, //request a transfer
-        (* mark_debug = "true" *)input wire i_wb_we, //write-enable (1 = write, 0 = read)
-        (* mark_debug = "true" *)input wire[wb_addr_bits - 1:0] i_wb_addr, //burst-addressable {row,bank,col} 
-        (* mark_debug = "true" *)input wire[wb_data_bits - 1:0] i_wb_data, //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+        input wire i_wb_stb, //request a transfer
+        input wire i_wb_we, //write-enable (1 = write, 0 = read)
+        input wire[wb_addr_bits - 1:0] i_wb_addr, //burst-addressable {row,bank,col} 
+        input wire[wb_data_bits - 1:0] i_wb_data, //write data, for a 4:1 controller data width is 8 times the number of pins on the device
         input wire[wb_sel_bits - 1:0] i_wb_sel, //byte strobe for write (1 = write the byte)
         input wire[AUX_WIDTH - 1:0]  i_aux, //for AXI-interface compatibility (given upon strobe)
         // Wishbone outputs
-        (* mark_debug = "true" *)output reg o_wb_stall, //1 = busy, cannot accept requests
-        (* mark_debug = "true" *)output wire o_wb_ack, //1 = read/write request has completed
+        output reg o_wb_stall, //1 = busy, cannot accept requests
+        output wire o_wb_ack, //1 = read/write request has completed
         output wire o_wb_err, //1 = Error due to ECC double bit error (fixed to 0 if WB_ERROR = 0)
-        (* mark_debug = "true" *)output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+        output reg[wb_data_bits - 1:0] o_wb_data, //read data, for a 4:1 controller data width is 8 times the number of pins on the device
         output reg[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
         //
         // Wishbone 2 (PHY) inputs
@@ -116,8 +116,8 @@ module ddr3_controller #(
         output reg[WB2_DATA_BITS - 1:0] o_wb2_data, //read data
         //
         // PHY interface
-        (* mark_debug = "true" *) input wire[DQ_BITS*LANES*8 - 1:0] i_phy_iserdes_data,
-        (* mark_debug = "true" *) input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
+        input wire[DQ_BITS*LANES*8 - 1:0] i_phy_iserdes_data,
+        input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
         input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_bitslip_reference,
         input wire i_phy_idelayctrl_rdy,
         output wire[cmd_len*serdes_ratio-1:0] o_phy_cmd,
@@ -496,7 +496,7 @@ module ddr3_controller #(
         o_phy_bitslip = 0;
     end
     reg cmd_odt_q = 0, cmd_odt, cmd_reset_n;
-    (* mark_debug = "true" *) reg[DUAL_RANK_DIMM:0] cmd_ck_en, prev_cmd_ck_en;  
+    reg[DUAL_RANK_DIMM:0] cmd_ck_en, prev_cmd_ck_en;  
     reg o_wb_stall_q = 1, o_wb_stall_d, o_wb_stall_calib = 1;
     reg precharge_slot_busy;
     reg activate_slot_busy;
@@ -511,17 +511,17 @@ module ddr3_controller #(
     (* mark_debug = "true" *) reg[$clog2(DONE_CALIBRATE)-1:0] state_calibrate;
     reg[STORED_DQS_SIZE*8-1:0] dqs_store = 0;
     reg[$clog2(STORED_DQS_SIZE)-1:0] dqs_count_repeat = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
+    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index = 0;
     reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_start_index_stored = 0;
-    (* mark_debug ="true" *) reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
+    reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index = 0;
     reg[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_orig = 0;
     reg[$clog2(STORED_DQS_SIZE*8):0] dq_target_index[LANES-1:0];
     wire[$clog2(STORED_DQS_SIZE*8)-1:0] dqs_target_index_value;
-    (* mark_debug ="true" *) reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
+    reg[$clog2(REPEAT_DQS_ANALYZE):0] dqs_start_index_repeat=0;
     reg[3:0] train_delay;
     reg[3:0] delay_before_read_data = 0;
     reg[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0] delay_before_write_level_feedback = 0;
-    (* mark_debug = "true" *) reg initial_dqs = 0;
+    reg initial_dqs = 0;
     (* mark_debug = "true" *) reg[lanes_clog2-1:0] lane = 0;
     reg[$clog2(8*LANES)-1:0] lane_times_8 = 0;
     /* verilator lint_off UNUSEDSIGNAL */
@@ -548,32 +548,32 @@ module ddr3_controller #(
     reg o_wb_err_q;
     reg o_wb_ack_uncalibrated = 0;
     reg[AUX_WIDTH:0] o_wb_ack_read_q[MAX_ADDED_READ_ACK_DELAY-1:0];
-    (* mark_debug = "true" *) reg calib_stb = 0;
+    reg calib_stb = 0;
     reg[wb_sel_bits-1:0] calib_sel = 0;
     reg[AUX_WIDTH-1:0] calib_aux = 0;
-    (* mark_debug = "true" *) reg calib_we = 0;
+    reg calib_we = 0;
     reg[wb_addr_bits-1:0] calib_addr = 0;
     reg[wb_data_bits-1:0] calib_data = 0;
     wire[wb_data_bits-1:0] calib_data_randomized;
     reg write_calib_odt = 0;
     reg write_calib_dqs = 0;
     reg write_calib_dq = 0;
-    (* mark_debug = "true" *) reg prev_write_level_feedback = 1;
+    reg prev_write_level_feedback = 1;
     reg[wb_data_bits-1:0] read_data_store = 0;
     reg[127:0] write_pattern = 0;
     reg[$clog2(64):0] data_start_index[LANES-1:0];   
     reg[LANES-1:0] lane_write_dq_late = 0;    
     reg[LANES-1:0] lane_read_dq_early = 0;    
-    (* mark_debug = "true" *) reg[4:0] odelay_data_cntvaluein[LANES-1:0]; 
+    reg[4:0] odelay_data_cntvaluein[LANES-1:0]; 
     reg[4:0] odelay_dqs_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein[LANES-1:0];
     reg[4:0] idelay_data_cntvaluein_prev;
-    (* mark_debug = "true" *) reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
+    reg[4:0] idelay_dqs_cntvaluein[LANES-1:0];
     reg[$clog2(REPEAT_CLK_SAMPLING):0] sample_clk_repeat = 0;
-    (* mark_debug = "true" *) reg stored_write_level_feedback = 0;
+    reg stored_write_level_feedback = 0;
     reg[5:0] start_index_check = 0;
-    (* mark_debug = "true" *) reg[63:0] read_lane_data = 0;
-    (* mark_debug = "true" *) reg odelay_cntvalue_halfway = 0;
+    reg[63:0] read_lane_data = 0;
+    reg odelay_cntvalue_halfway = 0;
     reg initial_calibration_done = 0;
     reg final_calibration_done = 0;
     assign o_calib_complete = final_calibration_done;
@@ -603,11 +603,10 @@ module ddr3_controller #(
     (* mark_debug = "true" *) reg[wb_addr_bits:0] write_test_address_counter = 0;
     (* mark_debug = "true" *) reg[31:0] correct_read_data = 0, wrong_read_data = 0;
     /* verilator lint_off UNDRIVEN */
-    (* mark_debug = "true" *) wire sb_err_o;
+    wire sb_err_o;
     wire db_err_o;
     wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
-    /* verilator lint_on UNDRIVEN */
-    (* mark_debug ="true" *) reg user_self_refresh_q; // registered i_user_self_refresh
+    reg user_self_refresh_q; // registered i_user_self_refresh
 
     // initial block for all regs
     initial begin
@@ -1566,7 +1565,9 @@ module ddr3_controller #(
                     stage2_update = 1;
                     cmd_odt = 1'b1;
                     // don't acknowledge if ECC request
+                    /* verilator lint_off WIDTHTRUNC */
                     shift_reg_read_pipe_d[write_ack_index_q] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
+                    /* verilator lint_on WIDTHTRUNC */
                     write_ack_index_d = write_ack_index_q; // write index stay when write
                     //write acknowledge will use the same logic pipeline as the read acknowledge. 
                     //This would mean write ack latency will be the same for
@@ -3358,6 +3359,9 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 assign stage1_data_mux = stage1_data_encoded;
             end   
             assign encoded_parity = 0;
+            assign sb_err_o = 1'b0;
+            assign db_err_o = 1'b0;
+            assign o_wb_data_q_decoded = 0;
         end
         
         else if (ECC_ENABLE == 2) begin : sideband_ECC_per_8_bursts
