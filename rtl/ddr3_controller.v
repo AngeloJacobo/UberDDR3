@@ -104,12 +104,14 @@ module ddr3_controller #(
         output reg[AUX_WIDTH - 1:0] o_aux, //for AXI-interface compatibility (returned upon ack)
         //
         // Wishbone 2 (PHY) inputs
+        /* verilator lint_off UNUSEDSIGNAL */
         input wire i_wb2_cyc, //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
         input wire i_wb2_stb, //request a transfer
         input wire i_wb2_we, //write-enable (1 = write, 0 = read)
         input wire[WB2_ADDR_BITS - 1:0] i_wb2_addr, //memory-mapped register to be accessed 
         input wire[wb2_sel_bits - 1:0] i_wb2_sel, //byte strobe for write (1 = write the byte)
         input wire[WB2_DATA_BITS - 1:0] i_wb2_data, //write data
+        /* verilator lint_on UNUSEDSIGNAL */
         // Wishbone 2 (Controller) outputs
         output reg o_wb2_stall, //1 = busy, cannot accept requests
         output reg o_wb2_ack, //1 = read/write request has completed
@@ -584,16 +586,16 @@ module ddr3_controller #(
     reg[WB2_ADDR_BITS-1:0] wb2_addr = 0;
     reg[WB2_DATA_BITS-1:0] wb2_data = 0;
     reg[wb2_sel_bits-1:0] wb2_sel = 0;
-    reg[4:0] wb2_phy_odelay_data_cntvaluein;
-    reg[4:0] wb2_phy_odelay_dqs_cntvaluein;
-    reg[4:0] wb2_phy_idelay_data_cntvaluein;
-    reg[4:0] wb2_phy_idelay_dqs_cntvaluein;
-    reg[LANES-1:0] wb2_phy_odelay_data_ld;
-    reg[LANES-1:0] wb2_phy_odelay_dqs_ld;
-    reg[LANES-1:0] wb2_phy_idelay_data_ld;
-    reg[LANES-1:0] wb2_phy_idelay_dqs_ld;
+    reg[4:0] wb2_phy_odelay_data_cntvaluein = 0;
+    reg[4:0] wb2_phy_odelay_dqs_cntvaluein = 0;
+    reg[4:0] wb2_phy_idelay_data_cntvaluein = 0;
+    reg[4:0] wb2_phy_idelay_dqs_cntvaluein = 0;
+    reg[LANES-1:0] wb2_phy_odelay_data_ld = 0;
+    reg[LANES-1:0] wb2_phy_odelay_dqs_ld = 0;
+    reg[LANES-1:0] wb2_phy_idelay_data_ld = 0;
+    reg[LANES-1:0] wb2_phy_idelay_dqs_ld = 0;
     (* mark_debug ="true" *)reg[LANES-1:0] write_level_fail = 0;
-    reg[lanes_clog2-1:0] wb2_write_lane;
+    reg[lanes_clog2-1:0] wb2_write_lane = 0;
     reg sync_rst_wb2 = 0, sync_rst_controller = 0, current_rank_rst = 0;
     reg reset_from_wb2 = 0, reset_from_calibrate = 0, reset_from_test = 0, repeat_test = 0;
     reg reset_after_rank_1 = 0; // reset after calibration rank 1 to switch to rank 2
@@ -2961,172 +2963,183 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     /*********************************************************************************************************************************************/
     
     /******************************************************* Wishbone 2 (PHY) Interface *******************************************************/
+    generate
+        if(SECOND_WISHBONE) begin : use_second_wishbone
+        // When running in DDR3-1600, disable SECOND_WISHBONE to pass timing
+            always @(posedge i_controller_clk) begin
+                    if(sync_rst_wb2) begin
+                        wb2_stb <= 0;
+                        wb2_we <= 0; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN}
+                        wb2_addr <= 0;
+                        wb2_data <= 0;
+                        wb2_sel <= 0;
+                    end
+                    else begin
+                        if( (i_wb2_cyc && SECOND_WISHBONE) && !o_wb2_stall) begin 
+                            wb2_stb <= i_wb2_stb;
+                            wb2_we <= i_wb2_we; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN} 
+                            wb2_addr <= i_wb2_addr;
+                            wb2_data <= i_wb2_data;
+                            wb2_sel <= i_wb2_sel;
+                        end
+                        else if(!o_wb2_stall) begin
+                            wb2_stb <= 0;
+                            wb2_we <= 0;
+                            wb2_addr <= 0;
+                            wb2_data <= 0;
+                            wb2_sel <= 0;
+                        end
+                    end
+            end 
 
-   always @(posedge i_controller_clk) begin
-        if(sync_rst_wb2) begin
-            wb2_stb <= 0;
-            wb2_we <= 0; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN}
-            wb2_addr <= 0;
-            wb2_data <= 0;
-            wb2_sel <= 0;
-        end
-        else begin
-            if( (i_wb2_cyc && SECOND_WISHBONE) && !o_wb2_stall) begin 
-                wb2_stb <= i_wb2_stb;
-                wb2_we <= i_wb2_we; //data to be written which must have high i_wb2_sel are: {LANE_NUMBER, CNTVALUEIN} 
-                wb2_addr <= i_wb2_addr;
-                wb2_data <= i_wb2_data;
-                wb2_sel <= i_wb2_sel;
+            always @(posedge i_controller_clk) begin
+                if(sync_rst_wb2) begin
+                    wb2_phy_odelay_data_cntvaluein <= 0;
+                    wb2_phy_odelay_data_ld <= 0;
+                    wb2_phy_odelay_dqs_cntvaluein <= 0;
+                    wb2_phy_odelay_dqs_ld <= 0;
+                    wb2_phy_idelay_data_cntvaluein <= 0;
+                    wb2_phy_idelay_data_ld <= 0;
+                    wb2_phy_idelay_dqs_cntvaluein <= 0;
+                    wb2_phy_idelay_dqs_ld <= 0;
+                    wb2_update <= 0;
+                    wb2_write_lane <= 0;
+                    o_wb2_ack <= 0;
+                    o_wb2_stall <= 1;
+                    o_wb2_data <= 0;
+                    reset_from_wb2 <= 0;
+                    repeat_test <= 0;
+                end
+                else begin
+                    wb2_phy_odelay_data_ld <= 0; 
+                    wb2_phy_odelay_dqs_ld <= 0;
+                    wb2_phy_idelay_data_ld <= 0;
+                    wb2_phy_idelay_dqs_ld <= 0;
+                    wb2_update <= 0;
+                    wb2_write_lane <= 0;
+                    o_wb2_ack <= wb2_stb && (i_wb2_cyc && SECOND_WISHBONE); //always ack right after request
+                    o_wb2_stall <= 0; //never stall
+                    reset_from_wb2 <= 0;
+                    repeat_test <= 0;
+                    if(wb2_stb && (i_wb2_cyc && SECOND_WISHBONE)) begin
+                            case(wb2_addr[4:0]) 
+                                //read/write odelay cntvalue for DQ line
+                                0: if(wb2_we) begin 
+                                        wb2_phy_odelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQ
+                                        wb2_phy_odelay_data_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //raise the lane to be loaded with new cntvaluein
+                                        wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
+                                end
+                                else begin
+                                        o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_data_cntvaluein[wb2_addr[4 +: lanes_clog2]] };//use next bits of address as lane number to be read
+                                end
+
+                                //read/write odelay cntvalue for DQS line
+                                1: if(wb2_we) begin 
+                                        wb2_phy_odelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQS
+                                        wb2_phy_odelay_dqs_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //raise the lane to be loaded with new cntvaluein
+                                        wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
+                                end
+                                else begin
+                                        o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_dqs_cntvaluein[wb2_addr[4 +: lanes_clog2]] };//use next bits of address as lane number to be read
+                                end
+                                
+                                //read/write idelay cntvalue for DQ line
+                                2: if(wb2_we) begin 
+                                        wb2_phy_idelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQ
+                                        wb2_phy_idelay_data_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //save next 5 bits for lane number to be loaded with new delay
+                                        wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
+                                end
+                                else begin
+                                        o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_data_cntvaluein[wb2_addr[4 +: lanes_clog2]] }; //use next bits of address as lane number to be read
+                                end
+
+                                //read/write idelay cntvalue for DQS line
+                                3: if(wb2_we) begin 
+                                        wb2_phy_idelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQS
+                                        wb2_phy_idelay_dqs_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //save next 5 bits for lane number to be loaded with new delay
+                                        wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
+                                end
+                                else begin
+                                        o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_dqs_cntvaluein[wb2_addr[4 +: lanes_clog2]] }; //use next bits of address as lane number to be read
+                                end
+
+                                4: if(!wb2_we) begin
+                                        o_wb2_data[0] <= i_phy_idelayctrl_rdy; //1 bit, should be high when IDELAYE2 is ready
+                                        o_wb2_data[1 +: 5] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
+                                        o_wb2_data[1 + 6 +: 5] <= instruction_address; //5 bits, address of the reset sequence
+                                        o_wb2_data[1 + 6 + 5 +: 4] <= added_read_pipe_max; //4 bit, max added read delay (must have a max value of 1)
+                                end
+
+                                5: if(!wb2_we) begin
+                                        for(index = 0; index < LANES; index = index + 1) begin
+                                        o_wb2_data[4*index +: 4] <= added_read_pipe[index];
+                                        end
+                                        //added read pipe delay for lanes 0-to-3 (4 bits each lane the max is just 1 for each)
+                                    end
+            /*
+                                6: if(!wb2_we) begin
+                                        o_wb2_data <= dqs_store[31:0]; //show last 4 sets of received 8-bit DQS during MPR (repeated 4 times, must have a value of 10'b01_01_01_01_00 somewhere)
+                                    end
+
+                                7: if(!wb2_we) begin
+                                        o_wb2_data <= wrong_data[31:0]; //lane 1
+                                    end
+
+                                8: if(!wb2_we) begin
+                                        o_wb2_data <= wrong_data[63:32]; //first 32 bits of the data read after first write using the write_pattern 128'h80dbcfd275f12c3d_9177298cd0ad51c1
+                                    end
+
+                                9: if(!wb2_we) begin
+                                        o_wb2_data <= wrong_data[95:64]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                                    end
+                                    
+                                10: if(!wb2_we) begin //0x28 (data read back)
+                                        o_wb2_data <= wrong_data[127:96]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                                    end
+                                11: if(!wb2_we) begin //0x2c (data write)
+                                        o_wb2_data <= wrong_data[159:128]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
+                                    end   
+                                12: if(!wb2_we) begin //0x30
+                                        o_wb2_data <= wrong_data[191:160]; //check if proper request is received
+                                    end   
+                                13: if(!wb2_we) begin //0x30
+                                        o_wb2_data <= wrong_data[223:192];//lane 1
+                                    end
+                                14: if(!wb2_we) begin //0x30
+                                        o_wb2_data <= wrong_data[255:224]; //lane 1
+                                    end*/
+                                15: if(!wb2_we) begin //0x30
+                                        o_wb2_data <= correct_read_data; //lane 1
+                                    end
+                                16: if(!wb2_we) begin //0x30
+                                        o_wb2_data <=  wrong_read_data; //lane 1
+                                    end
+                                17: if(wb2_we) begin
+                                        repeat_test <= wb2_data[0];
+                                        reset_from_wb2 <= wb2_data[1];
+                                    end
+                                18: if(!wb2_we) begin //0x30
+                                        o_wb2_data <= 32'h50; //lane 1
+                                    end
+                        default: if(!wb2_we) begin //read 
+                                    o_wb2_data <= {(WB2_DATA_BITS/2){2'b10}}; //return alternating 1s and 0s when address to be read is invalid 
+                                end
+                            endcase
+
+                            wb2_write_lane <= wb2_data[5 +: lanes_clog2]; //save next 5 bits for lane number to be loaded with new delay
+                        end //end of if(wb2_stb)
+                    end//end of else
+            end//end of always
+        end : use_second_wishbone
+        else begin : no_second_wishbone
+            always @* begin
+                o_wb2_stall = 1'b1; // will not accept any request
+                o_wb2_ack = 1'b0;
+                o_wb2_data = 0;
             end
-            else if(!o_wb2_stall) begin
-                wb2_stb <= 0;
-                wb2_we <= 0;
-                wb2_addr <= 0;
-                wb2_data <= 0;
-                wb2_sel <= 0;
-            end
-        end
-   end 
+        end : no_second_wishbone
+    endgenerate
 
-   always @(posedge i_controller_clk) begin
-       if(sync_rst_wb2) begin
-           wb2_phy_odelay_data_cntvaluein <= 0;
-           wb2_phy_odelay_data_ld <= 0;
-           wb2_phy_odelay_dqs_cntvaluein <= 0;
-           wb2_phy_odelay_dqs_ld <= 0;
-           wb2_phy_idelay_data_cntvaluein <= 0;
-           wb2_phy_idelay_data_ld <= 0;
-           wb2_phy_idelay_dqs_cntvaluein <= 0;
-           wb2_phy_idelay_dqs_ld <= 0;
-           wb2_update <= 0;
-           wb2_write_lane <= 0;
-           o_wb2_ack <= 0;
-           o_wb2_stall <= 1;
-           o_wb2_data <= 0;
-           reset_from_wb2 <= 0;
-           repeat_test <= 0;
-       end
-       else begin
-           wb2_phy_odelay_data_ld <= 0; 
-           wb2_phy_odelay_dqs_ld <= 0;
-           wb2_phy_idelay_data_ld <= 0;
-           wb2_phy_idelay_dqs_ld <= 0;
-           wb2_update <= 0;
-           wb2_write_lane <= 0;
-           o_wb2_ack <= wb2_stb && (i_wb2_cyc && SECOND_WISHBONE); //always ack right after request
-           o_wb2_stall <= 0; //never stall
-           reset_from_wb2 <= 0;
-           repeat_test <= 0;
-           if(wb2_stb && (i_wb2_cyc && SECOND_WISHBONE)) begin
-                case(wb2_addr[4:0]) 
-                    //read/write odelay cntvalue for DQ line
-                    0: if(wb2_we) begin 
-                            wb2_phy_odelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQ
-                            wb2_phy_odelay_data_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //raise the lane to be loaded with new cntvaluein
-                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
-                       end
-                       else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_data_cntvaluein[wb2_addr[4 +: lanes_clog2]] };//use next bits of address as lane number to be read
-                       end
-
-                    //read/write odelay cntvalue for DQS line
-                    1: if(wb2_we) begin 
-                            wb2_phy_odelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the ODELAYE2 for DQS
-                            wb2_phy_odelay_dqs_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //raise the lane to be loaded with new cntvaluein
-                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
-                       end
-                       else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , odelay_dqs_cntvaluein[wb2_addr[4 +: lanes_clog2]] };//use next bits of address as lane number to be read
-                       end
-                       
-                    //read/write idelay cntvalue for DQ line
-                    2: if(wb2_we) begin 
-                            wb2_phy_idelay_data_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQ
-                            wb2_phy_idelay_data_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //save next 5 bits for lane number to be loaded with new delay
-                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
-                       end
-                       else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_data_cntvaluein[wb2_addr[4 +: lanes_clog2]] }; //use next bits of address as lane number to be read
-                       end
-
-                    //read/write idelay cntvalue for DQS line
-                    3: if(wb2_we) begin 
-                            wb2_phy_idelay_dqs_cntvaluein <= wb2_data[4:0]; //save first 5 bits as CNTVALUEIN for the IDELAYE2 for DQS
-                            wb2_phy_idelay_dqs_ld <= 1 << (wb2_data[5 +: lanes_clog2]); //save next 5 bits for lane number to be loaded with new delay
-                            wb2_update <= wb2_sel[$rtoi($ceil( (lanes_clog2 + 5)/8.0 )) - 1:0]; //only update when sel bit is high (data is valid)
-                       end
-                       else begin
-                            o_wb2_data <= { {(WB2_DATA_BITS-5){1'b0}} , idelay_dqs_cntvaluein[wb2_addr[4 +: lanes_clog2]] }; //use next bits of address as lane number to be read
-                       end
-
-                    4: if(!wb2_we) begin
-                            o_wb2_data[0] <= i_phy_idelayctrl_rdy; //1 bit, should be high when IDELAYE2 is ready
-                            o_wb2_data[1 +: 5] <= state_calibrate; //5 bits, FSM state of the calibration sequence6
-                            o_wb2_data[1 + 6 +: 5] <= instruction_address; //5 bits, address of the reset sequence
-                            o_wb2_data[1 + 6 + 5 +: 4] <= added_read_pipe_max; //4 bit, max added read delay (must have a max value of 1)
-                       end
-
-                    5: if(!wb2_we) begin
-                            for(index = 0; index < LANES; index = index + 1) begin
-                             o_wb2_data[4*index +: 4] <= added_read_pipe[index];
-                            end
-                            //added read pipe delay for lanes 0-to-3 (4 bits each lane the max is just 1 for each)
-                        end
-/*
-                    6: if(!wb2_we) begin
-                            o_wb2_data <= dqs_store[31:0]; //show last 4 sets of received 8-bit DQS during MPR (repeated 4 times, must have a value of 10'b01_01_01_01_00 somewhere)
-                        end
-
-                    7: if(!wb2_we) begin
-                            o_wb2_data <= wrong_data[31:0]; //lane 1
-                        end
-
-                    8: if(!wb2_we) begin
-                            o_wb2_data <= wrong_data[63:32]; //first 32 bits of the data read after first write using the write_pattern 128'h80dbcfd275f12c3d_9177298cd0ad51c1
-                        end
-
-                    9: if(!wb2_we) begin
-                            o_wb2_data <= wrong_data[95:64]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
-                        end
-                        
-                    10: if(!wb2_we) begin //0x28 (data read back)
-                            o_wb2_data <= wrong_data[127:96]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
-                        end
-                    11: if(!wb2_we) begin //0x2c (data write)
-                            o_wb2_data <= wrong_data[159:128]; //first 32 bit of the patern written on the first write just for checking (128'h80dbcfd275f12c3d_9177298cd0ad51c1)
-                        end   
-                    12: if(!wb2_we) begin //0x30
-                            o_wb2_data <= wrong_data[191:160]; //check if proper request is received
-                        end   
-                    13: if(!wb2_we) begin //0x30
-                            o_wb2_data <= wrong_data[223:192];//lane 1
-                        end
-                    14: if(!wb2_we) begin //0x30
-                            o_wb2_data <= wrong_data[255:224]; //lane 1
-                        end*/
-                    15: if(!wb2_we) begin //0x30
-                            o_wb2_data <= correct_read_data; //lane 1
-                        end
-                    16: if(!wb2_we) begin //0x30
-                            o_wb2_data <=  wrong_read_data; //lane 1
-                        end
-                    17: if(wb2_we) begin
-                            repeat_test <= wb2_data[0];
-                            reset_from_wb2 <= wb2_data[1];
-                        end
-                    18: if(!wb2_we) begin //0x30
-                            o_wb2_data <= 32'h50; //lane 1
-                        end
-              default: if(!wb2_we) begin //read 
-                           o_wb2_data <= {(WB2_DATA_BITS/2){2'b10}}; //return alternating 1s and 0s when address to be read is invalid 
-                       end
-                endcase
-
-                wb2_write_lane <= wb2_data[5 +: lanes_clog2]; //save next 5 bits for lane number to be loaded with new delay
-            end //end of if(wb2_stb)
-        end//end of else
-    end//end of always
-    // Logic connected to debug port
     // Logic connected to debug port
 //    wire debug_trigger;
     assign o_debug1 = {27'd0, state_calibrate[4:0]};
