@@ -1,4 +1,6 @@
 formal/ddr3_multiconfig*prf*
+formal/ddr3_multiconfig_default/
+formal/ddr3_multiconfig_ecc/
 formal/ecc/
 formal/ddr3_singleconfig/
 example_demo/nexys_video/build/

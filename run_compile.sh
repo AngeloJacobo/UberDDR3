@@ -1,12 +1,24 @@
+#!/bin/bash
+
+# Function to run Verilator lint
+run_lint() {
+    echo -e "\e[32mRun Verilator Lint:\e[0m"
+    verilator --lint-only rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv -Irtl/ -Wall
+    echo "DONE!"
+}
+
+# If the script is called with "lint", run only linting and exit
+if [[ "$1" == "lint" ]]; then
+    run_lint
+    exit 0
+fi
+
 # Clean files
 rm -rf formal/ddr3*prf*
 rm -rf formal/ddr3_singleconfig
 
-# run verilator lint
-echo -e "\e[32mRun Verilator Lint:\e[0m"
-verilator --lint-only rtl/ddr3_controller.v rtl/ecc/ecc_dec.sv rtl/ecc/ecc_enc.sv -Irtl/ -Wall
-echo "DONE!"
-    
+# Run Verilator lint
+run_lint    
 
 # run yosys compile
 echo ""
@@ -55,26 +67,30 @@ NC='\033[0m' # No Color
 echo ""
 echo ""
 echo "Summary:"
+
+# Excluded folders
+excluded_folders=("formal/ddr3_multiconfig_default/" "formal/ddr3_multiconfig_ecc/")
+
 # Iterate over folders starting with 'ddr3*'
 for folder in formal/ddr3*/ ; do
-    # Check if the 'PASS' file exists in the folder
+    # Skip excluded folders
+    [[ " ${excluded_folders[*]} " =~ " ${folder} " ]] && continue
+
+    # Check for 'PASS' file
     if [[ -e "${folder}PASS" ]]; then
-        # Print the folder name and 'PASS' in green
         echo -e "${folder}: ${GREEN}PASS${NC}"
     else
-        # Print the folder name and 'FAIL' in red
         echo -e "${folder}: ${RED}FAIL${NC}"
     fi
 done
 
 # Iterate over folders inside 'ecc/'
 for folder in formal/ecc/ ; do
-    # Check if the 'PASS' file exists in the folder
+    [[ " ${excluded_folders[*]} " =~ " ${folder} " ]] && continue
+
     if [[ -e "${folder}PASS" ]]; then
-        # Print the folder name and 'PASS' in green
         echo -e "${folder}: ${GREEN}PASS${NC}"
     else
-        # Print the folder name and 'FAIL' in red
         echo -e "${folder}: ${RED}FAIL${NC}"
     fi
 done
