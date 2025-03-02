@@ -3266,7 +3266,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     /*********************************************************************************************************************************************/
 
     /******************************************************* Calibration Test Receiver *******************************************************/
-    reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;;
+    reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
     wire[wb_data_bits-1:0] correct_data;
 
     generate
