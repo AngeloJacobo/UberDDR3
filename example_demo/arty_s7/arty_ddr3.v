@@ -146,14 +146,14 @@
         .uart_rx_data(rd_data)   // The recieved data.
     );
     
-    `define XADC
+    // `define XADC
      `ifdef XADC
          xadc_wiz_0 xadc_inst (
               .dclk_in(i_controller_clk), // Clock input for the dynamic reconfiguration port
               .user_temp_alarm_out(user_temp_alarm_out) // Temperature-sensor alarm output
             );
       `else
-            user_temp_alarm_out = 1'b0;
+            assign user_temp_alarm_out = 1'b0;
     `endif
 
     // UART module from https://github.com/alexforencich/verilog-uart (DOES NOT WORK ON OPENXC7, UberDDR3 cannot finish calibration when this UART is used)
