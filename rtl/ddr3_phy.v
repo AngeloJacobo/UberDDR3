@@ -211,8 +211,10 @@ module ddr3_phy #(
                 .D7(),
                 .D8(),
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                `ifndef YOSYS // openxc7 run fails if this is connected to ground
                 .SHIFTIN1(0),
                 .SHIFTIN2(0),
+                `endif
                 // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                 .T1(0),
                 .T2(0),
@@ -261,8 +263,10 @@ module ddr3_phy #(
                 .D7(),
                 .D8(),
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                `ifndef YOSYS // openxc7 run fails if this is connected to ground
                 .SHIFTIN1(0),
                 .SHIFTIN2(0),
+                `endif
                 // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                 .T1(0),
                 .T2(0),
@@ -335,8 +339,10 @@ module ddr3_phy #(
             .TFB(), // 1-bit output: 3-state control
             .TQ(), // 1-bit output: 3-state control
             // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+            `ifndef YOSYS // openxc7 run fails if this is connected to ground
             .SHIFTIN1(0),
             .SHIFTIN2(0),
+            `endif
             // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
             .T1(0),
             .T2(0),
@@ -351,7 +357,7 @@ module ddr3_phy #(
 
             //Delay the DQ
             // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
-            (* IODELAY_GROUP="DDR3-GROUP" *)
+            (* IODELAY_GROUP = 0 *)
             ODELAYE2 #(
                 .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
@@ -477,8 +483,10 @@ module ddr3_phy #(
                     .TBYTEOUT(), // 1-bit output: Byte group tristate
                     .TFB(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T2(0),
                     .T3(0),
@@ -494,7 +502,7 @@ module ddr3_phy #(
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
-                (* IODELAY_GROUP="DDR3-GROUP" *)
+                (* IODELAY_GROUP = 0 *)
                 ODELAYE2 #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                     .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
@@ -593,8 +601,10 @@ module ddr3_phy #(
                     .TBYTEOUT(), // 1-bit output: Byte group tristate
                     .TFB(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T2(0),
                     .T3(0),
@@ -623,7 +633,7 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            (* IODELAY_GROUP="DDR3-GROUP" *)
+            (* IODELAY_GROUP = 0 *)
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -757,8 +767,10 @@ module ddr3_phy #(
                     .TFB(), // 1-bit output: 3-state control
                     .TQ(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T1(0),
                     .T2(0),
@@ -775,7 +787,7 @@ module ddr3_phy #(
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
-                (* IODELAY_GROUP="DDR3-GROUP" *)
+                (* IODELAY_GROUP = 0 *)
                 ODELAYE2 #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                     .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
@@ -847,8 +859,10 @@ module ddr3_phy #(
                     .TFB(), // 1-bit output: 3-state control
                     .TQ(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T1(0),
                     .T2(0),
@@ -913,8 +927,10 @@ module ddr3_phy #(
                     .TBYTEOUT(), // 1-bit output: Byte group tristate
                     .TFB(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T2(0),
                     .T3(0),
@@ -929,7 +945,7 @@ module ddr3_phy #(
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
                 //Delay the DQ
-                (* IODELAY_GROUP="DDR3-GROUP" *)
+                (* IODELAY_GROUP = 0 *)
                 ODELAYE2 #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                     .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -1032,8 +1048,10 @@ module ddr3_phy #(
                     .TBYTEOUT(), // 1-bit output: Byte group tristate
                     .TFB(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T2(0),
                     .T3(0),
@@ -1064,7 +1082,7 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            (* IODELAY_GROUP="DDR3-GROUP" *)
+            (* IODELAY_GROUP = 0 *)
             IDELAYE2 #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
@@ -1282,8 +1300,10 @@ module ddr3_phy #(
                     .TFB(), // 1-bit output: 3-state control
                     .TQ(), // 1-bit output: 3-state control
                     // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                    `ifndef YOSYS // openxc7 run fails if this is connected to ground
                     .SHIFTIN1(0),
                     .SHIFTIN2(0),
+                    `endif
                     // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
                     .T1(0),
                     .T2(0),
@@ -1304,7 +1324,7 @@ module ddr3_phy #(
     // IDELAYCTRL: IDELAYE2/ODELAYE2 Tap Delay Value Control
     // 7 Series
     // Xilinx HDL Libraries Guide, version 13.4
-    (* IODELAY_GROUP="DDR3-GROUP" *)
+    (* IODELAY_GROUP = 0 *)
     IDELAYCTRL IDELAYCTRL_inst (
         .RDY(idelayctrl_rdy), // 1-bit output: Ready output
         .REFCLK(i_ref_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
