@@ -88,7 +88,7 @@
     //Differentia system clock to single end clock
     //===========================================================================
     wire sys_clk; // 200MHz
-    IBUFGDS u_ibufg_sys_clk   
+    IBUFDS u_ibufg_sys_clk   
     (
         .I  (sys_clk_p),            
         .IB (sys_clk_n),          
@@ -213,9 +213,7 @@
             .io_ddr3_dqs_n(ddr3_dqs_n),
             .o_ddr3_dm(ddr3_dm),
             .o_ddr3_odt(ddr3_odt), // on-die termination
-            .o_debug1(o_debug1),
-            .o_debug2(),
-            .o_debug3()
+            .o_debug1(o_debug1)
         );
 
 endmodule
