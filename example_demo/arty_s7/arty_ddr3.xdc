@@ -260,6 +260,8 @@ set_property CONFIG_MODE SPIx4 [current_design]
 ## be set to enable an internal VREF for BANK 34. Since a 1.35v supply is being
 ## used the internal reference is set to half that value (i.e. 0.675v). Note that
 ## this property must be set even if SW3 is not used in the design.
- set_property INTERNAL_VREF 0.675 [get_iobanks 34]
+
+## COMMENT THIS OUT IF RUNNING IN OPENXC7 (OTHERWISE UNCOMMENT THIS)
+#  set_property INTERNAL_VREF 0.675 [get_iobanks 34]
 
 
