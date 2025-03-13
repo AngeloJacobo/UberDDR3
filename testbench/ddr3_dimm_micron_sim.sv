@@ -48,22 +48,23 @@ module ddr3_dimm_micron_sim;
 
 `ifdef TWO_LANES_x8
     localparam BYTE_LANES = 2,
-                ODELAY_SUPPORTED = 1;
+                ODELAY_SUPPORTED = 0;
 `endif 
 
 `ifdef EIGHT_LANES_x8
     localparam BYTE_LANES = 8,
-                ODELAY_SUPPORTED = 1;
+                ODELAY_SUPPORTED = 0;
 `endif
 
 
- localparam CONTROLLER_CLK_PERIOD = 12_000, //ps, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 3_000, //ps, period of clock input to DDR3 RAM device 
+ localparam CONTROLLER_CLK_PERIOD = 5_000, //ps, period of clock input to this DDR3 controller module
+            DDR3_CLK_PERIOD = 1_250, //ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
             SELF_REFRESH = 2'b00,
             DUAL_RANK_DIMM = 0,
             TEST_SELF_REFRESH = 0,
+            SECOND_WISHBONE = 0,
             BIST_MODE = 1; // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
         
 
@@ -165,7 +166,7 @@ ddr3_top #(
     .AUX_WIDTH(AUX_WIDTH), //width of aux line (must be >= 4) 
     .MICRON_SIM(1), //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
     .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 if ODELAYE2 is supported
-    .SECOND_WISHBONE(0), //set to 1 if 2nd wishbone for debugging is needed 
+    .SECOND_WISHBONE(SECOND_WISHBONE), //set to 1 if 2nd wishbone for debugging is needed 
     .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     .WB_ERROR(1), // set to 1 to support Wishbone error (asserts at ECC double bit error)
     .BIST_MODE(BIST_MODE), // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
@@ -678,60 +679,62 @@ ddr3_top #(
         
         // Test 3: Read from wishbone 2 (PHY)
         // Wishbone 2
-        i_wb2_cyc <= 0; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
-        i_wb2_stb <= 0; //request a transfer
-        i_wb2_we <= 0; //write-enable (1 = write, 0 = read)
-        i_wb2_addr <= 0; //memory-mapped register to be accessed 
-        i_wb2_data <= 0; //write data
-        i_wb2_sel <= 0; 
-        address <= 0;
-        address_inner <= 0;
-        #1; //just to make sure the non-blocking are assignments are all over
-        while(address < 9 ) begin
-            if(address <= 3) begin
-                while(address_inner < 7) begin
+        if(SECOND_WISHBONE) begin
+            i_wb2_cyc <= 0; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
+            i_wb2_stb <= 0; //request a transfer
+            i_wb2_we <= 0; //write-enable (1 = write, 0 = read)
+            i_wb2_addr <= 0; //memory-mapped register to be accessed 
+            i_wb2_data <= 0; //write data
+            i_wb2_sel <= 0; 
+            address <= 0;
+            address_inner <= 0;
+            #1; //just to make sure the non-blocking are assignments are all over
+            while(address < 9 ) begin
+                if(address <= 3) begin
+                    while(address_inner < 7) begin
+                        @(posedge i_controller_clk) begin
+                            if(!i_wb2_stb || !o_wb2_stall) begin 
+                                i_wb2_cyc <= 1;
+                                i_wb2_stb <= 1; //0,1,2,3,4,5,6,7,8
+                                i_wb2_we <= 0; 
+                                i_wb2_addr <= address | address_inner << 4;
+                                address_inner <= address_inner + 1; 
+                            end
+                        end
+                        #1;
+                    end //end of while
+                    
                     @(posedge i_controller_clk) begin
                         if(!i_wb2_stb || !o_wb2_stall) begin 
                             i_wb2_cyc <= 1;
                             i_wb2_stb <= 1; //0,1,2,3,4,5,6,7,8
                             i_wb2_we <= 0; 
                             i_wb2_addr <= address | address_inner << 4;
-                            address_inner <= address_inner + 1; 
+                            address <= address + 1;
+                            address_inner <= 0;
+                        end
+                    end //end of @posedge 
+                end //end of if(address <= 3)
+                
+                else begin
+                    @(posedge i_controller_clk) begin
+                        if(!i_wb2_stb || !o_wb2_stall) begin 
+                            i_wb2_cyc <= 1;
+                            i_wb2_stb <= 1;
+                            i_wb2_we <= 0; 
+                            i_wb2_addr <= address;
+                            address <= address + 1; 
                         end
                     end
-                    #1;
-                end //end of while
-                
-                @(posedge i_controller_clk) begin
-                    if(!i_wb2_stb || !o_wb2_stall) begin 
-                        i_wb2_cyc <= 1;
-                        i_wb2_stb <= 1; //0,1,2,3,4,5,6,7,8
-                        i_wb2_we <= 0; 
-                        i_wb2_addr <= address | address_inner << 4;
-                        address <= address + 1;
-                        address_inner <= 0;
-                    end
-                 end //end of @posedge 
-             end //end of if(address <= 3)
-             
-             else begin
-                @(posedge i_controller_clk) begin
-                    if(!i_wb2_stb || !o_wb2_stall) begin 
-                        i_wb2_cyc <= 1;
-                        i_wb2_stb <= 1;
-                        i_wb2_we <= 0; 
-                        i_wb2_addr <= address;
-                        address <= address + 1; 
-                    end
-                 end
-             end
+                end
 
-            #1; //just to make sure the non-blocking are assignments are all over
-        end
-        while(i_wb2_stb) begin
-           @(posedge i_controller_clk) begin
-               if (!o_wb2_stall) i_wb2_stb <= 1'b0;
-          end
+                #1; //just to make sure the non-blocking are assignments are all over
+            end
+            while(i_wb2_stb) begin
+            @(posedge i_controller_clk) begin
+                if (!o_wb2_stall) i_wb2_stb <= 1'b0;
+            end
+            end
         end
       
         #1000_000; //rest here
