@@ -26,7 +26,7 @@ TOP_VERILOG ?= ${TOP}.v
 PNR_DEBUG ?= # --verbose --debug
 
 BOARD ?= UNKNOWN
-JTAG_LINK ?= --board ${BOARD}
+JTAG_LINK ?= -c digilent_hs2
 
 XDC ?= ${PROJECT}.xdc
 
