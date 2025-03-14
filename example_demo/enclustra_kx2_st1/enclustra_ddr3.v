@@ -111,39 +111,39 @@
      
     wire clk_locked;
     // PLL
-//     clk_wiz clk_wiz_inst
-//     (
-//     // Clock out ports
-//     .clk_out1(i_controller_clk), // 166 Mhz
-//     .clk_out2(i_ddr3_clk), // 1333 MHz
-//     .clk_out3(i_ref_clk), // 200 MHz 
-//     // Status and control signals
-//     .reset(!i_rst_n),
-//     .locked(clk_locked),
-//     // Clock in ports
-//     .clk_in1(sys_clk_200MHz)
-//     );
+    clk_wiz clk_wiz_inst
+    (
+    // Clock out ports
+    .clk_out1(i_controller_clk), // 83.333 Mhz
+    .clk_out2(i_ddr3_clk), // 333.333 MHz
+    .clk_out3(i_ref_clk), // 200 MHz 
+    // Status and control signals
+    .reset(!i_rst_n),
+    .locked(clk_locked),
+    // Clock in ports
+    .clk_in1(sys_clk_200MHz)
+    );
 
     // Clock Wizard
-    wire clkfb_out; 
-    clk_wiz_0 clk_wiz_inst
-    (
-        // Clock out ports
-        .controller_clk(i_controller_clk),
-        .ddr3_clk(i_ddr3_clk),
-        .ref200_clk(i_ref_clk),
-        // Status and control signals
-        .reset(!i_rst_n),
-        .locked(clk_locked),
-        // Clock in ports
-        .clk_in1(sys_clk_200MHz)
-    );
+    // wire clkfb_out; 
+    // clk_wiz_0 clk_wiz_inst
+    // (
+    //     // Clock out ports
+    //     .controller_clk(i_controller_clk),
+    //     .ddr3_clk(i_ddr3_clk),
+    //     .ref200_clk(i_ref_clk),
+    //     // Status and control signals
+    //     .reset(!i_rst_n),
+    //     .locked(clk_locked),
+    //     // Clock in ports
+    //     .clk_in1(sys_clk_200MHz)
+    // );
 
 
     // UART TX/RX module from https://github.com/ben-marshall/uart
     uart_tx #(
         .BIT_RATE(9600),
-        .CLK_HZ(200_000_000),
+        .CLK_HZ(83_333_333),
         .PAYLOAD_BITS(8),
         .STOP_BITS(1)
         ) uart_tx_inst (
@@ -156,7 +156,7 @@
     );
     uart_rx #(
         .BIT_RATE(9600),
-        .CLK_HZ(200_000_000),
+        .CLK_HZ(83_333_333),
         .PAYLOAD_BITS(8),
         .STOP_BITS(1)
     ) uart_rx_inst (
@@ -188,8 +188,8 @@
     
     // DDR3 Controller 
     ddr3_top #(
-        .CONTROLLER_CLK_PERIOD(5_000), //ps, clock period of the controller interface
-        .DDR3_CLK_PERIOD(1_250), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
+        .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
+        .DDR3_CLK_PERIOD(3_000), //ps, clock period of the DDR3 RAM device (must be 1/4 of the CONTROLLER_CLK_PERIOD) 
         .ROW_BITS(15), //width of row address
         .COL_BITS(10), //width of column address
         .BA_BITS(3), //width of bank address
