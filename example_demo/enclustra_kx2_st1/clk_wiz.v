@@ -6,12 +6,16 @@ module clk_wiz
   output        clk_out1,
   output        clk_out2,
   output        clk_out3,
+  output        clk_out4,
+  output        clk_out5,
   input         reset,
   output        locked
  );
   wire        clk_out1_clk_wiz_0;
   wire        clk_out2_clk_wiz_0;
   wire        clk_out3_clk_wiz_0;
+  // wire        clk_out4_clk_wiz_0;
+  // wire        clk_out5_clk_wiz_0;
 
   wire clkfbout;
 
@@ -20,17 +24,23 @@ module clk_wiz
     .COMPENSATION         ("INTERNAL"),
     .STARTUP_WAIT         ("FALSE"),
     .DIVCLK_DIVIDE        (1),
-    .CLKFBOUT_MULT        (10), // 200 MHz * 10 = 2000 MHz
+    .CLKFBOUT_MULT        (5), // 200 MHz * 5 = 1000 MHz
     .CLKFBOUT_PHASE       (0.000),
-    .CLKOUT0_DIVIDE       (12), // 2000 MHz / 12 = 166.67 MHz
+    .CLKOUT0_DIVIDE       (12), // 1000 MHz / 12 = 83.333 MHz
     .CLKOUT0_PHASE        (0.000),
     .CLKOUT0_DUTY_CYCLE   (0.500),
-    .CLKOUT1_DIVIDE       (3), // 2000 MHz / 3 = 666.67 MHz
+    .CLKOUT1_DIVIDE       (3), // 1000 MHz / 3 = 333.333 MHz
     .CLKOUT1_PHASE        (0.000),
     .CLKOUT1_DUTY_CYCLE   (0.500),
-    .CLKOUT2_DIVIDE       (10), // 2000 MHz / 10 = 200 MHz
+    .CLKOUT2_DIVIDE       (5), // 1000 MHz / 5 = 200 MHz
     .CLKOUT2_PHASE        (0.000),
     .CLKOUT2_DUTY_CYCLE   (0.500),
+    // .CLKOUT3_DIVIDE       (3), // 1000 MHz / 3 = 333.333 MHz, 90 phase
+    // .CLKOUT3_PHASE        (90.000),
+    // .CLKOUT3_DUTY_CYCLE   (0.500),
+    // .CLKOUT4_DIVIDE       (3), // 1000 MHz / 3 = 333.333 MHz, 180 phase
+    // .CLKOUT4_PHASE        (180),
+    // .CLKOUT4_DUTY_CYCLE   (0.500),
     .CLKIN1_PERIOD        (5) // 200 MHz input
   )
   plle2_adv_inst
@@ -39,6 +49,8 @@ module clk_wiz
     .CLKOUT0             (clk_out1_clk_wiz_0),
     .CLKOUT1             (clk_out2_clk_wiz_0),
     .CLKOUT2             (clk_out3_clk_wiz_0),
+    // .CLKOUT3             (clk_out4_clk_wiz_0),
+    // .CLKOUT4             (clk_out5_clk_wiz_0),
     .CLKFBIN             (clkfbout),
 	.CLKIN1              (clk_in1),
     .LOCKED              (locked),
@@ -53,5 +65,10 @@ module clk_wiz
   BUFG clkout3_buf
    (.O   (clk_out3),
     .I   (clk_out3_clk_wiz_0));
-
+  // BUFG clkout4_buf
+  //  (.O   (clk_out4),
+  //   .I   (clk_out4_clk_wiz_0));
+  // BUFG clkout5_buf
+  //  (.O   (clk_out5),
+  //   .I   (clk_out5_clk_wiz_0));
 endmodule

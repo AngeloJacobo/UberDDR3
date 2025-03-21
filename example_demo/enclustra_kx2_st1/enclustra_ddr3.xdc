@@ -4,7 +4,7 @@
 # cpu_reset_n:0
 set_property PACKAGE_PIN C22 [get_ports i_rst_n]
 set_property IOSTANDARD LVCMOS18 [get_ports i_rst_n]
-set_property -dict {PACKAGE_PIN AD23 IOSTANDARD LVCMOS18} [get_ports btn]
+# set_property -dict {PACKAGE_PIN AD23 IOSTANDARD LVCMOS18} [get_ports btn]
 
 # clk200:0.p
 set_property IOSTANDARD LVDS [get_ports i_clk200_p]

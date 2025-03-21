@@ -46,6 +46,19 @@
 //`define DDR3_1333_9_9_9 
 //`define DDR3_1066_7_7_7 
 //
+// Choose which debug message will be displayed via UART:
+// `define UART_DEBUG_READ_LEVEL
+// `define UART_DEBUG_WRITE_LEVEL
+// `define UART_DEBUG_ALIGN
+
+
+`ifdef UART_DEBUG_READ_LEVEL
+    `define UART_DEBUG
+`elsif UART_DEBUG_WRITE_LEVEL
+    `define UART_DEBUG
+`elsif UART_DEBUG_ALIGN
+    `define UART_DEBUG
+`endif
 
 module ddr3_controller #(
     parameter integer CONTROLLER_CLK_PERIOD = 10_000, //ps, clock period of the controller interface
@@ -143,7 +156,9 @@ module ddr3_controller #(
 //        output	wire	[31:0]	o_debug2,
 //        output	wire	[31:0]	o_debug3
         // User enabled self-refresh
-        input wire i_user_self_refresh
+        input wire i_user_self_refresh,
+        // Display debug messages via UART
+        output wire uart_tx
     );
 
     
@@ -609,7 +624,24 @@ module ddr3_controller #(
     wire db_err_o;
     wire[wb_data_bits - 1:0] o_wb_data_q_decoded;
     reg user_self_refresh_q; // registered i_user_self_refresh
-
+    reg[$clog2(wb_sel_bits)-1:0] write_by_byte_counter = 0;
+    `ifdef UART_DEBUG
+        // uart interface logic for displaying debug messages
+        wire uart_tx_busy;
+        reg uart_tx_en;
+        reg[7:0] uart_tx_data;
+        reg[100*8-1:0] uart_text; // max of 100 chars
+        reg[2:0] state_uart_send;
+        reg uart_start_send;
+        reg[9:0] uart_text_length_index;
+        reg uart_send_busy;
+        localparam UART_FSM_IDLE = 0,
+                    UART_FSM_SEND_BYTE = 1,
+                    UART_FSM_WAIT_SEND = 2,
+                    WAIT_UART = 24;
+        reg[3:0] track_report = 0;
+        reg[$clog2(DONE_CALIBRATE)-1:0] state_calibrate_next;
+    `endif
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
@@ -1212,8 +1244,9 @@ module ddr3_controller #(
                                 stage2_data_unaligned[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*4 + 8*index) +: 8], 
                                 stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],
                                 stage2_data_unaligned[((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*0 + 8*index) +: 8] }
-                            << data_start_index[index]) | unaligned_data[index];
-
+                            << {data_start_index[index][$clog2(64):1], 1'b0} ) | unaligned_data[index];
+                            // data_start_index is set to 1 so this if statement will pass, but shift left is zero (lsb of data_start_index is removed) which means 
+                            // DQ is 1 whole controller cycle early (happens in Kintex-7 with OpenXC7)
                     {unaligned_dm[index], {
                         stage2_dm[1][LANES*7 + index], stage2_dm[1][LANES*6 + index], 
                         stage2_dm[1][LANES*5 + index], stage2_dm[1][LANES*4 + index], 
@@ -2157,7 +2190,6 @@ module ddr3_controller #(
     
 
     /******************************************************* Read/Write Calibration Sequence *******************************************************/
-    reg[$clog2(wb_sel_bits)-1:0] write_by_byte_counter = 0;
     always @(posedge i_controller_clk) begin
         if(sync_rst_controller) begin
             state_calibrate <= IDLE;
@@ -2208,6 +2240,12 @@ module ddr3_controller #(
             reset_after_rank_1 <= 1'b0;
             lane_write_dq_late <= 0;
             lane_read_dq_early <= 0;
+            `ifdef UART_DEBUG
+                uart_start_send <= 0;
+                uart_text <= 0;
+                track_report <= 0;
+                state_calibrate_next <= IDLE;
+            `endif
             for(index = 0; index < LANES; index = index + 1) begin
                 added_read_pipe[index] <= 0;
                 data_start_index[index] <= 0;
@@ -2287,6 +2325,12 @@ module ddr3_controller #(
                         o_phy_write_leveling_calib <= 0;
                         initial_calibration_done <= 1'b0;
                         final_calibration_done <= 1'b0;
+                        `ifdef UART_DEBUG_READ_LEVEL
+                            uart_start_send <= 1'b1;
+                            uart_text <= {"state=IDLE",8'h0a};
+                            state_calibrate <= WAIT_UART;
+                            state_calibrate_next <= BITSLIP_DQS_TRAIN_1;
+                        `endif
                       end
                       else if(instruction_address == 13) begin
                         pause_counter <= 1; //pause instruction address @13 until read calibration finishes
@@ -2305,6 +2349,12 @@ module ddr3_controller #(
                             initial_dqs <= 1;
                             dqs_start_index_repeat <= 0;
                             dqs_start_index_stored <= 0;
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=BITSLIP_DQS_TRAIN_1",8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= MPR_READ;
+                            `endif
                         end                
                         else begin
                             o_phy_bitslip[lane] <= 1;
@@ -2337,7 +2387,30 @@ module ddr3_controller #(
                             dqs_start_index_stored <= dqs_start_index; 
                             // start the index from zero since this will be incremented until we pinpoint the real 
                             // starting bit of dqs_store (dictated by the pattern 10'b01_01_01_01_00)
-                            dqs_start_index <= 0;                             
+                            dqs_start_index <= 0;          
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                // show dqs_store in binary form
+                                uart_text <= {8'h0a,"state=COLLECT_DQS, lane=",hex_to_ascii(lane),", dqs_store= ",
+                                    hex_to_ascii(dqs_store[39]), hex_to_ascii(dqs_store[38]),
+                                    hex_to_ascii(dqs_store[37]), hex_to_ascii(dqs_store[36]),
+                                    hex_to_ascii(dqs_store[35]), hex_to_ascii(dqs_store[34]),
+                                    hex_to_ascii(dqs_store[33]), hex_to_ascii(dqs_store[32]), "_" ,
+                                    hex_to_ascii(dqs_store[31]), hex_to_ascii(dqs_store[30]),
+                                    hex_to_ascii(dqs_store[29]), hex_to_ascii(dqs_store[28]),
+                                    hex_to_ascii(dqs_store[27]), hex_to_ascii(dqs_store[26]),
+                                    hex_to_ascii(dqs_store[25]), hex_to_ascii(dqs_store[24]), "_" ,
+                                    hex_to_ascii(dqs_store[23]), hex_to_ascii(dqs_store[22]),
+                                    hex_to_ascii(dqs_store[21]), hex_to_ascii(dqs_store[20]),
+                                    hex_to_ascii(dqs_store[19]), hex_to_ascii(dqs_store[18]),
+                                    hex_to_ascii(dqs_store[17]), hex_to_ascii(dqs_store[16]), "_" ,
+                                    hex_to_ascii(dqs_store[15]), hex_to_ascii(dqs_store[14]),
+                                    hex_to_ascii(dqs_store[13]), hex_to_ascii(dqs_store[12]),
+                                    hex_to_ascii(dqs_store[11]), hex_to_ascii(dqs_store[10]),
+                                    hex_to_ascii(dqs_store[9]),  hex_to_ascii(dqs_store[8]), 8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= ANALYZE_DQS;
+                            `endif                     
                         end
                       end
                         // find the bit where the DQS starts to be issued (by finding when the pattern 10'b01_01_01_01_00 starts)
@@ -2352,9 +2425,23 @@ module ddr3_controller #(
                             initial_dqs <= 0; 
                             dqs_start_index_repeat <= 0;
                             state_calibrate <= CALIBRATE_DQS;
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=ANALYZE_DQS, REPEAT_DQS_ANALYZE == dqs_start_index_repeat:",hex_to_ascii(dqs_start_index_repeat),
+                                    ", final dqs_start_index=0x", hex_to_ascii(dqs_start_index[5:4]), hex_to_ascii(dqs_start_index[3:0]), 8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= CALIBRATE_DQS;
+                            `endif
                          end
                         else begin
                             state_calibrate <= MPR_READ;
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=ANALYZE_DQS, REPEAT_DQS_ANALYZE != dqs_start_index_repeat:", hex_to_ascii(dqs_start_index_repeat),
+                                    ", final dqs_start_index=0x", hex_to_ascii(dqs_start_index[5:4]), hex_to_ascii(dqs_start_index[3:0]), 8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= MPR_READ;
+                            `endif
                         end
                       end 
                       else begin
@@ -2363,9 +2450,21 @@ module ddr3_controller #(
                             o_phy_idelay_dqs_ld[lane] <= 1;
                             state_calibrate <= MPR_READ;
                             delay_before_read_data <= 10; //wait for sometime to make sure idelay load settles
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=ANALYZE_DQS, Glitch: Reached End", 8'h0a,"----------------------",8'h0a,8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= MPR_READ;
+                            `endif
                         end
                         else begin
                             dqs_start_index <= dqs_start_index + 1;
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=ANALYZE_DQS, dqs_start_index=0x", hex_to_ascii(dqs_start_index[5:4]), hex_to_ascii(dqs_start_index[3:0]), 8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= ANALYZE_DQS;
+                            `endif
                         end
                       end
                         // check if the index when the dqs starts is the same as the target index which is aligned to the ddr3_clk
@@ -2383,6 +2482,13 @@ module ddr3_controller #(
                             // expected bitslip arrangement of  8'b0111_1000 will not be followed anymore, so here we form the bitslip
                             // arrangement pattern so incoming dqs (and thus DQ) is arranged in the proper way (first bute firs, last byte last)
                             state_calibrate <= BITSLIP_DQS_TRAIN_2;
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {8'h0a,"state=CALIBRATE_DQS, REACHED dqs_target_index=0x", hex_to_ascii(dqs_target_index[5:4]), 
+                                    hex_to_ascii(dqs_target_index[3:0]), 8'h0a,"----------------------",8'h0a,8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= BITSLIP_DQS_TRAIN_2;
+                            `endif
                        end
                        else begin
                             // if we have not yet reached the target index then increment IDELAY
@@ -2394,6 +2500,15 @@ module ddr3_controller #(
                             o_phy_idelay_dqs_ld[lane] <= 1;
                             state_calibrate <= MPR_READ;
                             delay_before_read_data <= 10; //wait for sometime to make sure idelay load settles
+                            `ifdef UART_DEBUG_READ_LEVEL
+                                uart_start_send <= 1'b1;
+                                uart_text <= {8'h0a,"state=CALIBRATE_DQS, stored(0x", hex_to_ascii(dqs_start_index_stored[5:4]),hex_to_ascii(dqs_start_index_stored[3:0]),
+                                    ") != target(0x", hex_to_ascii(dqs_target_index[5:4]), hex_to_ascii(dqs_target_index[3:0]), "), o_phy_idelay_data_cntvaluein=0x",
+                                    hex_to_ascii(o_phy_idelay_data_cntvaluein[4]), hex_to_ascii(o_phy_idelay_data_cntvaluein[3:0]),
+                                    8'h0a,"------------",8'h0a,8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= MPR_READ;
+                            `endif
                        end
                         //the dqs is delayed (to move starting bit to next odd number) so this means the original
                         // expected bitslip arrangement of  8'b0111_1000 will not be followed anymore, so here the bitslip
@@ -2404,7 +2519,6 @@ module ddr3_controller #(
                                 // this is the end of training and calibration for a single lane, so proceed to next lane
                                 if(lane == LANES - 1) begin
                                 /* verilator lint_on WIDTH */
-                                    pause_counter <= 0; //read calibration now complete so continue the reset instruction sequence
                                     lane <= 0;
                                     odelay_cntvalue_halfway <= 0;
                                     prev_write_level_feedback <= 1'b1;
@@ -2412,10 +2526,24 @@ module ddr3_controller #(
                                     stored_write_level_feedback <= 0;
                                     o_phy_write_leveling_calib <= 1;
                                     state_calibrate <= START_WRITE_LEVEL;
+                                    `ifdef UART_DEBUG_READ_LEVEL
+                                        uart_start_send <= 1'b1;
+                                        uart_text <= {"state=BITSLIP_DQS_TRAIN_2, Done All Lanes",8'h0a,
+                                                "--------------------------------------------------", 8'h0a, 8'h0a};
+                                        state_calibrate <= WAIT_UART;
+                                        state_calibrate_next <= START_WRITE_LEVEL;
+                                    `endif
                                  end
                                  else begin
                                      lane <= lane + 1;
                                      state_calibrate <= BITSLIP_DQS_TRAIN_1;// current lane is done so go back to BITSLIP_DQS_TRAIN_1 to train next lane
+                                     `ifdef UART_DEBUG_READ_LEVEL
+                                        uart_start_send <= 1'b1;
+                                        uart_text <= {"state=BITSLIP_DQS_TRAIN_2, Done lane=", hex_to_ascii(lane),8'h0a, 
+                                            "--------------------------------------------------", 8'h0a, 8'h0a};
+                                        state_calibrate <= WAIT_UART;
+                                        state_calibrate_next <= BITSLIP_DQS_TRAIN_1;
+                                    `endif
                                  end
                                 // stores the highest value of added_read_pipe among the lanes since all lanes (except the lane with highest 
                                 // added_read_pipe) will be delayed to align with the lane with highest added_read_pipe. This alignment 
@@ -2428,20 +2556,23 @@ module ddr3_controller #(
                             end
                        end
                 // CONTINUE COMMENT HERE  (once blog is done)                
-    START_WRITE_LEVEL: if(!ODELAY_SUPPORTED) begin //skip write levelling if ODELAY is not supported
+    START_WRITE_LEVEL:  if(!ODELAY_SUPPORTED) begin //skip write levelling if ODELAY is not supported
                             pause_counter <= 0;
                             lane <= 0;
                             state_calibrate <= ISSUE_WRITE_1;
                             write_calib_odt <= 0;
                             o_phy_write_leveling_calib <= 0;
-                       end
-                   else if(instruction_address == 17) begin
+                        end
+                        else if(instruction_address == 17) begin
                             write_calib_dqs <= 1'b1;
                             write_calib_odt <= 1'b1;
                             delay_before_write_level_feedback <= DELAY_BEFORE_WRITE_LEVEL_FEEDBACK[$clog2(DELAY_BEFORE_WRITE_LEVEL_FEEDBACK):0];
                             state_calibrate <= WAIT_FOR_FEEDBACK;
                             pause_counter <= 1; // pause instruction address @17 until write calibration finishes
-                       end  
+                        end  
+                        else begin // read calibration done so continue instruction address counter
+                            pause_counter <= 0;
+                        end
 
     WAIT_FOR_FEEDBACK: if(delay_before_write_level_feedback == 0) begin
                             /* verilator lint_off WIDTH */ //_verilator warning: Bit extraction of var[511:0] requires 9 bit index, not 3 bits (but [lane<<3] is much simpler and cleaner)
@@ -2461,6 +2592,12 @@ module ddr3_controller #(
                                             lane <= 0;
                                             o_phy_write_leveling_calib <= 0;
                                             state_calibrate <= ISSUE_WRITE_1;
+                                            `ifdef UART_DEBUG_WRITE_LEVEL
+                                                uart_start_send <= 1'b1;
+                                                uart_text <= {"state=WAIT_FOR_FEEDBACK, All Lanes Done",8'h0a,"----------------------",8'h0a};
+                                                state_calibrate <= WAIT_UART;
+                                                state_calibrate_next <= ISSUE_WRITE_1;
+                                            `endif
                                     end
                                     else begin
                                         lane <= lane + 1;
@@ -2468,6 +2605,12 @@ module ddr3_controller #(
                                         prev_write_level_feedback <= 1'b1;
                                         sample_clk_repeat <= 0;
                                         state_calibrate <= START_WRITE_LEVEL; 
+                                        `ifdef UART_DEBUG_WRITE_LEVEL
+                                            uart_start_send <= 1'b1;
+                                            uart_text <= {"state=WAIT_FOR_FEEDBACK, Done lane=",hex_to_ascii(lane),8'h0a,"----------------------",8'h0a};
+                                            state_calibrate <= WAIT_UART;
+                                            state_calibrate_next <= START_WRITE_LEVEL;
+                                        `endif
                                     end
                                 end
                                 else begin
@@ -2479,8 +2622,24 @@ module ddr3_controller #(
                                     //     odelay_dqs_cntvaluein[lane] <= DQS_INITIAL_ODELAY_TAP[4:0];                
                                     // end
                                     state_calibrate <= START_WRITE_LEVEL; 
+                                    `ifdef UART_DEBUG_WRITE_LEVEL
+                                        uart_start_send <= 1'b1;
+                                        uart_text <= {"state=WAIT_FOR_FEEDBACK, lane=",hex_to_ascii(lane), ", {prev,stored}=", hex_to_ascii(prev_write_level_feedback),
+                                            hex_to_ascii(stored_write_level_feedback), ", o_phy_odelay_data_cntvaluein=0x", hex_to_ascii(o_phy_odelay_data_cntvaluein[4]),
+                                            hex_to_ascii(o_phy_odelay_data_cntvaluein[3:0]), 8'h0a,8'h0a};
+                                        state_calibrate <= WAIT_UART;
+                                        state_calibrate_next <= START_WRITE_LEVEL;
+                                    `endif
                                 end
                              end     
+                        `ifdef UART_DEBUG_WRITE_LEVEL
+                             else begin
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"state=WAIT_FOR_FEEDBACK, sample_clk_repeat=",hex_to_ascii(sample_clk_repeat),8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= START_WRITE_LEVEL;
+                             end
+                        `endif
                          end
                             
         ISSUE_WRITE_1: if(instruction_address == 22 && !o_wb_stall_calib) begin
@@ -2544,6 +2703,22 @@ module ddr3_controller #(
                          //0x01b79fa4ebe2587b
                          //0x22ee5319a15aa382
                          write_pattern <= 128'h80dbcfd275f12c3d_9177298cd0ad51c1;
+                         `ifdef UART_DEBUG_ALIGN
+                            uart_start_send <= 1'b1;
+                            // display o_wb_data_uncalibrated of current lane
+                            // uart_text <= {8'h0a,8'h0a,"state=READ_DATA, read_data_store[lane]= 0x",
+                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*7 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*6 + 8*lane) +: 8]),
+                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*5 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*4 + 8*lane) +: 8]),
+                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*3 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*2 + 8*lane) +: 8]),
+                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*1 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*0 + 8*lane) +: 8]), 8'h0a};
+                            //
+                            // view o_wb_data_uncalibrated in raw form (view in Hex form)
+                            uart_text <= {8'h0a,8'h0a, o_wb_data_uncalibrated,
+                                8'h0a,8'h0a
+                            };
+                            state_calibrate <= WAIT_UART;
+                            state_calibrate_next <= ANALYZE_DATA;
+                        `endif
                       end   
                       else if(!o_wb_stall_calib) begin
                             calib_stb <= 0;
@@ -2563,10 +2738,22 @@ module ddr3_controller #(
                             /* verilator lint_on WIDTH */
                                 state_calibrate <= BIST_MODE == 0? FINISH_READ : BURST_WRITE; // go straight to FINISH_READ if BIST_MODE == 0
                                 initial_calibration_done <= 1'b1;
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"state=ANALYZE_DATA, Done All Lanes",8'h0a,"-----------------",8'h0a,8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= BIST_MODE == 0? FINISH_READ : BURST_WRITE;
+                                `endif
                             end        
                             else begin
                                 lane <= lane + 1;
                                 data_start_index[lane+1] <= 0;
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"state=ANALYZE_DATA, Done lane=",hex_to_ascii(lane),8'h0a,"-----------------",8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= ANALYZE_DATA;
+                                `endif
                             end
                       end 
                       else begin
@@ -2579,6 +2766,12 @@ module ddr3_controller #(
                                 data_start_index[lane] <= 0; // set delay to outgoing stage2_data back to zero
                                 if(data_start_index[lane] == 0) begin // if already set to zero then we already did write-read with default zero data_start_index, so we go to CHECK_STARTING_DATA to try second assumtpion
                                     state_calibrate <= CHECK_STARTING_DATA;
+                                    `ifdef UART_DEBUG_ALIGN
+                                        uart_start_send <= 1'b1;
+                                        uart_text <= {"state=ANALYZE_DATA, lane=",hex_to_ascii(lane), ", First Assumption wrong, Start second assumption: Read too early",8'h0a,8'h0a};
+                                        state_calibrate <= WAIT_UART;
+                                        state_calibrate_next <= CHECK_STARTING_DATA;
+                                    `endif
                                 end
                                 else begin // if not yet zero then we have to write-read again
                                     state_calibrate <= ISSUE_WRITE_1;
@@ -2589,7 +2782,22 @@ module ddr3_controller #(
                                 data_start_index[lane] <= 0;     
                                 start_index_check <= 0;
                                 state_calibrate <= CHECK_STARTING_DATA;
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"state=ANALYZE_DATA, lane=",hex_to_ascii(lane), ", Reached end",8'h0a,8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= CHECK_STARTING_DATA;
+                                `endif
                             end 
+                        `ifdef UART_DEBUG_ALIGN
+                            else begin
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=ANALYZE_DATA, lane=",hex_to_ascii(lane), ", data_start_index[lane]=0x",
+                                    hex_to_ascii(data_start_index[lane][6:4]),hex_to_ascii(data_start_index[lane][3:0]),8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= ANALYZE_DATA;
+                            end
+                        `endif
                       end     
 
                       // check when the 4 MSB of write_pattern {d0ad51c1} starts on read_lane_data (read_lane_data is just the concatenation of read_data_store of a specific lane)
@@ -2603,6 +2811,12 @@ module ddr3_controller #(
                                 state_calibrate <= ISSUE_WRITE_1; // start writing again (the next write should fix the late DQ for this current lane)
                                 data_start_index[lane] <= 64 - start_index_check; // stage2_data_unaligned is forwarded to stage[1] so we are now 8-bursts early, so we subtract from 64 so the burst we will be forwarded to the tip of stage2_data
                                 lane_write_dq_late[lane] <= 1'b1;
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"state=CHECK_STARTING_DATA, start_index_check=0x",hex8_to_ascii(start_index_check), ", Ongoing First Assumption",8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= ISSUE_WRITE_1;
+                                `endif
                             end
                             // if first assumption is not the fix then second assmption: controller reads the DQ too early (THUS WE NEED TO CALIBRATE INCOMING DQ SIGNAL starting from bitslip training)
                             else begin 
@@ -2611,14 +2825,42 @@ module ddr3_controller #(
                                 added_read_pipe[lane] <= { {( 4 - ($clog2(STORED_DQS_SIZE*8) - (3+1)) ){1'b0}} , dq_target_index[lane][$clog2(STORED_DQS_SIZE*8)-1:(3+1)] } 
                                                             + { 3'b0 , (dq_target_index[lane][3:0] >= (5+8)) };
                                 dqs_bitslip_arrangement <= 16'b0011_1100_0011_1100 >> dq_target_index[lane][2:0];
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"state=CHECK_STARTING_DATA, start_index_check=0x",hex8_to_ascii(start_index_check), ", Ongoing Second Assumption",8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= BITSLIP_DQS_TRAIN_3;
+                                `endif
                             end
                         end
                         else begin
                             start_index_check <= start_index_check + 16; // plus 16, we assume here that DQ will be late BY 1 DDR3 CLK CYCLE (if only +8, then it will be late by half DDR3 cycle, that should NOT happen)
                             dq_target_index[lane] <= dq_target_index[lane] + 2;
-                            if(start_index_check == 48)begin //if value is too high, we are outside the possible values so we need to reset now
-                                reset_from_calibrate <= 1;
+                            if(start_index_check == 48)begin // start_index_check is now outside the possible values
+                                // first assumption: controller DQ is 1 CONTROLLER CYCLE late WHEN WRITING (data is written to address 1 and not address 0)
+                                if(!lane_write_dq_late[lane]) begin // lane_write_dq_late is not yet set so we know this first assunmption is not yet tested
+                                    state_calibrate <= ISSUE_WRITE_1; // start writing again (the next write should fix the late DQ for this current lane)
+                                    data_start_index[lane] <= 1; // stage2_data_unaligned is forwarded to stage[1] so we are now 8-bursts early, since assumption is we are 1 controller cycle early then data_start_index is 64 
+                                    lane_write_dq_late[lane] <= 1'b1;
+                                    `ifdef UART_DEBUG_ALIGN
+                                        uart_start_send <= 1'b1;
+                                        uart_text <= {"state=CHECK_STARTING_DATA, Reached end, First Assumption: Write is 1 Controller cycle early",8'h0a};
+                                        state_calibrate <= WAIT_UART;
+                                        state_calibrate_next <= ISSUE_WRITE_1;
+                                    `endif
+                                end
+                                else begin // if first assumption is wrong and start_index_check is still outside of possible values then reset
+                                    reset_from_calibrate <= 1;
+                                end
                             end
+                        `ifdef UART_DEBUG_ALIGN
+                            else begin
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"state=CHECK_STARTING_DATA, start_index_check=", hex_to_ascii(start_index_check[5:4]), hex_to_ascii(start_index_check[3:0]),8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= CHECK_STARTING_DATA;
+                            end
+                         `endif
                         end
                       end
       
@@ -2809,8 +3051,16 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                             pause_counter <= 0;
                         end
                      end
-
-            endcase
+        `ifdef UART_DEBUG
+        WAIT_UART: if(!uart_send_busy && !uart_start_send) begin // wait here until UART is finished
+                        state_calibrate <= state_calibrate_next;
+                    end
+                    else if(uart_send_busy) begin // if already busy then uart_start_send can be deasserted
+                        uart_start_send <= 0;
+                    end
+        `endif
+        endcase
+        
         `ifdef FORMAL_COVER
             state_calibrate <= DONE_CALIBRATE;
         `endif
@@ -2836,8 +3086,145 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 read_test_address_counter <= 0;
                 write_test_address_counter <= 0;
             end
+            `ifdef UART_DEBUG
+                if(wrong_read_data != 0 && !uart_send_busy && !uart_start_send) begin
+                    uart_start_send <= 1'b1;
+                    track_report <= track_report + 1;
+                    case(track_report)
+                        0: uart_text <= {"RESET, # correct(ascii)=0x",
+                            hex8_to_ascii(correct_read_data[7:0]),
+                            hex8_to_ascii(correct_read_data[15:8]),
+                            hex8_to_ascii(correct_read_data[23:16]),
+                            8'h0a, 8'h0a, wrong_data, 8'h0a, 8'h0a
+                            };
+                        1: uart_text <= {"RESET, #correct(raw)=0x",8'h0a,8'h0a,
+                            correct_read_data, 8'h0a,8'h0a,
+                            ", #wrong(raw)=0x", 8'h0a,8'h0a,
+                            wrong_read_data, 8'h0a,8'h0a
+                            };
+                        2: uart_text <= {"RESET, wrong_data(raw)=0x",8'h0a,8'h0a,
+                            wrong_data, 8'h0a,8'h0a
+                        };
+                        3: uart_text <= {"RESET, correct_data(raw)=0x",8'h0a,8'h0a,
+                            expected_data, 8'h0a,8'h0a
+                        };
+                    endcase
+                    state_calibrate <= WAIT_UART;
+                    state_calibrate_next <= WAIT_UART;
+                end
+            `endif
         end
     end    
+
+    //------------------------------------- START OF UART SERIALIZER----------------------------------------------------------------//
+    `ifdef UART_DEBUG 
+        reg[19:0] uart_idle_timer = 0;
+        // FSM for uart 
+        // uart_text = "Hello" , uart_text_length = 5
+        // [5<<3-1 (39):4<<3 (32)] = "H" , [4<<3-1 (31):3<<3(24)] = "e" , [3<<3-1(23):2<<3(16)] = "l" , [2<<3-1(15):1<<3(8)] = "l" ,  [1<<3-1(7):0<<3(0)] = "o"
+        always @(posedge i_controller_clk, negedge i_rst_n) begin
+            if(!i_rst_n) begin
+                state_uart_send <= UART_FSM_IDLE;
+                uart_text_length_index <= 0;
+                uart_tx_en <= 0;
+                uart_send_busy <= 0;
+                uart_tx_data <= 0;
+                uart_idle_timer <= 0;
+            end
+            else begin
+                case(state_uart_send)
+                    UART_FSM_IDLE: if (uart_start_send) begin // if receive request to send via uart
+                        state_uart_send <= UART_FSM_SEND_BYTE;
+                        uart_text_length_index <= count_chars(uart_text)+5;
+                        uart_send_busy <= 1;
+                        uart_idle_timer <= MICRON_SIM? {5{1'b1}} : {20{1'b1}}; // set to all 1s for idle time
+                    end
+                    else begin
+                        uart_tx_en <= 1'b0;
+                        uart_send_busy <= 1'b0;
+                    end
+                    
+                    UART_FSM_SEND_BYTE: if(!uart_tx_busy) begin // if uart tx is not busy, send character
+                        uart_tx_en <= 1'b1;
+                        uart_tx_data <= uart_text[((uart_text_length_index)<<3) +: 8];
+                    end
+                    else begin // once busy, go to wait state
+                        state_uart_send <= UART_FSM_WAIT_SEND;
+                        uart_tx_en <= 1'b0;
+                    end
+
+                    UART_FSM_WAIT_SEND: if(!uart_tx_busy) begin // if not busy again, then uart is done sending
+                        if(uart_text_length_index != 0) begin // if not yet at 0, go to next character
+                            uart_text_length_index <= uart_text_length_index - 1;
+                            state_uart_send <= UART_FSM_SEND_BYTE;
+                        end
+                        else if(uart_idle_timer == 0) begin // if not busy anymore, all characters sent, and timer done
+                            state_uart_send <= UART_FSM_IDLE;
+                        end
+                        else begin // if not busy anymore, all characters sent, but uart_idle_timer not yet at zero
+                            uart_idle_timer <= uart_idle_timer - 1;
+                        end
+                    end
+                    default: state_uart_send <= UART_FSM_IDLE;
+                endcase
+            end
+        end
+     
+        // Function to convert hex to ASCII
+        function [7:0] hex_to_ascii;
+            input [3:0] hex;
+            begin
+                if (hex < 4'd10)
+                    hex_to_ascii = hex + 8'd48; // ASCII for '0'-'9'
+                else
+                    hex_to_ascii = hex + 8'd55; // ASCII for 'A'-'F'
+            end
+        endfunction
+
+        // Function to convert 8-bit hex to two ASCII characters
+        function [15:0] hex8_to_ascii;
+            input [7:0] hex;
+            begin
+                hex8_to_ascii[15:8] = (hex[7:4] < 4'd10) ? (hex[7:4] + 8'd48) : (hex[7:4] + 8'd55);
+                hex8_to_ascii[7:0]  = (hex[3:0] < 4'd10) ? (hex[3:0] + 8'd48) : (hex[3:0] + 8'd55);
+            end
+        endfunction
+
+        uart_tx #(
+                .BIT_RATE(MICRON_SIM? (((1_000_000/CONTROLLER_CLK_PERIOD) * 1_000_000)/1) : 9600),
+                .CLK_HZ( (1_000_000/CONTROLLER_CLK_PERIOD) * 1_000_000),
+                .PAYLOAD_BITS(8),
+                .STOP_BITS(1)
+            ) uart_tx_inst (
+                .clk(i_controller_clk), // Top level system clock input 
+                .resetn(i_rst_n), // Asynchronous active low reset.
+                .uart_txd(uart_tx)    , // UART transmit pin.
+                .uart_tx_busy(uart_tx_busy), // Module busy sending previous item.
+                .uart_tx_en(uart_tx_en), // Send the data on uart_tx_data
+                .uart_tx_data(uart_tx_data)  // The data to be sent
+        );
+
+        function integer count_chars;
+            input [8*256-1:0] str;
+            integer i;
+            begin
+                count_chars = 0;
+                begin : loop_block
+                    for (i = 0; i < 256; i = i + 1) begin
+                        if (str[8*i +: 8] !== 8'h00 && str[8*i +: 8] !== 8'hFF) begin // Avoid garbage values
+                            count_chars = count_chars + 1;
+                        end
+                    end
+                end
+                count_chars = count_chars + 1; // Include \n at the end
+            end
+        endfunction
+
+    `else
+        assign uart_tx = 1; // tx constant 1 when UART not used
+    `endif
+    //------------------------------------- END OF UART SERIALIZER----------------------------------------------------------------//
+
     // generate calib_data for BIST
     // Uses different operations (XOR, addition, subtraction, bit rotation) to generate different values per byte.
     // When MICRON_SIM=1, then we use the relevant bits (7:0 will be zero since during simulation the increment is a large number)
@@ -2879,7 +3266,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     /*********************************************************************************************************************************************/
 
     /******************************************************* Calibration Test Receiver *******************************************************/
-    reg[wb_data_bits-1:0] wrong_data = 0;
+    reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
     wire[wb_data_bits-1:0] correct_data;
 
     generate
@@ -2945,6 +3332,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                     else begin
                         wrong_read_data <= wrong_read_data + 1;
                         wrong_data <= o_wb_data;
+                        expected_data <= correct_data;
                         reset_from_test <= !final_calibration_done; //reset controller when a wrong data is received (only when calibration is not yet done)
                     end
                     /* verilator lint_off WIDTHEXPAND */
@@ -3209,10 +3597,10 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     // Find the correct value for CL based on ddr3 clock period
     function[3:0] CL_generator(input integer ddr3_clk_period);
         begin
-            if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 3_000) begin
+            if(/*ddr3_clk_period <= 3_300 &&*/ ddr3_clk_period >= 3_000) begin // cover ddr3 clk periods > 3.3ns
                 CL_generator = 4'd5;
             end
-            else if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 2_500) begin
+            else if(/*ddr3_clk_period <= 3_300 &&*/ ddr3_clk_period >= 2_500) begin
                 CL_generator = 4'd6;
             end
             else if(ddr3_clk_period <= 2_500 && ddr3_clk_period >= 1_875) begin
@@ -3230,10 +3618,10 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     // Find the correct value for CWL based on ddr3 clock period
     function[3:0] CWL_generator(input integer ddr3_clk_period);
         begin
-            if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 3_000) begin
+            if(/*ddr3_clk_period <= 3_300 &&*/ ddr3_clk_period >= 3_000) begin
                 CWL_generator = 4'd5;
             end
-            else if(ddr3_clk_period <= 3_300 && ddr3_clk_period >= 2_500) begin
+            else if(/*ddr3_clk_period <= 3_300 &&*/ ddr3_clk_period >= 2_500) begin
                 CWL_generator = 4'd5;
             end
             else if(ddr3_clk_period <= 2_500 && ddr3_clk_period >= 1_875) begin

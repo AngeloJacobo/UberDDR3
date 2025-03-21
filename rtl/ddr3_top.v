@@ -123,7 +123,8 @@ module ddr3_top #(
 //        output wire[(DQ_BITS*BYTE_LANES)/8-1:0] o_ddr3_debug_read_dqs_n
         // 
         // User enabled self-refresh
-        input wire i_user_self_refresh
+        input wire i_user_self_refresh,
+        output wire uart_tx
     );
     
 // Instantiation Template (DEFAULT VALUE IS FOR ARTY S7)
@@ -326,7 +327,8 @@ ddr3_top #(
 //            .o_debug2(o_debug2),
 //            .o_debug3(o_debug3)
             // User enabled self-refresh
-            .i_user_self_refresh(user_self_refresh)
+            .i_user_self_refresh(user_self_refresh),
+            .uart_tx(uart_tx)
         );
         
     ddr3_phy #(

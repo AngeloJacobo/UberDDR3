@@ -85,10 +85,10 @@
      //assign ddr3_cs_n[1] = 1'b1;
 
     //===========================================================================
-    //Differentia system clock to single end clock
+    //Differential system clock to single end clock
     //===========================================================================
     wire sys_clk; // 200MHz
-    IBUFGDS u_ibufg_sys_clk   
+    IBUFDS u_ibufg_sys_clk   
     (
         .I  (sys_clk_p),            
         .IB (sys_clk_n),          
@@ -132,22 +132,36 @@
     .clk_in1(sys_clk)
     );
 
-    // // UART module from https://github.com/alexforencich/verilog-uart
-    // uart #(.DATA_WIDTH(8)) uart_m
-    // (
-    //      .clk(i_controller_clk),
-    //      .rst(!i_rst_n),
-    //      .s_axis_tdata(o_wb_data),
-    //      .s_axis_tvalid(o_wb_ack),
-    //      .s_axis_tready(),
-    //      .m_axis_tdata(rd_data),
-    //      .m_axis_tvalid(m_axis_tvalid),
-    //      .m_axis_tready(1),
-    //      .rxd(rx),
-    //      .txd(tx),
-    //     .prescale(1085) //9600 Baud Rate: 83.3333MHz/(8*9600)
-    // );
     
+    // UART TX/RX module from https://github.com/ben-marshall/uart
+    uart_tx #(
+        .BIT_RATE(9600),
+        .CLK_HZ(83_333_333),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+        ) uart_tx_inst (
+        .clk(i_controller_clk), // Top level system clock input.
+        .resetn(i_rst_n && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+        .uart_txd(tx), // UART transmit pin.
+        .uart_tx_busy(), // Module busy sending previous item.
+        .uart_tx_en(o_wb_ack), // Send the data on uart_tx_data
+        .uart_tx_data(o_wb_data) // The data to be sent
+    );
+    uart_rx #(
+        .BIT_RATE(9600),
+        .CLK_HZ(83_333_333),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+    ) uart_rx_inst (
+        .clk(i_controller_clk), // Top level system clock input.
+        .resetn(i_rst_n && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+        .uart_rxd(rx), // UART Recieve pin.
+        .uart_rx_en(o_debug1[4:0] == 23), // Recieve enable
+        .uart_rx_break(), // Did we get a BREAK message?
+        .uart_rx_valid(m_axis_tvalid), // Valid data recieved/available.
+        .uart_rx_data(rd_data)   // The recieved data.
+    );
+
     // DDR3 Controller 
     ddr3_top #(
         .CONTROLLER_CLK_PERIOD(12_000), //ps, clock period of the controller interface
@@ -213,9 +227,7 @@
             .io_ddr3_dqs_n(ddr3_dqs_n),
             .o_ddr3_dm(ddr3_dm),
             .o_ddr3_odt(ddr3_odt), // on-die termination
-            .o_debug1(o_debug1),
-            .o_debug2(),
-            .o_debug3()
+            .o_debug1(o_debug1)
         );
 
 endmodule
