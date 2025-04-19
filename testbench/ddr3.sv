@@ -137,6 +137,7 @@ module ddr3 (
     parameter feature_odt_hi = 0;
     parameter PERTCKAVG=TDLLK;
     parameter FLY_BY_DELAY = 0, DQ_DELAY = 0;
+    parameter[0:0] DLL_OFF = 0;
     
     // text macros
     `define DQ_PER_DQS DQ_BITS/DQS_BITS
@@ -1662,7 +1663,7 @@ module ddr3 (
                                 $display ("%m at time %t WARNING: 500 us is required after RST_N goes inactive before CKE goes active.", $time);
                             tm_txpr <= $time;
                             ck_txpr <= ck_cntr;
-                            init_step = init_step + 1;
+                            init_step = init_step + 2;
                         end
                         1 : begin 
                            if (dll_en) init_step = init_step + 1;
@@ -1770,7 +1771,7 @@ module ddr3 (
                 for (i=0; i<64; i=i+1) begin
                     if (dq_in_valid && dll_locked && ($time - tm_dqs_neg[i] < $rtoi(TDSS*tck_avg)))
                         $display ("%m: at time %t ERROR: tDSS violation on %s bit %d", $time, dqs_string[i/32], i%32);
-                    if (check_write_dqs_high[i])
+                    if (check_write_dqs_high[i] && !DLL_OFF)
                         $display ("%m: at time %t ERROR: %s bit %d latching edge required during the preceding clock period.", $time, dqs_string[i/32], i%32);
                 end
                 check_write_dqs_high <= 0;
@@ -1781,7 +1782,7 @@ module ddr3 (
                         if ((tm_tdqss < tck_avg/2.0) && (tm_tdqss > TDQSS*tck_avg))
                             $display ("%m: at time %t ERROR: tDQSS violation on %s bit %d", $time, dqs_string[i/32], i%32); 
                     end
-                    if (check_write_dqs_low[i])
+                    if (check_write_dqs_low[i] && !DLL_OFF)
                         $display ("%m: at time %t ERROR: %s bit %d latching edge required during the preceding clock period", $time, dqs_string[i/32], i%32);
                 end
                 check_write_preamble <= 0;
@@ -2249,8 +2250,8 @@ module ddr3 (
                             $display ("%m: at time %t ERROR: tJIT(cc) violation by %f ps.", $time, abs_value(tjit_cc_time) - TJIT_CC);
                         if (TCK_MIN - tck_avg >= 1.0)
                             $display ("%m: at time %t ERROR: tCK(avg) minimum violation by %f ps.", $time, TCK_MIN - tck_avg);
-                        if (tck_avg - TCK_MAX >= 1.0) 
-                            $display ("%m: at time %t ERROR: tCK(avg) maximum violation by %f ps.", $time, tck_avg - TCK_MAX);
+                       if ((tck_avg - TCK_MAX >= 1.0) && !DLL_OFF) 
+                           $display ("%m: at time %t ERROR: tCK(avg) maximum violation by %f ps.", $time, tck_avg - TCK_MAX);
 
                         // check tCL
                         if (tm_ck_neg - $time < TCL_ABS_MIN*tck_avg) 
@@ -2800,7 +2801,7 @@ module ddr3 (
                 check_write_postamble[i] <= 1'b0;
                 check_write_dqs_low[i] <= 1'b0;
                 tm_dqs[i%32] <= $time;
-            end else begin
+            end else if(!DLL_OFF) begin
                 $display ("%m: at time %t ERROR: Invalid latching edge on %s bit %d", $time, dqs_string[i/32], i%32);
             end
         end
@@ -2906,7 +2907,7 @@ module ddr3 (
                 end
                 check_dm_tdipw[i%32] <= 1'b1;
                 tm_dqs[i%32] <= $time;
-            end else begin
+            end else if(!DLL_OFF) begin
                 $display ("%m: at time %t ERROR: Invalid latching edge on %s bit %d", $time, dqs_string[i/32], i%32);
             end
         end

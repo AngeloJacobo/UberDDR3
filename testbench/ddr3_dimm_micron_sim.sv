@@ -57,16 +57,16 @@ module ddr3_dimm_micron_sim;
 `endif
 
 
- localparam CONTROLLER_CLK_PERIOD = 5_000, //ps, period of clock input to this DDR3 controller module
-            DDR3_CLK_PERIOD = 1_250, //ps, period of clock input to DDR3 RAM device 
+ localparam CONTROLLER_CLK_PERIOD = 12_000, //ps, period of clock input to this DDR3 controller module
+            DDR3_CLK_PERIOD = 3_000, //ps, period of clock input to DDR3 RAM device 
             AUX_WIDTH = 16, // AUX lines
             ECC_ENABLE = 0, // ECC enable
             SELF_REFRESH = 2'b00,
             DUAL_RANK_DIMM = 0,
             TEST_SELF_REFRESH = 0,
             SECOND_WISHBONE = 0,
-            BIST_MODE = 1; // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
-        
+            BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+            DLL_OFF = 1;
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -171,7 +171,8 @@ ddr3_top #(
     .WB_ERROR(1), // set to 1 to support Wishbone error (asserts at ECC double bit error)
     .BIST_MODE(BIST_MODE), // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
     .SELF_REFRESH(SELF_REFRESH), // 0 = use i_user_self_refresh input, 1 = Self-refresh mode is enabled after 64 controller clock cycles of no requests, 2 = 128 cycles, 3 = 256 cycles
-    .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
+    .DUAL_RANK_DIMM(DUAL_RANK_DIMM), // enable dual rank DIMM (1 =  enable, 0 = disable)
+    .DLL_OFF(DLL_OFF)  // 1 = DLL off for low frequency ddr3 clock
     ) ddr3_top
     (
         //clock and reset
@@ -227,7 +228,7 @@ ddr3_top #(
    
 `ifdef TWO_LANES_x8
     // 1 lane DDR3
-    ddr3 ddr3_0(
+    ddr3 #(.DLL_OFF(DLL_OFF)) ddr3_0(
         .rst_n(reset_n),
         .ck(o_ddr3_clk_p[0]),
         .ck_n(o_ddr3_clk_n[0]),
@@ -249,7 +250,7 @@ ddr3_top #(
 
 `ifdef EIGHT_LANES_x8
     // DDR3 Device 
-    ddr3_module ddr3_module(
+    ddr3_module #(.DLL_OFF(DLL_OFF)) ddr3_module(
         .reset_n(reset_n),
         .ck(o_ddr3_clk_p), //[1:0]
         .ck_n(o_ddr3_clk_n), //[1:0]

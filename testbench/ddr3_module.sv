@@ -87,6 +87,8 @@ module ddr3_module (
     input                  scl    ; // no connect
     inout                  sda    ; // no connect
 
+parameter DLL_OFF = 0;
+
 `ifdef QUAD_RANK
     initial if (DEBUG) $display("%m: Quad Rank");
 `elsif DUAL_RANK
@@ -304,14 +306,14 @@ module ddr3_module (
     `endif
 `elsif x8
     initial if (DEBUG) $display("%m: Component Width = x8");
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_0)) U1R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[ 9]       , rba, raddr[ADDR_BITS-1:0], dq [ 7: 0], dqs[  0]      , dqs_n[  0]     , dqs_n[ 9], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_1)) U2R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[10]       , rba, raddr[ADDR_BITS-1:0], dq [15: 8], dqs[  1]      , dqs_n[  1]     , dqs_n[10], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_2)) U3R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[11]       , rba, raddr[ADDR_BITS-1:0], dq [23:16], dqs[  2]      , dqs_n[  2]     , dqs_n[11], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_3)) U4R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[12]       , rba, raddr[ADDR_BITS-1:0], dq [31:24], dqs[  3]      , dqs_n[  3]     , dqs_n[12], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_4)) U6R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[13]       , rba, raddr[ADDR_BITS-1:0], dq [39:32], dqs[  4]      , dqs_n[  4]     , dqs_n[13], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_5)) U7R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[14]       , rba, raddr[ADDR_BITS-1:0], dq [47:40], dqs[  5]      , dqs_n[  5]     , dqs_n[14], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_6)) U8R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[15]       , rba, raddr[ADDR_BITS-1:0], dq [55:48], dqs[  6]      , dqs_n[  6]     , dqs_n[15], rodt[0]);
-    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_7)) U9R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[16]       , rba, raddr[ADDR_BITS-1:0], dq [63:56], dqs[  7]      , dqs_n[  7]     , dqs_n[16], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_0), .DLL_OFF(DLL_OFF)) U1R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[ 9]       , rba, raddr[ADDR_BITS-1:0], dq [ 7: 0], dqs[  0]      , dqs_n[  0]     , dqs_n[ 9], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_1), .DLL_OFF(DLL_OFF)) U2R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[10]       , rba, raddr[ADDR_BITS-1:0], dq [15: 8], dqs[  1]      , dqs_n[  1]     , dqs_n[10], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_2), .DLL_OFF(DLL_OFF)) U3R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[11]       , rba, raddr[ADDR_BITS-1:0], dq [23:16], dqs[  2]      , dqs_n[  2]     , dqs_n[11], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_3), .DLL_OFF(DLL_OFF)) U4R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[12]       , rba, raddr[ADDR_BITS-1:0], dq [31:24], dqs[  3]      , dqs_n[  3]     , dqs_n[12], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_4), .DLL_OFF(DLL_OFF)) U6R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[13]       , rba, raddr[ADDR_BITS-1:0], dq [39:32], dqs[  4]      , dqs_n[  4]     , dqs_n[13], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_5), .DLL_OFF(DLL_OFF)) U7R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[14]       , rba, raddr[ADDR_BITS-1:0], dq [47:40], dqs[  5]      , dqs_n[  5]     , dqs_n[14], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_6), .DLL_OFF(DLL_OFF)) U8R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[15]       , rba, raddr[ADDR_BITS-1:0], dq [55:48], dqs[  6]      , dqs_n[  6]     , dqs_n[15], rodt[0]);
+    ddr3 #(.FLY_BY_DELAY(FLY_BY_DELAY_LANE_7), .DLL_OFF(DLL_OFF)) U9R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[16]       , rba, raddr[ADDR_BITS-1:0], dq [63:56], dqs[  7]      , dqs_n[  7]     , dqs_n[16], rodt[0]);
     `ifdef ECC                 
     ddr3 U5R0  (reset_n, rck[0], rck_n[0], rcke[0], rs_n[0], rras_n, rcas_n, rwe_n, dqs[17]       , rba, raddr[ADDR_BITS-1:0], rcb[ 7: 0], dqs[  8]      , dqs_n[  8]     , dqs_n[17], rodt[0]);
     `endif
