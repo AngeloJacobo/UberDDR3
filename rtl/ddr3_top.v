@@ -52,7 +52,7 @@ module ddr3_top #(
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
                    DLL_OFF = 0, // 1 = DLL off for low frequency ddr3 clock (< 125MHz)
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
-    parameter[1:0] BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+    parameter[1:0] BIST_MODE = 1, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
