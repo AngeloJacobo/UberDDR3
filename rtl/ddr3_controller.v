@@ -81,8 +81,9 @@ module ddr3_controller #(
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 1, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone is needed 
+                   DLL_OFF = 0, // 1 = DLL off for low frequency ddr3 clock
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
-    parameter[1:0] BIST_MODE = 1, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+    parameter[1:0] BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC )  (only change when you know what you are doing)
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)  (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
@@ -135,11 +136,11 @@ module ddr3_controller #(
         input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_dqs,
         input wire[LANES*serdes_ratio*2 - 1:0] i_phy_iserdes_bitslip_reference,
         input wire i_phy_idelayctrl_rdy,
-        output wire[cmd_len*serdes_ratio-1:0] o_phy_cmd,
+        output reg[cmd_len*serdes_ratio-1:0] o_phy_cmd,
         output reg o_phy_dqs_tri_control, o_phy_dq_tri_control,
         output wire o_phy_toggle_dqs,
-        output wire[wb_data_bits-1:0] o_phy_data,
-        output wire[wb_sel_bits-1:0] o_phy_dm, 
+        output reg[wb_data_bits-1:0] o_phy_data,
+        output reg[wb_sel_bits-1:0] o_phy_dm, 
         output wire[4:0] o_phy_odelay_data_cntvaluein, o_phy_odelay_dqs_cntvaluein,
         output wire[4:0] o_phy_idelay_data_cntvaluein, 
         output wire[4:0] o_phy_idelay_dqs_cntvaluein,
@@ -267,8 +268,9 @@ module ddr3_controller #(
     localparam tMOD = max(nCK_to_cycles(12), ps_to_cycles(15_000)); //cycles (controller)  Mode Register Set command update delay
     localparam tZQinit = max(nCK_to_cycles(512), ps_to_cycles(640_000));//cycles (controller)  Power-up and RESET calibration time
     /* verilator lint_on WIDTHEXPAND */
-    localparam CL_nCK = CL_generator(DDR3_CLK_PERIOD); //read latency (given in JEDEC DDR3 spec)
-    localparam CWL_nCK = CWL_generator(DDR3_CLK_PERIOD); //write latency (given in JEDEC DDR3 spec)
+    // FOr DLL_OFF< CL and CWL should both be 6. But effective CL is only 5 since read data is early by 1 nCK
+    localparam CL_nCK = DLL_OFF? 4'd5 : CL_generator(DDR3_CLK_PERIOD); //read latency (given in JEDEC DDR3 spec)
+    localparam CWL_nCK = DLL_OFF? 4'd6 : CWL_generator(DDR3_CLK_PERIOD); //write latency (given in JEDEC DDR3 spec)
     localparam DELAY_MAX_VALUE = ps_to_cycles(INITIAL_CKE_LOW); //Largest possible delay needed by the reset and refresh sequence
     localparam DELAY_COUNTER_WIDTH= $clog2(DELAY_MAX_VALUE); //Bitwidth needed by the maximum possible delay, this will be the delay counter width
     localparam CALIBRATION_DELAY = 2; // must be >= 2
@@ -335,13 +337,13 @@ module ddr3_controller #(
      // READ_ACK_PIPE_WIDTH is the delay between read command issued (starting from the controller) until the data is received by the controller
      //the delays included the ODELAY and OSERDES when issuing the read command
      //and the IDELAY and ISERDES when receiving the data  (NOTE TO SELF: ELABORATE ON WHY THOSE MAGIC NUMBERS)
-    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1;                           
+    localparam READ_ACK_PIPE_WIDTH = READ_DELAY + 1 + 2 + 1 + 1 + (DLL_OFF? 2 : 0); // FOr DLL_OFF, phy has no delay thus add delay here       
     localparam MAX_ADDED_READ_ACK_DELAY = 16;
     localparam DELAY_BEFORE_WRITE_LEVEL_FEEDBACK = STAGE2_DATA_DEPTH + ps_to_cycles(tWLO+tWLOE) + 10;  
     //plus 10 controller clocks for possible bus latency and the delay for receiving feedback DQ from IOBUF -> IDELAY -> ISERDES
     localparam ECC_INFORMATION_BITS = (ECC_ENABLE == 2)? max_information_bits(wb_data_bits) : max_information_bits(wb_data_bits/8);
-    localparam SIM_ADDRESS_INCR_LOG2 = wb_addr_bits-2-7; // 2^(wb_addr_bits-2)/128
-
+    // Smaller wb_addr_bits for simulation so BIST will end faster
+    localparam wb_addr_bits_sim = MICRON_SIM? 8 : wb_addr_bits; 
     
     /*********************************************************************************************************************************************/
    
@@ -371,7 +373,8 @@ module ddr3_controller #(
                 RANDOM_READ = 20,
                 ALTERNATE_WRITE_READ = 21,
                 FINISH_READ = 22,
-                DONE_CALIBRATE = 23;
+                DONE_CALIBRATE = 23,
+                ANALYZE_DATA_LOW_FREQ = 24;
                 
      localparam STORED_DQS_SIZE = 5, //must be >= 2           
                 REPEAT_DQS_ANALYZE = 1,
@@ -383,7 +386,7 @@ module ddr3_controller #(
     /************************************************************* Set Mode Registers Parameters *************************************************************/
     // MR2 (JEDEC DDR3 doc pg. 30)
     localparam[2:0] PASR = 3'b000; //Partial Array Self-Refresh: Full Array
-    localparam[3:0] CWL = CWL_nCK-4'd5; //CAS write Latency
+    localparam[3:0] CWL = DLL_OFF? 6-4'd5 : CWL_nCK-4'd5; //CAS write Latency
     localparam[0:0] ASR = 1'b1; //Auto Self-Refresh: on
     localparam[0:0] SRT = 1'b0; //Self-Refresh Temperature Range:0 (If ASR = 1, SRT bit must be set to 0)
     localparam[1:0] RTT_WR = 2'b00; //Dynamic ODT: off
@@ -398,7 +401,7 @@ module ddr3_controller #(
     localparam[18:0] MR3_MPR_DIS = {MR3_SEL, 13'b0_0000_0000_0000, !MPR_EN, MPR_LOC}; 
     
     // MR1 (JEDEC DDR3 doc pg. 27)
-    localparam DLL_EN = 1'b0; //DLL Enable/Disable: Enabled(0)
+    localparam DLL_EN = DLL_OFF? 1'b0 : 1'b1; //DLL Enable/Disable: Enabled(0)
     // localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (RZQ/7) (elevate this to parameter)
     // localparam[2:0] RTT_NOM = 3'b001; //RTT Nominal: RZQ/4 (elevate this to parameter)
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
@@ -413,7 +416,7 @@ module ddr3_controller #(
 
     //MR0 (JEDEC DDR3 doc pg. 24)
     localparam[1:0] BL = 2'b00; //Burst Length: 8 (Fixed)
-    localparam[3:0] CL = (CL_nCK-4)*2; //CAS Read Latency
+    localparam[3:0] CL = DLL_OFF? (6-4)*2 : (CL_nCK-4)*2; //CAS Read Latency
     localparam[0:0] RBT = 1'b0; //Read Burst Type: Nibble Sequential
     localparam[0:0] DLL_RST = 1'b1; //DLL Reset: Yes (this is self-clearing and must be applied after DLL enable)
     localparam[2:0] WR = WRA_mode_register_value($rtoi($ceil(tWR/DDR3_CLK_PERIOD))); //Write recovery for autoprecharge (
@@ -616,8 +619,8 @@ module ddr3_controller #(
     reg reset_after_rank_1 = 0; // reset after calibration rank 1 to switch to rank 2
     reg current_rank = 0;
     // test calibration 
-    (* mark_debug = "true" *) reg[wb_addr_bits:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
-    (* mark_debug = "true" *) reg[wb_addr_bits:0] write_test_address_counter = 0;
+    (* mark_debug = "true" *) reg[wb_addr_bits-1:0] read_test_address_counter = 0, check_test_address_counter = 0; ////////////////////////////////////////////////////////
+    (* mark_debug = "true" *) reg[wb_addr_bits-1:0] write_test_address_counter = 0;
     (* mark_debug = "true" *) reg[31:0] correct_read_data = 0, wrong_read_data = 0;
     /* verilator lint_off UNDRIVEN */
     wire sb_err_o;
@@ -638,10 +641,14 @@ module ddr3_controller #(
         localparam UART_FSM_IDLE = 0,
                     UART_FSM_SEND_BYTE = 1,
                     UART_FSM_WAIT_SEND = 2,
-                    WAIT_UART = 24;
+                    WAIT_UART = 31;
         reg[3:0] track_report = 0;
-        reg[$clog2(DONE_CALIBRATE)-1:0] state_calibrate_next;
+        reg[$clog2(DONE_CALIBRATE)-1:0] state_calibrate_next, state_calibrate_last;
     `endif
+    reg[2:0] bitslip_counter = 0;
+    reg[1:0] shift_read_pipe = 0;
+    reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
+    wire[wb_data_bits-1:0] correct_data;
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
@@ -1007,7 +1014,7 @@ module ddr3_controller #(
                     stage2_col <= stage1_col;
                     stage2_bank <= stage1_bank;
                     stage2_row <= stage1_row;
-                    if(ODELAY_SUPPORTED) begin
+                    if(ODELAY_SUPPORTED || DLL_OFF) begin
                         stage2_data_unaligned <= stage1_data_mux;
                         stage2_dm_unaligned <= ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
                     end
@@ -1052,7 +1059,7 @@ module ddr3_controller #(
                     end
                     // store parity code for stage1_data
                     stage2_encoded_parity <= encoded_parity;
-                    if(ODELAY_SUPPORTED) begin
+                    if(ODELAY_SUPPORTED  || DLL_OFF) begin
                         stage2_data_unaligned <= stage1_data_mux;
                         stage2_dm_unaligned <= ecc_stage1_stall? ~stage2_ecc_write_data_mask_d : ~stage1_dm; //inverse each bit (1 must mean "masked" or not written)
                     end
@@ -1064,7 +1071,7 @@ module ddr3_controller #(
 
                 //stage2_data -> shiftreg(CWL) -> OSERDES(DDR) -> ODELAY -> RAM
             end
-            if(!ODELAY_SUPPORTED) begin
+            if(!ODELAY_SUPPORTED && !DLL_OFF) begin
                 stage2_data_unaligned <= stage2_data_unaligned_temp; //_temp is for added delay of 1 clock cycle (no ODELAY so no added delay)
                 stage2_dm_unaligned <= stage2_dm_unaligned_temp;  //_temp is for added delay of 1 clock cycle (no ODELAY so no added delay)
             end
@@ -1234,7 +1241,7 @@ module ddr3_controller #(
                 // if DQ is too late (298cd0ad51c1XXXX is written) then we want to DQ to be early 
                 // Thus, we will forward the stage2_data_unaligned directly to stage2_data[1] (instead of the usual stage2_data[0])
                 // checks if the DQ for this lane is late (index being zero while write_dq_late high means we will try 2nd assumption), if yes then we forward stage2_data_unaligned directly to stage2_data[1]
-                if(lane_write_dq_late[index] && (data_start_index[index] != 0)) begin
+                if((lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1)) begin
                     {unaligned_data[index], { 
                         stage2_data[1][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
                         stage2_data[1][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
@@ -1467,11 +1474,23 @@ module ddr3_controller #(
             end
         end
     endgenerate
-
-    assign o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1];  // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
-    //assign o_phy_data = initial_calibration_done? {stage2_data[STAGE2_DATA_DEPTH-1][wb_data_bits - 1:1], 1'b0} : stage2_data[STAGE2_DATA_DEPTH-1];  // ECC test
-    
-    assign o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
+    generate
+        // If DLL off, add 1 more cycle of delay since PHY is faster for DLL OFF
+        if(DLL_OFF) begin : dll_off_out_phy
+            always @(posedge i_controller_clk) begin
+                o_phy_data <= stage2_data[STAGE2_DATA_DEPTH-1]; // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
+                o_phy_dm <= stage2_dm[STAGE2_DATA_DEPTH-1];
+                o_phy_cmd <= {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
+            end
+        end
+        else begin : dll_on_out_phy
+            always @* begin
+                o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1]; // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
+                o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
+                o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
+            end
+        end
+    endgenerate
 
     // DIAGRAM FOR ALL RELEVANT TIMING PARAMETERS:
     //
@@ -1699,7 +1718,9 @@ module ddr3_controller #(
                         delay_before_write_counter_d[index] = READ_TO_WRITE_DELAY + 1; // NOTE TO SELF: why plus 1?
                     end
                     // don't acknowledge if ECC request
-                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH-1] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
+                    // higher shift_read_pipe means the earlier it will check data received from i_phy_iserdes_data
+                    // shift_read_pipe is only used in calibration when DLL_OFF
+                    shift_reg_read_pipe_d[READ_ACK_PIPE_WIDTH - 1 - {30'd0,shift_read_pipe}] = {stage2_aux, !ecc_req_stage2}; // ack is sent to shift_reg which will be shifted until the wb ack output
                     write_ack_index_d = READ_ACK_PIPE_WIDTH[$clog2(READ_ACK_PIPE_WIDTH)-1:0]-1'b1; // next index for write is the last index of shift_reg_read_pipe_d
                     //issue read command
                     if(DUAL_RANK_DIMM[0]) begin
@@ -1926,7 +1947,7 @@ module ddr3_controller #(
             end
         end
     end //end of always block
-    assign o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
+
 
     // register previous value of cmd_ck_en
     always @(posedge i_controller_clk) begin
@@ -1969,7 +1990,7 @@ module ddr3_controller #(
             end
         end
         else begin
-            if(ODELAY_SUPPORTED) begin
+            if(ODELAY_SUPPORTED || DLL_OFF) begin
                 write_dqs_val[0] <= write_dqs_d || write_dqs_q[0];
             end
             else begin 
@@ -2240,6 +2261,8 @@ module ddr3_controller #(
             reset_after_rank_1 <= 1'b0;
             lane_write_dq_late <= 0;
             lane_read_dq_early <= 0;
+            shift_read_pipe <= 0;
+            bitslip_counter <= 0;
             `ifdef UART_DEBUG
                 uart_start_send <= 0;
                 uart_text <= 0;
@@ -2313,23 +2336,26 @@ module ddr3_controller #(
             // FSM
             case(state_calibrate) 
                 IDLE: if(i_phy_idelayctrl_rdy && instruction_address == 13) begin //we are now inside instruction 15 with maximum delay
-                        state_calibrate <= BITSLIP_DQS_TRAIN_1;
+                        state_calibrate <= DLL_OFF? ISSUE_WRITE_1 : BITSLIP_DQS_TRAIN_1; // If DLL Off then dont do any calibration, go straight to write-read
                         lane <= 0;
                         o_phy_odelay_data_ld <= {LANES{1'b1}};
                         o_phy_odelay_dqs_ld <= {LANES{1'b1}};
                         o_phy_idelay_data_ld <= {LANES{1'b1}};
                         o_phy_idelay_dqs_ld <= {LANES{1'b1}};
-                        pause_counter <= 1; //pause instruction address @13 until read calibration finishes
+                        pause_counter <= DLL_OFF? 0 : 1; // If DLL on, do calibration so pause instruction address @13 until read calibration finishes
                         write_calib_dqs <= 0;
                         write_calib_odt <= 0;
                         o_phy_write_leveling_calib <= 0;
                         initial_calibration_done <= 1'b0;
                         final_calibration_done <= 1'b0;
+                        shift_read_pipe <= 0;
+                        write_test_address_counter <= 0;
+                        read_test_address_counter <= 0;
                         `ifdef UART_DEBUG_READ_LEVEL
                             uart_start_send <= 1'b1;
                             uart_text <= {"state=IDLE",8'h0a};
                             state_calibrate <= WAIT_UART;
-                            state_calibrate_next <= BITSLIP_DQS_TRAIN_1;
+                            state_calibrate_next <= DLL_OFF? ISSUE_WRITE_1 : BITSLIP_DQS_TRAIN_1;
                         `endif
                       end
                       else if(instruction_address == 13) begin
@@ -2668,6 +2694,12 @@ module ddr3_controller #(
                         calib_data <= { {LANES{8'h80}}, {LANES{8'hdb}}, {LANES{8'hcf}}, {LANES{8'hd2}}, {LANES{8'h75}}, {LANES{8'hf1}}, {LANES{8'h2c}}, {LANES{8'h3d}} };
                         // write to address 1 is also a burst of 8 writes, where all lanes has same data written:  128'h80dbcfd275f12c3d
                         state_calibrate <= ISSUE_READ;
+                        `ifdef UART_DEBUG_ALIGN // add this so that read is far from write (making sure i_phy_iserdes_data does not mistake the read back from write data)
+                            uart_start_send <= 1'b1;
+                            uart_text <= {"DONE WRITE 2", 8'h0a,8'h0a,8'h0a,8'h0a};
+                            state_calibrate <= WAIT_UART;
+                            state_calibrate_next <= ISSUE_READ;
+                        `endif
                        end   
                 // NOTE: WHY THERE ARE TWO ISSUE_WRITE
                 // address 0 and 1 is written with a deterministic data, if the DQ trace has long delay (relative to command line) then the data will be delayed 
@@ -2684,18 +2716,11 @@ module ddr3_controller #(
                         state_calibrate <= READ_DATA;
                       end   
                       
-//        ISSUE_READ_2: begin
-//                        calib_stb <= 1;//actual request flag
-//                        calib_aux <= 1; //AUX ID to determine later if ACK is for read or write
-//                        calib_we <= 0; //write-enable
-//                        calib_addr <= 1;
-//                        state_calibrate <= READ_DATA;
-//                      end   
                                  
            READ_DATA: if({o_aux[AUX_WIDTH-((ECC_ENABLE == 3)? 6 : 1) : 0], o_wb_ack_uncalibrated}== {{(AUX_WIDTH-((ECC_ENABLE == 3)? 6 : 1)){1'b0}}, 1'b1, 1'b1}) begin //wait for the read ack (which has AUX ID of 1}
                          read_data_store <= o_wb_data_uncalibrated; // read data on address 0 
                          calib_stb <= 0;
-                         state_calibrate <= ANALYZE_DATA;
+                         state_calibrate <= DLL_OFF? ANALYZE_DATA_LOW_FREQ : ANALYZE_DATA;
                         //  data_start_index[lane] <= 0; // dont set to zero since this may have been already set by previous CHECK_STARTING_DATA
                          // Possible Patterns (strong autocorrel stat)
                          //0x80dbcfd275f12c3d   
@@ -2703,26 +2728,103 @@ module ddr3_controller #(
                          //0x01b79fa4ebe2587b
                          //0x22ee5319a15aa382
                          write_pattern <= 128'h80dbcfd275f12c3d_9177298cd0ad51c1;
-                         `ifdef UART_DEBUG_ALIGN
-                            uart_start_send <= 1'b1;
-                            // display o_wb_data_uncalibrated of current lane
-                            // uart_text <= {8'h0a,8'h0a,"state=READ_DATA, read_data_store[lane]= 0x",
-                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*7 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*6 + 8*lane) +: 8]),
-                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*5 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*4 + 8*lane) +: 8]),
-                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*3 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*2 + 8*lane) +: 8]),
-                            // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*1 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*0 + 8*lane) +: 8]), 8'h0a};
-                            //
-                            // view o_wb_data_uncalibrated in raw form (view in Hex form)
-                            uart_text <= {8'h0a,8'h0a, o_wb_data_uncalibrated,
-                                8'h0a,8'h0a
-                            };
-                            state_calibrate <= WAIT_UART;
-                            state_calibrate_next <= ANALYZE_DATA;
-                        `endif
+                        //  `ifdef UART_DEBUG_ALIGN
+                        //     uart_start_send <= 1'b1;
+                        //     // display o_wb_data_uncalibrated of current lane
+                        //     // uart_text <= {8'h0a,8'h0a,"state=READ_DATA, read_data_store[lane]= 0x",
+                        //     // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*7 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*6 + 8*lane) +: 8]),
+                        //     // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*5 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*4 + 8*lane) +: 8]),
+                        //     // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*3 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*2 + 8*lane) +: 8]),
+                        //     // hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*1 + 8*lane) +: 8]), hex8_to_ascii(o_wb_data_uncalibrated[((DQ_BITS*LANES)*0 + 8*lane) +: 8]), 8'h0a};
+                        //     //
+                        //     // view o_wb_data_uncalibrated in raw form (view in Hex form)
+                        //     uart_text <= {8'h0a,8'h0a, "o_wb_data_uncalibrated=", 8'h0a, 8'h0a, o_wb_data_uncalibrated,
+                        //         8'h0a,8'h0a
+                        //     };
+                        //     state_calibrate <= WAIT_UART;
+                        //     state_calibrate_next <= ANALYZE_DATA_LOW_FREQ;
+                        // `endif
                       end   
                       else if(!o_wb_stall_calib) begin
                             calib_stb <= 0;
+                            // if(i_phy_iserdes_data != 0) begin
+                            //     `ifdef UART_DEBUG_ALIGN // check if i_phy_iserdes_data ever receives a non-zero data
+                            //         uart_start_send <= 1'b1;
+                            //         uart_text <= {"i_phy_iserdes_data != 0:",8'h0a,8'h0a,i_phy_iserdes_data, 8'h0a,8'h0a};
+                            //         state_calibrate <= WAIT_UART;
+                            //         state_calibrate_next <= READ_DATA;
+                            //     `endif
+                            // end
                       end
+
+        ANALYZE_DATA_LOW_FREQ: begin // read_data_store should have the expected 9177298cd0ad51c1, if not then issue bitslip
+            if(write_pattern[0 +: 64] == {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                        read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                        read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] }) begin 
+                    /* verilator lint_off WIDTH */
+                    if(lane == LANES - 1) begin
+                    /* verilator lint_on WIDTH */
+                        state_calibrate <= BIST_MODE == 0? FINISH_READ : BURST_WRITE; // go straight to FINISH_READ if BIST_MODE == 0
+                        initial_calibration_done <= 1'b1;
+                        `ifdef UART_DEBUG_ALIGN
+                            uart_start_send <= 1'b1;
+                            //uart_text <= {"state=ANALYZE_DATA_LOW_FREQ, Done All Lanes",8'h0a,"-----------------",8'h0a,8'h0a};
+                            uart_text <= {8'h0a,8'h0a, "Done All Lanes, bitslip_counter=", hex_to_ascii(bitslip_counter), ", shift_read_pipe=", hex_to_ascii(shift_read_pipe), 
+                            ", data_start_index=", hex8_to_ascii(data_start_index[lane]), ", lane_late=", hex_to_ascii(lane_write_dq_late[lane]), 8'h0a,8'h0a, 
+                            {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                            read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                            read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] },
+                                8'h0a,8'h0a,8'h0a,8'h0a};
+                            state_calibrate <= WAIT_UART;
+                            state_calibrate_next <= BIST_MODE == 0? FINISH_READ : BURST_WRITE;
+                        `endif
+                    end        
+                    else begin
+                        lane <= lane + 1;
+                        bitslip_counter <= 0;
+                        `ifdef UART_DEBUG_ALIGN
+                            uart_start_send <= 1'b1;
+                            // uart_text <= {"state=ANALYZE_DATA_LOW_FREQ, Done lane=",hex_to_ascii(lane),8'h0a,"-----------------",8'h0a};
+                            uart_text <= {8'h0a,8'h0a, "Done lane=", hex_to_ascii(lane), ", bitslip_counter=", hex_to_ascii(bitslip_counter), ", shift_read_pipe=", hex_to_ascii(shift_read_pipe), 
+                            ", data_start_index=", hex8_to_ascii(data_start_index[lane]), ", lane_late=", hex_to_ascii(lane_write_dq_late[lane]), 8'h0a,8'h0a, 
+                            {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                            read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                            read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] },
+                                8'h0a,8'h0a,8'h0a,8'h0a};
+                            state_calibrate <= WAIT_UART;
+                            state_calibrate_next <= ANALYZE_DATA_LOW_FREQ;
+                        `endif
+                    end
+            end
+            else begin // issue bitslip then repeat write-read
+                o_phy_bitslip[lane] <= 1'b1;
+                bitslip_counter <= bitslip_counter + 1; // increment counter every bitslip
+                if(bitslip_counter == 7) begin // there are only 8 bitslip, once past this then we shift read pipe backwards (assumption is that we read too early)
+                    shift_read_pipe <= shift_read_pipe + 1;
+                    bitslip_counter <= 0;
+                    if(shift_read_pipe == 1) begin // if shift_read_pipe at end then we increase data_start_index since problem might be write DQ too early thus we shift it later using data_start_index 
+                         shift_read_pipe <= 0;
+                         data_start_index[lane] <= lane_write_dq_late[lane]? data_start_index[lane] - 8: data_start_index[lane] + 8;
+                         if((data_start_index[lane] == 64) && !lane_write_dq_late[lane]) begin // if data_start_index at end then we assert data_start_index, last assumption is that we are writing DQ too late thus we move stage2_data forward to be sent out earlier
+                            data_start_index[lane] <= 64;
+                            lane_write_dq_late[lane] <= 1'b1;
+                         end
+                    end
+                end
+                state_calibrate <= ISSUE_WRITE_1;
+                `ifdef UART_DEBUG_ALIGN
+                    uart_start_send <= 1'b1;
+                    uart_text <= {8'h0a,8'h0a, "lane=", hex_to_ascii(lane), ", bitslip_counter=", hex_to_ascii(bitslip_counter), ", shift_read_pipe=", hex_to_ascii(shift_read_pipe), 
+                            ", data_start_index=", hex8_to_ascii(data_start_index[lane]), ", lane_late=", hex_to_ascii(lane_write_dq_late[lane]), 8'h0a,8'h0a, 
+                            {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                            read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                            read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] },
+                                8'h0a,8'h0a,8'h0a,8'h0a};
+                    state_calibrate <= WAIT_UART;
+                    state_calibrate_next <= ISSUE_WRITE_1;
+                `endif
+            end
+        end
                         // extract burst_0-to-burst_7 data for a specified lane then determine which byte in write_pattern does it starts (ASSUMPTION: the DQ is too early [3d_9177298cd0ad51]c1 is written)
                         // NOTE TO SELF: all "8" here assume DQ_BITS are 8? parameterize this properly
                         // data_start_index for a specified lane determine how many bits are off the data from the write command
@@ -2874,152 +2976,155 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
                             train_delay <= 3;
                         end
                      end
-             
-       /* WRITE_ZERO: if(!o_wb_stall_calib) begin //write zero to all addresses before starting write-read test
-                            calib_stb <= 1;
-                            calib_aux <= 2;
-                            calib_sel <= {wb_sel_bits{1'b1}};
-                            calib_we <= 1; 
-                            calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                            calib_data <= 0; 
-                            write_test_address_counter <= write_test_address_counter + 1;
-                            if(MICRON_SIM) begin
-                                if(write_test_address_counter[wb_addr_bits-1:0] == 999 ) begin 
-                                    state_calibrate <= BURST_WRITE;
-                                    calib_stb <= 0;
-                                    calib_aux <= 0;
-                                    calib_we <= 0; 
-                                    write_test_address_counter <= 0;
-                                end 
-                            end
-                            else begin
-                                if(write_test_address_counter[wb_addr_bits-1:0] == {(wb_addr_bits){1'b1}} ) begin
-                                    state_calibrate <= BURST_WRITE;
-                                    calib_stb <= 0;
-                                    calib_aux <= 0;
-                                    calib_we <= 0; 
-                                    write_test_address_counter <= 0;
-                                end 
-                            end
-                            
-                     end*/
                                    
        BURST_WRITE: if(!o_wb_stall_calib) begin // Test 1: Burst write (per byte write to test datamask feature), then burst read
-                            calib_stb <= !write_test_address_counter[wb_addr_bits]; // create request only at the valid address space
-                            calib_aux <= 2;
+                            calib_stb <= 1'b1; 
+                            calib_aux <= 2; // write
                             if(TDQS == 0 && ECC_ENABLE == 0) begin //Test datamask by writing 1 byte at a time
                                 calib_sel <= 1 << write_by_byte_counter;
                                 calib_we <= 1; 
-                                calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                                calib_data <= {wb_sel_bits{8'haa}}; 
-                                // calib_data[8*write_by_byte_counter +: 8] <= write_test_address_counter[7:0]; 
+                                calib_addr <= write_test_address_counter;
+                                calib_data <= {wb_sel_bits{8'haa}}; // set the rest (masked) to aa
                                 calib_data[8*write_by_byte_counter +: 8] <= calib_data_randomized[8*write_by_byte_counter +: 8]; 
                                 if(write_by_byte_counter == {$clog2(wb_sel_bits){1'b1}}) begin
-                                    write_test_address_counter <= MICRON_SIM? write_test_address_counter + (2**SIM_ADDRESS_INCR_LOG2) : write_test_address_counter + 1; // at BIST_MODE=1, this will create 128 writes
-                                    /* verilator lint_off WIDTHEXPAND */
-                                    if((write_test_address_counter[wb_addr_bits-1:0] - MICRON_SIM == { {2{BIST_MODE[1]}} , {(wb_addr_bits-2){1'b1}} }) && (MICRON_SIM? (write_test_address_counter != 0) : 1)) begin //MUST END AT ODD NUMBER
-                                    /* verilator lint_on WIDTHEXPAND */
+                                    write_test_address_counter <= write_test_address_counter + 1;  
+                                        /* verilator lint_off WIDTHEXPAND */
+                                    if( (write_test_address_counter == { {2{BIST_MODE[1]}} , {(wb_addr_bits_sim-2){1'b1}} }) ) begin //MUST END AT ODD NUMBER
+                                        /* verilator lint_on WIDTHEXPAND */
                                         if(BIST_MODE == 2) begin // mode 2 = burst write-read the WHOLE address space so always set the address counter back to zero
                                             write_test_address_counter <= 0;
                                         end
                                         state_calibrate <= BURST_READ;
+                                        `ifdef UART_DEBUG_ALIGN
+                                            uart_start_send <= 1'b1;
+                                            uart_text <= {"DONE BURST WRITE (PER BYTE): BIST_MODE=",hex_to_ascii(BIST_MODE),8'h0a};
+                                            state_calibrate <= WAIT_UART;
+                                            state_calibrate_next <= BURST_READ;
+                                        `endif
                                     end 
                                 end
                                 write_by_byte_counter <= write_by_byte_counter + 1;
-                                
                            end
                            else begin // Straight burst to all bytes (all datamask on)
                                 calib_sel <= {wb_sel_bits{1'b1}};
                                 calib_we <= 1; 
-                                calib_addr <= write_test_address_counter[wb_addr_bits-1:0];
-                                // calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+                                calib_addr <= write_test_address_counter;
                                 calib_data <= calib_data_randomized;
-                                write_test_address_counter <= MICRON_SIM? write_test_address_counter + (2**SIM_ADDRESS_INCR_LOG2) : write_test_address_counter + 1;  // at BIST_MODE=1, this will create 128 writes
-                                /* verilator lint_off WIDTHEXPAND */
-                                if((write_test_address_counter[wb_addr_bits-1:0] - MICRON_SIM == { {2{BIST_MODE[1]}} , {(wb_addr_bits-2){1'b1}} }) && (MICRON_SIM? (write_test_address_counter != 0) : 1)) begin //MUST END AT ODD NUMBER
-                                /* verilator lint_on WIDTHEXPAND */
+                                write_test_address_counter <= write_test_address_counter + 1; 
+                                    /* verilator lint_off WIDTHEXPAND */
+                                if( write_test_address_counter == { {2{BIST_MODE[1]}} , {(wb_addr_bits_sim-2){1'b1}} } ) begin //MUST END AT ODD NUMBER
+                                    /* verilator lint_on WIDTHEXPAND */
                                     if(BIST_MODE == 2) begin // mode 2 = burst write-read the WHOLE address space so always set the address counter back to zero
                                         write_test_address_counter <= 0;
                                     end
                                     state_calibrate <= BURST_READ;
+                                    `ifdef UART_DEBUG_ALIGN
+                                        uart_start_send <= 1'b1;
+                                        uart_text <= {"DONE BURST WRITE (ALL BYTES): BIST_MODE=",hex_to_ascii(BIST_MODE),8'h0a};
+                                        state_calibrate <= WAIT_UART;
+                                        state_calibrate_next <= BURST_READ;
+                                    `endif
                                 end 
                            end
                      end
                    
          BURST_READ: if(!o_wb_stall_calib) begin
-                            calib_stb <= !read_test_address_counter[wb_addr_bits]; // create request only at the valid address space
-                            calib_aux <= 3; 
+                            calib_stb <= 1'b1;
+                            calib_aux <= 3; // read
                             calib_we <= 0; 
-                            calib_addr <= read_test_address_counter[wb_addr_bits-1:0];
-                            read_test_address_counter <= MICRON_SIM? read_test_address_counter + (2**SIM_ADDRESS_INCR_LOG2) : read_test_address_counter + 1;  // at BIST_MODE=1, this will create 128 reads
-                            /* verilator lint_off WIDTHEXPAND */
-                            if((read_test_address_counter - MICRON_SIM == { {2{BIST_MODE[1]}} , {(wb_addr_bits-2){1'b1}} }) && (MICRON_SIM? (read_test_address_counter != 0) : 1)) begin //MUST END AT ODD NUMBER
-                            /* verilator lint_on WIDTHEXPAND */
+                            calib_addr <= read_test_address_counter;
+                            read_test_address_counter <=  read_test_address_counter + 1; 
+                                /* verilator lint_off WIDTHEXPAND */
+                            if( read_test_address_counter == { {2{BIST_MODE[1]}} , {(wb_addr_bits_sim-2){1'b1}} } ) begin //MUST END AT ODD NUMBER
+                                /* verilator lint_on WIDTHEXPAND */
                                 if(BIST_MODE == 2) begin  // mode 2 = burst write-read the WHOLE address space so always set the address counter back to zero
                                     read_test_address_counter <= 0;
                                 end
                                 state_calibrate <= RANDOM_WRITE;
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"DONE BURST READ: BIST_MODE=",hex_to_ascii(BIST_MODE),8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= RANDOM_WRITE;
+                                `endif
                             end  
                        end
                        
         RANDOM_WRITE: if(!o_wb_stall_calib) begin // Test 2: Random write (increments row address to force precharge-act-r/w) then random read
-                            calib_stb <= !write_test_address_counter[wb_addr_bits]; // create request only at the valid address space
-                            calib_aux <= 2; 
+                            calib_stb <= 1'b1; 
+                            calib_aux <= 2; // write
                             calib_sel <= {wb_sel_bits{1'b1}};
                             calib_we <= 1; 
+                            // swap row <-> bank,col so that an increment on write_test_address_counter would mean an increment on ROW (rather than on column or bank thus forcing PRE-ACT)
                             calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1 + DUAL_RANK_DIMM) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2) + DUAL_RANK_DIMM) ]
                                        <= write_test_address_counter[ROW_BITS-1:0]; // store row
                             calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1 + DUAL_RANK_DIMM) : 0] 
                                        <= write_test_address_counter[wb_addr_bits-1:ROW_BITS]; // store bank + col
-                            // calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
                             calib_data <= calib_data_randomized;
-                            write_test_address_counter <= MICRON_SIM? write_test_address_counter + (2**SIM_ADDRESS_INCR_LOG2) : write_test_address_counter + 1;  // at BIST_MODE=1, this will create 128 writes
-                            /* verilator lint_off WIDTHEXPAND */
-                            if((write_test_address_counter[wb_addr_bits-1:0] - MICRON_SIM == { 1'b1, BIST_MODE[1] , {(wb_addr_bits-2){1'b1}} }) && (MICRON_SIM? (write_test_address_counter != 0) : 1)) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
-                            /* verilator lint_on WIDTHEXPAND */
+                            write_test_address_counter <= write_test_address_counter + 1; 
+                                /* verilator lint_off WIDTHEXPAND */
+                            if( write_test_address_counter == { 1'b1, BIST_MODE[1] , {(wb_addr_bits_sim-2){1'b1}} } ) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                                /* verilator lint_on WIDTHEXPAND */
                                 if(BIST_MODE == 2) begin  // mode 2 = random write-read the WHOLE address space so always set the address counter back to zero
                                     write_test_address_counter <= 0;
                                 end
                                 state_calibrate <= RANDOM_READ;
+                                `ifdef UART_DEBUG_ALIGN
+                                    uart_start_send <= 1'b1;
+                                    uart_text <= {"DONE RANDOM WRITE: BIST_MODE=",hex_to_ascii(BIST_MODE),8'h0a};
+                                    state_calibrate <= WAIT_UART;
+                                    state_calibrate_next <= RANDOM_READ;
+                                `endif
                             end
                       end
                     
         RANDOM_READ: if(!o_wb_stall_calib) begin
-                        calib_stb <= !read_test_address_counter[wb_addr_bits]; // create request only at the valid address space
-                        calib_aux <= 3; 
+                        calib_stb <= 1'b1;
+                        calib_aux <= 3; // read
                         calib_we <= 0;
+                        // swap row <-> bank,col so that an increment on write_test_address_counter would mean an increment on ROW (rather than on column or bank thus forcing PRE-ACT)
                         calib_addr[ (ROW_BITS + BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1 + DUAL_RANK_DIMM) : (BA_BITS + COL_BITS- $clog2(serdes_ratio*2) + DUAL_RANK_DIMM) ]
                                        <= read_test_address_counter[ROW_BITS-1:0]; // row
                         calib_addr[(BA_BITS + COL_BITS- $clog2(serdes_ratio*2) - 1 + DUAL_RANK_DIMM) : 0] 
                                        <= read_test_address_counter[wb_addr_bits-1:ROW_BITS]; // bank + col
-                        read_test_address_counter <=  MICRON_SIM? read_test_address_counter + (2**SIM_ADDRESS_INCR_LOG2) : read_test_address_counter + 1;  // at BIST_MODE=1, this will create 128 reads
-                        /* verilator lint_off WIDTHEXPAND */
-                        if((read_test_address_counter - MICRON_SIM == { 1'b1 , BIST_MODE[1], {(wb_addr_bits-2){1'b1}} }) && (MICRON_SIM? (read_test_address_counter != 0) : 1)) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
-                        /* verilator lint_on WIDTHEXPAND */
+                        read_test_address_counter <=  read_test_address_counter + 1;  
+                            /* verilator lint_off WIDTHEXPAND */
+                        if( read_test_address_counter == { 1'b1 , BIST_MODE[1], {(wb_addr_bits_sim-2){1'b1}} }) begin //MUST END AT ODD NUMBER since ALTERNATE_WRITE_READ must start at even
+                            /* verilator lint_on WIDTHEXPAND */
                             if(BIST_MODE == 2) begin  // mode 2 = random write-read the WHOLE address space so always set the address counter back to zero
                                 read_test_address_counter <= 0;
                             end
                             state_calibrate <= ALTERNATE_WRITE_READ;
+                            `ifdef UART_DEBUG_ALIGN
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"DONE RANDOM READ: BIST_MODE=",hex_to_ascii(BIST_MODE),8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= ALTERNATE_WRITE_READ;
+                            `endif
                         end
                      end
                      
 ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
-                        calib_stb <= !write_test_address_counter[wb_addr_bits]; // create request only at the valid address space
+                        calib_stb <= 1'b1;
                         calib_aux <= 2 + (calib_we? 1:0); //2 (write), 3 (read)
                         calib_sel <= {wb_sel_bits{1'b1}};
                         calib_we <= !calib_we; // alternating write-read
-                        calib_addr <= write_test_address_counter[wb_addr_bits-1:0]; 
-                        // calib_data <= {wb_sel_bits{write_test_address_counter[7:0]}}; 
+                        calib_addr <= write_test_address_counter; 
                         calib_data <= calib_data_randomized;
-
-                        if(calib_we) begin // if current operation is write, then dont increment address since we wil read the same address next
-                            write_test_address_counter <= MICRON_SIM? write_test_address_counter + (2**SIM_ADDRESS_INCR_LOG2) : write_test_address_counter + 1;  // at BIST_MODE=1, this will create 128 writes
+                        if(calib_we) begin // if current operation is write, then dont increment address since we will read the same address next
+                            write_test_address_counter <= write_test_address_counter + 1;  
                         end
                         /* verilator lint_off WIDTHEXPAND */
-                        if((write_test_address_counter[wb_addr_bits-1:0] - MICRON_SIM == { 2'b11 , {(wb_addr_bits-2){1'b1}} }) && (MICRON_SIM? (write_test_address_counter != 0) : 1)) begin
+                        if( write_test_address_counter == { 2'b11 , {(wb_addr_bits_sim-2){1'b1}} } ) begin
                         /* verilator lint_on WIDTHEXPAND */
                             train_delay <= 15;
                             state_calibrate <= FINISH_READ;
+                            `ifdef UART_DEBUG_ALIGN
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"DONE ALTERNATING WRITE-READ",8'h0a};
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= FINISH_READ;
+                            `endif
                         end
                     end         
        FINISH_READ: begin
@@ -3038,6 +3143,14 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                                 state_calibrate <= DONE_CALIBRATE;
                                 final_calibration_done <= 1'b1;
                             end
+                            `ifdef UART_DEBUG_ALIGN
+                                uart_start_send <= 1'b1;
+                                uart_text <= {"DONE BIST_MODE=",hex_to_ascii(BIST_MODE),", correct_read_data=",
+                                    8'h0a, 8'h0a, correct_read_data, 8'h0a, 8'h0a, 8'h0a, 8'h0a
+                                };
+                                state_calibrate <= WAIT_UART;
+                                state_calibrate_next <= DONE_CALIBRATE;
+                            `endif
                         end
                     end    
                                
@@ -3052,15 +3165,19 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         end
                      end
         `ifdef UART_DEBUG
-        WAIT_UART: if(!uart_send_busy && !uart_start_send) begin // wait here until UART is finished
-                        state_calibrate <= state_calibrate_next;
-                    end
-                    else if(uart_send_busy) begin // if already busy then uart_start_send can be deasserted
-                        uart_start_send <= 0;
+        WAIT_UART: begin
+                        if(!uart_send_busy && !uart_start_send) begin // wait here until UART is finished
+                            state_calibrate <= state_calibrate_next;
+                        end
+                        else if(uart_send_busy) begin // if already busy then uart_start_send can be deasserted
+                            uart_start_send <= 0;
+                        end
+                        if(!o_wb_stall_calib) begin // lower calib_stb only when the current request is accepted (stall low)
+                            calib_stb <= 0;
+                        end
                     end
         `endif
         endcase
-        
         `ifdef FORMAL_COVER
             state_calibrate <= DONE_CALIBRATE;
         `endif
@@ -3108,6 +3225,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         3: uart_text <= {"RESET, correct_data(raw)=0x",8'h0a,8'h0a,
                             expected_data, 8'h0a,8'h0a
                         };
+                        5: uart_text <= {"state_calibrate_last=0x",hex8_to_ascii(state_calibrate_last),8'h0a,8'h0a
+                        };
                     endcase
                     state_calibrate <= WAIT_UART;
                     state_calibrate_next <= WAIT_UART;
@@ -3135,7 +3254,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                 case(state_uart_send)
                     UART_FSM_IDLE: if (uart_start_send) begin // if receive request to send via uart
                         state_uart_send <= UART_FSM_SEND_BYTE;
-                        uart_text_length_index <= count_chars(uart_text)+5;
+                        uart_text_length_index <= 100;
                         uart_send_busy <= 1;
                         uart_idle_timer <= MICRON_SIM? {5{1'b1}} : {20{1'b1}}; // set to all 1s for idle time
                     end
@@ -3191,7 +3310,7 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
         endfunction
 
         uart_tx #(
-                .BIT_RATE(MICRON_SIM? (((1_000_000/CONTROLLER_CLK_PERIOD) * 1_000_000)/1) : 9600),
+                .BIT_RATE(MICRON_SIM? (((1_000_000/CONTROLLER_CLK_PERIOD) * 1_000_000)/1) : 9600), // fast UART during simulation
                 .CLK_HZ( (1_000_000/CONTROLLER_CLK_PERIOD) * 1_000_000),
                 .PAYLOAD_BITS(8),
                 .STOP_BITS(1)
@@ -3227,16 +3346,15 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
 
     // generate calib_data for BIST
     // Uses different operations (XOR, addition, subtraction, bit rotation) to generate different values per byte.
-    // When MICRON_SIM=1, then we use the relevant bits (7:0 will be zero since during simulation the increment is a large number)
     assign calib_data_randomized = {
-        {(wb_sel_bits/8){write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'hA5,  // Byte 7
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'h1A,  // Byte 7
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h33,  // Byte 5
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h5A,  // Byte 4
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h21,  // Byte 3
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'hC7,  // Byte 1
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h7E,  // Byte 1
-        write_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h3C}}   // Byte 0
+        {(wb_sel_bits/8){write_test_address_counter[0 +: 8] ^ 8'hA5,  // Byte 7
+        write_test_address_counter[0 +: 8] | 8'h1A,  // Byte 6
+        write_test_address_counter[0 +: 8] & 8'h33,  // Byte 5
+        write_test_address_counter[0 +: 8] ^ 8'h5A,  // Byte 4
+        write_test_address_counter[0 +: 8] & 8'h21,  // Byte 3
+        write_test_address_counter[0 +: 8] | 8'hC7,  // Byte 2
+        write_test_address_counter[0 +: 8] ^ 8'h7E,  // Byte 1
+        write_test_address_counter[0 +: 8] ^ 8'h3C}}   // Byte 0
     };
 
     generate
@@ -3266,50 +3384,45 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     /*********************************************************************************************************************************************/
 
     /******************************************************* Calibration Test Receiver *******************************************************/
-    reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
-    wire[wb_data_bits-1:0] correct_data;
 
     generate
         if(ECC_ENABLE == 0 || ECC_ENABLE == 3) begin : ecc_enable_0_correct_data
-            // assign correct_data = {wb_sel_bits{check_test_address_counter[7:0]}};
             assign correct_data = {
-                {(wb_sel_bits/8){check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'hA5,  // Byte 7
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'h1A,  // Byte 7
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h33,  // Byte 5
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h5A,  // Byte 4
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h21,  // Byte 3
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'hC7,  // Byte 1
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h7E,  // Byte 1
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h3C }}  // Byte 0
+                {(wb_sel_bits/8){check_test_address_counter[0 +: 8] ^ 8'hA5,  // Byte 7
+                check_test_address_counter[0 +: 8] | 8'h1A,  // Byte 6
+                check_test_address_counter[0 +: 8] & 8'h33,  // Byte 5
+                check_test_address_counter[0 +: 8] ^ 8'h5A,  // Byte 4
+                check_test_address_counter[0 +: 8] & 8'h21,  // Byte 3
+                check_test_address_counter[0 +: 8] | 8'hC7,  // Byte 2
+                check_test_address_counter[0 +: 8] ^ 8'h7E,  // Byte 1
+                check_test_address_counter[0 +: 8] ^ 8'h3C }}  // Byte 0
             };
         end
         else if(ECC_ENABLE == 1) begin : ecc_enable_1_correct_data
             wire[wb_data_bits-1:0] correct_data_orig;
-            // assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
-            assign correct_data_orig = {
-                {(wb_sel_bits/8){check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'hA5,  // Byte 7
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'h1A,  // Byte 7
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h33,  // Byte 5
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h5A,  // Byte 4
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h21,  // Byte 3
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'hC7,  // Byte 1
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h7E,  // Byte 1
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h3C}}   // Byte 0
+            assign correct_data = {
+                {(wb_sel_bits/8){check_test_address_counter[0 +: 8] ^ 8'hA5,  // Byte 7
+                check_test_address_counter[0 +: 8] | 8'h1A,  // Byte 6
+                check_test_address_counter[0 +: 8] & 8'h33,  // Byte 5
+                check_test_address_counter[0 +: 8] ^ 8'h5A,  // Byte 4
+                check_test_address_counter[0 +: 8] & 8'h21,  // Byte 3
+                check_test_address_counter[0 +: 8] | 8'hC7,  // Byte 2
+                check_test_address_counter[0 +: 8] ^ 8'h7E,  // Byte 1
+                check_test_address_counter[0 +: 8] ^ 8'h3C }}  // Byte 0
             };
             assign correct_data = {{(wb_data_bits-ECC_INFORMATION_BITS*8){1'b0}} , correct_data_orig[ECC_INFORMATION_BITS*8 - 1 : 0]}; //only ECC_INFORMATION_BITS are valid in o_wb_data
         end
         else if(ECC_ENABLE == 2) begin : ecc_enable_2_correct_data
             wire[wb_data_bits-1:0] correct_data_orig;
-            // assign correct_data_orig = {wb_sel_bits{check_test_address_counter[7:0]}}; 
-            assign correct_data_orig = {
-                {(wb_sel_bits/8){check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'hA5,  // Byte 7
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'h1A,  // Byte 7
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h33,  // Byte 5
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h5A,  // Byte 4
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] & 8'h21,  // Byte 3
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] | 8'hC7,  // Byte 1
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h7E,  // Byte 1
-                check_test_address_counter[(MICRON_SIM? SIM_ADDRESS_INCR_LOG2:0) +: 8] ^ 8'h3C}}   // Byte 0
+            assign correct_data = {
+                {(wb_sel_bits/8){check_test_address_counter[0 +: 8] ^ 8'hA5,  // Byte 7
+                check_test_address_counter[0 +: 8] | 8'h1A,  // Byte 6
+                check_test_address_counter[0 +: 8] & 8'h33,  // Byte 5
+                check_test_address_counter[0 +: 8] ^ 8'h5A,  // Byte 4
+                check_test_address_counter[0 +: 8] & 8'h21,  // Byte 3
+                check_test_address_counter[0 +: 8] | 8'hC7,  // Byte 2
+                check_test_address_counter[0 +: 8] ^ 8'h7E,  // Byte 1
+                check_test_address_counter[0 +: 8] ^ 8'h3C }}  // Byte 0
             };
             assign correct_data = {{(wb_data_bits-ECC_INFORMATION_BITS){1'b0}} , correct_data_orig[ECC_INFORMATION_BITS - 1 : 0]}; //only ECC_INFORMATION_BITS are valid in o_wb_data
         end
@@ -3318,8 +3431,8 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
     always @(posedge i_controller_clk) begin
         if(sync_rst_controller) begin
             check_test_address_counter <= 0;
-            correct_read_data <= 0;
-            wrong_read_data <= 0;
+            // correct_read_data <= 0; // dont reset so data is preserved when forced reset after wrong data
+            // wrong_read_data <= 0;
             reset_from_test <= 0;
         end
         else begin
@@ -3333,10 +3446,18 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         wrong_read_data <= wrong_read_data + 1;
                         wrong_data <= o_wb_data;
                         expected_data <= correct_data;
-                        reset_from_test <= !final_calibration_done; //reset controller when a wrong data is received (only when calibration is not yet done)
+                        `ifdef UART_DEBUG
+                            state_calibrate_last <= state_calibrate;
+                            reset_from_test <= 1'b0; // dont reset when uart debugging
+                        `else
+                            reset_from_test <= !final_calibration_done; //reset controller when a wrong data is received (only when calibration is not yet done) AND UART_DEBUG is not defined
+                        `endif
                     end
                     /* verilator lint_off WIDTHEXPAND */
-                    check_test_address_counter <= check_test_address_counter + (MICRON_SIM? (2**SIM_ADDRESS_INCR_LOG2) : 1);
+                    check_test_address_counter <= check_test_address_counter + 1;
+                    if(check_test_address_counter == {(wb_addr_bits_sim){1'b1}}) begin // if last address, then jump back to zero
+                        check_test_address_counter <= {(wb_addr_bits){1'b0}};
+                    end
                     /* verilator lint_on WIDTHEXPAND */
                 end
             end
@@ -3518,14 +3639,14 @@ ALTERNATE_WRITE_READ: if(!o_wb_stall_calib) begin
                         end //end of if(wb2_stb)
                     end//end of else
             end//end of always
-        end : use_second_wishbone
+        end 
         else begin : no_second_wishbone
             always @* begin
                 o_wb2_stall = 1'b1; // will not accept any request
                 o_wb2_ack = 1'b0;
                 o_wb2_data = 0;
             end
-        end : no_second_wishbone
+        end 
     endgenerate
 
     // Logic connected to debug port

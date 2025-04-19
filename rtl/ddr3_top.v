@@ -50,8 +50,9 @@ module ddr3_top #(
     parameter[0:0] MICRON_SIM = 0, //enable faster simulation for micron ddr3 model (shorten POWER_ON_RESET_HIGH and INITIAL_CKE_LOW)
                    ODELAY_SUPPORTED = 0, //set to 1 when ODELAYE2 is supported
                    SECOND_WISHBONE = 0, //set to 1 if 2nd wishbone for debugging is needed 
+                   DLL_OFF = 0, // 1 = DLL off for low frequency ddr3 clock (< 125MHz)
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
-    parameter[1:0] BIST_MODE = 1, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+    parameter[1:0] BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms) (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)  (only change when you know what you are doing)
@@ -259,6 +260,7 @@ ddr3_top #(
             .ODELAY_SUPPORTED(ODELAY_SUPPORTED),  //set to 1 when ODELAYE2 is supported
             .SECOND_WISHBONE(SECOND_WISHBONE), //set to 1 if 2nd wishbone is needed 
             .ECC_ENABLE(ECC_ENABLE), // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC ) 
+            .DLL_OFF(DLL_OFF), // 1 = DLL off for low frequency ddr3 clock (< 125MHz)
             .WB_ERROR(WB_ERROR), // set to 1 to support Wishbone error (asserts at ECC double bit error)
             .BIST_MODE(BIST_MODE), // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
             .DIC(DIC), //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)
@@ -330,63 +332,118 @@ ddr3_top #(
             .i_user_self_refresh(user_self_refresh),
             .uart_tx(uart_tx)
         );
-        
-    ddr3_phy #(
-            .ROW_BITS(ROW_BITS), //width of row address
-            .BA_BITS(BA_BITS), //width of bank address
-            .DQ_BITS(DQ_BITS),  //width of DQ
-            .LANES(BYTE_LANES), //8 lanes of DQ
-            .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, period of clock input to this DDR3 controller module
-            .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, period of clock input to DDR3 RAM device 
-            .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 when ODELAYE2 is supported
-            .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
-        ) ddr3_phy_inst (
-            .i_controller_clk(i_controller_clk), 
-            .i_ddr3_clk(i_ddr3_clk),
-            .i_ref_clk(i_ref_clk),
-            .i_ddr3_clk_90(i_ddr3_clk_90), 
-            .i_rst_n(i_rst_n),
-            // Controller Interface
-            .i_controller_reset(reset),
-            .i_controller_cmd(cmd),
-            .i_controller_dqs_tri_control(dqs_tri_control), 
-            .i_controller_dq_tri_control(dq_tri_control),
-            .i_controller_toggle_dqs(toggle_dqs),
-            .i_controller_data(data),
-            .i_controller_dm(dm),
-            .i_controller_odelay_data_cntvaluein(odelay_data_cntvaluein),
-            .i_controller_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
-            .i_controller_idelay_data_cntvaluein(idelay_data_cntvaluein),
-            .i_controller_idelay_dqs_cntvaluein(idelay_dqs_cntvaluein),
-            .i_controller_odelay_data_ld(odelay_data_ld), 
-            .i_controller_odelay_dqs_ld(odelay_dqs_ld),
-            .i_controller_idelay_data_ld(idelay_data_ld), 
-            .i_controller_idelay_dqs_ld(idelay_dqs_ld),
-            .i_controller_bitslip(bitslip),
-            .i_controller_write_leveling_calib(write_leveling_calib),
-            .o_controller_iserdes_data(iserdes_data),
-            .o_controller_iserdes_dqs(iserdes_dqs),
-            .o_controller_iserdes_bitslip_reference(iserdes_bitslip_reference),
-            .o_controller_idelayctrl_rdy(idelayctrl_rdy),
-            // DDR3 I/O Interface
-            .o_ddr3_clk_p(o_ddr3_clk_p),
-            .o_ddr3_clk_n(o_ddr3_clk_n),
-            .o_ddr3_reset_n(o_ddr3_reset_n),
-            .o_ddr3_cke(o_ddr3_cke), // CKE
-            .o_ddr3_cs_n(o_ddr3_cs_n), // chip select signal
-            .o_ddr3_ras_n(o_ddr3_ras_n), // RAS#
-            .o_ddr3_cas_n(o_ddr3_cas_n), // CAS#
-            .o_ddr3_we_n(o_ddr3_we_n), // WE#
-            .o_ddr3_addr(o_ddr3_addr),
-            .o_ddr3_ba_addr(o_ddr3_ba_addr),
-            .io_ddr3_dq(io_ddr3_dq),
-            .io_ddr3_dqs(io_ddr3_dqs),
-            .io_ddr3_dqs_n(io_ddr3_dqs_n),
-            .o_ddr3_dm(o_ddr3_dm),
-            .o_ddr3_odt(o_ddr3_odt), // on-die termination
-            .o_ddr3_debug_read_dqs_p(/*o_ddr3_debug_read_dqs_p*/),
-            .o_ddr3_debug_read_dqs_n(/*o_ddr3_debug_read_dqs_n*/)
-        );
+    `ifndef LATTICE_ECP5_PHY // XILINX PHY
+        ddr3_phy #(
+                .ROW_BITS(ROW_BITS), //width of row address
+                .BA_BITS(BA_BITS), //width of bank address
+                .DQ_BITS(DQ_BITS),  //width of DQ
+                .LANES(BYTE_LANES), //8 lanes of DQ
+                .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD), //ps, period of clock input to this DDR3 controller module
+                .DDR3_CLK_PERIOD(DDR3_CLK_PERIOD), //ps, period of clock input to DDR3 RAM device 
+                .ODELAY_SUPPORTED(ODELAY_SUPPORTED), //set to 1 when ODELAYE2 is supported
+                .DUAL_RANK_DIMM(DUAL_RANK_DIMM) // enable dual rank DIMM (1 =  enable, 0 = disable)
+            ) ddr3_phy_inst (
+                .i_controller_clk(i_controller_clk), 
+                .i_ddr3_clk(i_ddr3_clk),
+                .i_ref_clk(i_ref_clk),
+                .i_ddr3_clk_90(i_ddr3_clk_90), 
+                .i_rst_n(i_rst_n),
+                // Controller Interface
+                .i_controller_reset(reset),
+                .i_controller_cmd(cmd),
+                .i_controller_dqs_tri_control(dqs_tri_control), 
+                .i_controller_dq_tri_control(dq_tri_control),
+                .i_controller_toggle_dqs(toggle_dqs),
+                .i_controller_data(data),
+                .i_controller_dm(dm),
+                .i_controller_odelay_data_cntvaluein(odelay_data_cntvaluein),
+                .i_controller_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
+                .i_controller_idelay_data_cntvaluein(idelay_data_cntvaluein),
+                .i_controller_idelay_dqs_cntvaluein(idelay_dqs_cntvaluein),
+                .i_controller_odelay_data_ld(odelay_data_ld), 
+                .i_controller_odelay_dqs_ld(odelay_dqs_ld),
+                .i_controller_idelay_data_ld(idelay_data_ld), 
+                .i_controller_idelay_dqs_ld(idelay_dqs_ld),
+                .i_controller_bitslip(bitslip),
+                .i_controller_write_leveling_calib(write_leveling_calib),
+                .o_controller_iserdes_data(iserdes_data),
+                .o_controller_iserdes_dqs(iserdes_dqs),
+                .o_controller_iserdes_bitslip_reference(iserdes_bitslip_reference),
+                .o_controller_idelayctrl_rdy(idelayctrl_rdy),
+                // DDR3 I/O Interface
+                .o_ddr3_clk_p(o_ddr3_clk_p),
+                .o_ddr3_clk_n(o_ddr3_clk_n),
+                .o_ddr3_reset_n(o_ddr3_reset_n),
+                .o_ddr3_cke(o_ddr3_cke), // CKE
+                .o_ddr3_cs_n(o_ddr3_cs_n), // chip select signal
+                .o_ddr3_ras_n(o_ddr3_ras_n), // RAS#
+                .o_ddr3_cas_n(o_ddr3_cas_n), // CAS#
+                .o_ddr3_we_n(o_ddr3_we_n), // WE#
+                .o_ddr3_addr(o_ddr3_addr),
+                .o_ddr3_ba_addr(o_ddr3_ba_addr),
+                .io_ddr3_dq(io_ddr3_dq),
+                .io_ddr3_dqs(io_ddr3_dqs),
+                .io_ddr3_dqs_n(io_ddr3_dqs_n),
+                .o_ddr3_dm(o_ddr3_dm),
+                .o_ddr3_odt(o_ddr3_odt), // on-die termination
+                .o_ddr3_debug_read_dqs_p(/*o_ddr3_debug_read_dqs_p*/),
+                .o_ddr3_debug_read_dqs_n(/*o_ddr3_debug_read_dqs_n*/)
+            );
+    `else // LATTICE ECP5 PHY
+        ddr3_phy_ecp5 #(
+                .ROW_BITS(ROW_BITS), //width of row address
+                .BA_BITS(BA_BITS), //width of bank address
+                .DQ_BITS(DQ_BITS),  //width of DQ
+                .LANES(BYTE_LANES), //8 lanes of DQ
+                .CONTROLLER_CLK_PERIOD(CONTROLLER_CLK_PERIOD) //ps, period of clock input to this DDR3 controller module
+            ) ddr3_phy_inst (
+                .i_controller_clk(i_controller_clk), 
+                .i_ddr3_clk(i_ddr3_clk),
+                .i_ref_clk(i_ref_clk),
+                .i_ddr3_clk_90(i_ddr3_clk_90), 
+                .i_rst_n(i_rst_n),
+                // Controller Interface
+                .i_controller_reset(reset),
+                .i_controller_cmd(cmd),
+                .i_controller_dqs_tri_control(dqs_tri_control), 
+                .i_controller_dq_tri_control(dq_tri_control),
+                .i_controller_toggle_dqs(toggle_dqs),
+                .i_controller_data(data),
+                .i_controller_dm(dm),
+                .i_controller_odelay_data_cntvaluein(odelay_data_cntvaluein),
+                .i_controller_odelay_dqs_cntvaluein(odelay_dqs_cntvaluein),
+                .i_controller_idelay_data_cntvaluein(idelay_data_cntvaluein),
+                .i_controller_idelay_dqs_cntvaluein(idelay_dqs_cntvaluein),
+                .i_controller_odelay_data_ld(odelay_data_ld), 
+                .i_controller_odelay_dqs_ld(odelay_dqs_ld),
+                .i_controller_idelay_data_ld(idelay_data_ld), 
+                .i_controller_idelay_dqs_ld(idelay_dqs_ld),
+                .i_controller_bitslip(bitslip),
+                .i_controller_write_leveling_calib(write_leveling_calib),
+                .o_controller_iserdes_data(iserdes_data),
+                .o_controller_iserdes_dqs(iserdes_dqs),
+                .o_controller_iserdes_bitslip_reference(iserdes_bitslip_reference),
+                .o_controller_idelayctrl_rdy(idelayctrl_rdy),
+                // DDR3 I/O Interface
+                .o_ddr3_clk_p(o_ddr3_clk_p),
+                .o_ddr3_clk_n(o_ddr3_clk_n),
+                .o_ddr3_reset_n(o_ddr3_reset_n),
+                .o_ddr3_cke(o_ddr3_cke), // CKE
+                .o_ddr3_cs_n(o_ddr3_cs_n), // chip select signal
+                .o_ddr3_ras_n(o_ddr3_ras_n), // RAS#
+                .o_ddr3_cas_n(o_ddr3_cas_n), // CAS#
+                .o_ddr3_we_n(o_ddr3_we_n), // WE#
+                .o_ddr3_addr(o_ddr3_addr),
+                .o_ddr3_ba_addr(o_ddr3_ba_addr),
+                .io_ddr3_dq(io_ddr3_dq),
+                .io_ddr3_dqs(io_ddr3_dqs),
+                .io_ddr3_dqs_n(io_ddr3_dqs_n),
+                .o_ddr3_dm(o_ddr3_dm),
+                .o_ddr3_odt(o_ddr3_odt), // on-die termination
+                .o_ddr3_debug_read_dqs_p(/*o_ddr3_debug_read_dqs_p*/),
+                .o_ddr3_debug_read_dqs_n(/*o_ddr3_debug_read_dqs_n*/)
+            );
+    `endif 
 
         // // display value of parameters for easy debugging
         // initial begin
