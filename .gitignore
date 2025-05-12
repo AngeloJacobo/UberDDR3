@@ -9,6 +9,15 @@ testbench/xsim/*backup*
 testbench/xsim/*.log
 testbench/xsim/*.pb
 testbench/xsim/*.wdb
+example_demo/*/build/*
+example_demo/build_logs*
+*.fasm
+*.frames
+*.bin
+*.json
+*.bba
+*toolchain-nix*
+testbench/ddr3_dimm_micron_sim_behav.wcfg
 
 # But do not ignore testbench/xsim/test_*.log
 !testbench/xsim/test_*.log

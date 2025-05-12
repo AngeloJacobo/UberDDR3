@@ -57,7 +57,7 @@ Compiling module unisims_ver.IDELAYE2(HIGH_PERFORMANCE_MODE="...
 Compiling module unisims_ver.IDELAYCTRL_default
 Compiling module xil_defaultlib.ddr3_phy(CONTROLLER_CLK_PERIOD=6...
 Compiling module xil_defaultlib.ddr3_top(CONTROLLER_CLK_PERIOD=6...
-Compiling module xil_defaultlib.ddr3(DLL_OFF=1'b1)
+Compiling module xil_defaultlib.ddr3(DLL_OFF=1'b0)
 Compiling module xil_defaultlib.ddr3_dimm_micron_sim
 Compiling module xil_defaultlib.glbl
 Built simulation snapshot ddr3_dimm_micron_sim
@@ -293,8 +293,7 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1845750.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
 [ 3000 ps] NOP -> [ 1500 ps] NOP -> 
-[ 1500 ps] MRS -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1857750.0 ps WARNING: Load Mode 1 DLL off mode is not fully modeled
-[ 3000 ps] NOP -> 
+[ 1500 ps] MRS -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] MRS -> [ 3000 ps] NOP -> 
 [ 1500 ps] NOP -> [ 1500 ps] MRS -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] ZQC -> [ 3000 ps] NOP -> 
@@ -371,32 +370,16 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -415,89 +398,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -516,84 +418,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -612,142 +438,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -766,89 +458,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -867,84 +478,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
-[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -963,26 +498,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -994,7 +511,7 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
@@ -1013,7 +530,16 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -1022,6 +548,19 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
@@ -1039,16 +578,658 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
-[ 1500 ps] MRS -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 12789750.0 ps WARNING: Load Mode 1 DLL off mode is not fully modeled
-[ 3000 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> 
+[ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,     0) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 1500 ps] MRS -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] MRS -> [ 3000 ps] NOP -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> [ 1500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 12879750.0 ps WARNING: Load Mode 1 DLL off mode is not fully modeled
-[ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
+[ 1500 ps] NOP -> [ 1500 ps] MRS -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] PRE @ (0) -> [ 3000 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -4184,8 +4365,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task at time 1479750.0 ps WARNING: 500 us is req
 --------------------------------
 DONE TEST 1: FIRST ROW
 Number of Operations: 2304
-Time Started: 40002 ns
-Time Done: 54798 ns
+Time Started: 42726 ns
+Time Done: 57522 ns
 Average Rate: 6 ns/request
 --------------------------------
 
@@ -4194,7 +4375,7 @@ Average Rate: 6 ns/request
 [ 3000 ps]  RD @ (0,  1008) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,  1016) -> [ 1500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] PRE @ (0) -> [ 3000 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] ACT @ (0, 32768) -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> FAILED: Address = 1151, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000092f75e2592f6502592f5422592f43425, read data = 00000000000000000000000123456789 @ 54852000.0 ps
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> FAILED: Address = 1151, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000092f75e2592f6502592f5422592f43425, read data = 00000000000000000000000123456789 @ 57576000.0 ps
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps]  WR @ (0,     0) -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,     8) -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,    16) -> 
 [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,    24) -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,    32) -> [ 4500 ps] NOP -> 
@@ -5385,8 +5566,8 @@ Average Rate: 6 ns/request
 --------------------------------
 DONE TEST 1: MIDDLE ROW
 Number of Operations: 2304
-Time Started: 54798 ns
-Time Done: 69162 ns
+Time Started: 57522 ns
+Time Done: 71886 ns
 Average Rate: 6 ns/request
 --------------------------------
 
@@ -5395,7 +5576,7 @@ Average Rate: 6 ns/request
 [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,  1008) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,  1016) -> 
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] PRE @ (0) -> 
 [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] ACT @ (0, 65535) -> 
-[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> FAILED: Address = 33555583, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000faf75ef5faf650f5faf542f5faf434f5, read data = 00000000000000000000000123456789 @ 69216000.0 ps
+[ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> FAILED: Address = 33555583, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000faf75ef5faf650f5faf542f5faf434f5, read data = 00000000000000000000000123456789 @ 71940000.0 ps
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,     0) -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,     8) -> [ 4500 ps] NOP -> 
 [ 1500 ps]  WR @ (0,    16) -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,    24) -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (0,    32) -> 
@@ -6617,8 +6798,8 @@ Average Rate: 6 ns/request
 --------------------------------
 DONE TEST 1: LAST ROW
 Number of Operations: 2304
-Time Started: 69162 ns
-Time Done: 83988 ns
+Time Started: 71886 ns
+Time Done: 86712 ns
 Average Rate: 6 ns/request
 --------------------------------
 
@@ -6628,7 +6809,7 @@ Average Rate: 6 ns/request
 [ 1500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (0,  1016) -> [ 1500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] PRE @ (5) -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> 
 [ 1500 ps] PRE @ (4) -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] ACT @ (5,  2582) -> [ 1500 ps] NOP -> 
-[ 4500 ps] NOP -> [ 1500 ps] NOP -> FAILED: Address = 67108991, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000521a8fa4521981a4521873a4521765a4, read data = 00000000000000000000000123456789 @ 84042000.0 ps
+[ 4500 ps] NOP -> [ 1500 ps] NOP -> FAILED: Address = 67108991, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000521a8fa4521981a4521873a4521765a4, read data = 00000000000000000000000123456789 @ 86766000.0 ps
 [ 4500 ps] ACT @ (4,  2852) -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps]  WR @ (4,   960) -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 1500 ps] PRE @ (5) -> [ 3000 ps] NOP -> [ 1500 ps] NOP -> 
@@ -13559,8 +13740,8 @@ Average Rate: 6 ns/request
 --------------------------------
 DONE TEST 2: RANDOM
 Number of Operations: 2304
-Time Started: 83988 ns
-Time Done: 177462 ns
+Time Started: 86712 ns
+Time Done: 180186 ns
 Average Rate: 40 ns/request
 --------------------------------
 
@@ -13572,7 +13753,7 @@ Average Rate: 40 ns/request
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 3000 ps]  RD @ (4,   656) -> [ 1500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
-[ 1500 ps] NOP -> FAILED: Address = 75846088, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000056c9c1ad56c8b3ad56c7a5ad56c697ad, read data = 00000000000000000000000123456789 @ 177552000.0 ps
+[ 1500 ps] NOP -> FAILED: Address = 75846088, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000056c9c1ad56c8b3ad56c7a5ad56c697ad, read data = 00000000000000000000000123456789 @ 180276000.0 ps
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
 [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> 
 [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> [ 4500 ps] NOP -> [ 1500 ps] NOP -> 
@@ -13717,8 +13898,8 @@ TEST CALIBRATION
 [-]: read_test_address_counter = 192
 [-]: correct_read_data = 254
 [-]: wrong_read_data = 0
-$stop called at time : 179462 ns : File "/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv" Line 751
-run: Time (s): cpu = 00:00:14 ; elapsed = 00:07:40 . Memory (MB): peak = 2856.785 ; gain = 8.004 ; free physical = 2136 ; free virtual = 9432
+$stop called at time : 182186 ns : File "/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv" Line 752
+run: Time (s): cpu = 00:00:14 ; elapsed = 00:07:46 . Memory (MB): peak = 2856.785 ; gain = 8.004 ; free physical = 6681 ; free virtual = 14133
 ## quit
-INFO: xsimkernel Simulation Memory Usage: 154168 KB (Peak: 208428 KB), Simulation CPU Usage: 459690 ms
-INFO: [Common 17-206] Exiting xsim at Fri Apr 18 21:22:50 2025...
+INFO: xsimkernel Simulation Memory Usage: 154172 KB (Peak: 208432 KB), Simulation CPU Usage: 464720 ms
+INFO: [Common 17-206] Exiting xsim at Mon May 12 02:50:18 2025...

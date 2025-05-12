@@ -67,7 +67,7 @@ module ddr3_controller #(
                    COL_BITS = 10, //width of DDR3 column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //device width
-                   LANES = 2, //number of DDR3 device to be controlled
+                   LANES = 8, //number of DDR3 device to be controlled
                    AUX_WIDTH = 16, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
@@ -401,7 +401,7 @@ module ddr3_controller #(
     localparam[18:0] MR3_MPR_DIS = {MR3_SEL, 13'b0_0000_0000_0000, !MPR_EN, MPR_LOC}; 
     
     // MR1 (JEDEC DDR3 doc pg. 27)
-    localparam DLL_EN = DLL_OFF? 1'b0 : 1'b1; //DLL Enable/Disable: Enabled(0)
+    localparam DLL_EN = DLL_OFF? 1'b1 : 1'b0; //DLL Enable/Disable: Enabled(0)
     // localparam[1:0] DIC = 2'b01; //Output Driver Impedance Control (RZQ/7) (elevate this to parameter)
     // localparam[2:0] RTT_NOM = 3'b001; //RTT Nominal: RZQ/4 (elevate this to parameter)
     localparam[0:0] WL_EN = 1'b1; //Write Leveling Enable: Disabled
@@ -649,6 +649,7 @@ module ddr3_controller #(
     reg[1:0] shift_read_pipe = 0;
     reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
     wire[wb_data_bits-1:0] correct_data;
+    reg[LANES-1:0] late_dq;
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
@@ -1235,13 +1236,13 @@ module ddr3_controller #(
                 stage2_data[index+1] <=  stage2_data[index]; // 0->1, 1->2           
                 stage2_dm[index+1] <= stage2_dm[index];
             end
-                    
+
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
                 // if DQ is too late (298cd0ad51c1XXXX is written) then we want to DQ to be early 
                 // Thus, we will forward the stage2_data_unaligned directly to stage2_data[1] (instead of the usual stage2_data[0])
                 // checks if the DQ for this lane is late (index being zero while write_dq_late high means we will try 2nd assumption), if yes then we forward stage2_data_unaligned directly to stage2_data[1]
-                if((lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1)) begin
+                if(late_dq[index]) begin
                     {unaligned_data[index], { 
                         stage2_data[1][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
                         stage2_data[1][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
@@ -1266,8 +1267,10 @@ module ddr3_controller #(
                                 << (data_start_index[index]>>3)) | unaligned_dm[index];
                 /* verilator lint_on WIDTH */
                 end // end of if statement (dq for this lane is late)
-                
-                else begin // DQ is not late so we will forward stage2_data_unaligned to stage2_data[0]
+            end // end of for loop to forward stage2_unaligned to stage2 by lane
+
+            for(index = 0; index < LANES; index = index + 1) begin
+                if(!late_dq[index]) begin // DQ is not late so we will forward stage2_data_unaligned to stage2_data[0]
                     /* verilator lint_off WIDTH */
                     // stage2_data_unaligned is the DQ_BITS*LANES*8 raw data from stage 1 so not yet aligned
                     // unaligned_data is 64 bits
@@ -1331,6 +1334,11 @@ module ddr3_controller #(
                 stage2_pending <= 0;
                 stage1_pending <= 0;
             end
+        end
+    end
+    always @* begin
+        for(index = 0; index < LANES; index = index + 1) begin
+            late_dq[index] = (lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1);
         end
     end
 
@@ -2870,7 +2878,12 @@ module ddr3_controller #(
                                     state_calibrate <= CHECK_STARTING_DATA;
                                     `ifdef UART_DEBUG_ALIGN
                                         uart_start_send <= 1'b1;
-                                        uart_text <= {"state=ANALYZE_DATA, lane=",hex_to_ascii(lane), ", First Assumption wrong, Start second assumption: Read too early",8'h0a,8'h0a};
+                                        uart_text <= {"state=ANALYZE_DATA, lane=",hex_to_ascii(lane), ", First Assumption wrong, Start second assumption: Read too early",8'h0a,8'h0a,
+                                        8'h0a,8'h0a,
+                                        {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                                        read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                                        read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] },
+                                            8'h0a,8'h0a,8'h0a,8'h0a};
                                         state_calibrate <= WAIT_UART;
                                         state_calibrate_next <= CHECK_STARTING_DATA;
                                     `endif
@@ -2895,7 +2908,12 @@ module ddr3_controller #(
                             else begin
                                 uart_start_send <= 1'b1;
                                 uart_text <= {"state=ANALYZE_DATA, lane=",hex_to_ascii(lane), ", data_start_index[lane]=0x",
-                                    hex_to_ascii(data_start_index[lane][6:4]),hex_to_ascii(data_start_index[lane][3:0]),8'h0a};
+                                    hex_to_ascii(data_start_index[lane][6:4]),hex_to_ascii(data_start_index[lane][3:0]),8'h0a,8'h0a,8'h0a,8'h0a,
+                                    {read_data_store[((DQ_BITS*LANES)*7 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*6 + 8*lane) +: 8],
+                                    read_data_store[((DQ_BITS*LANES)*5 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*4 + 8*lane) +: 8], read_data_store[((DQ_BITS*LANES)*3 + 8*lane) +: 8],
+                                    read_data_store[((DQ_BITS*LANES)*2 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*1 + 8*lane) +: 8],read_data_store[((DQ_BITS*LANES)*0 + 8*lane) +: 8] },
+                                        8'h0a,8'h0a,8'h0a,8'h0a
+                                    };
                                 state_calibrate <= WAIT_UART;
                                 state_calibrate_next <= ANALYZE_DATA;
                             end
