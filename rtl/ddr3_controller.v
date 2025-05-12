@@ -649,7 +649,7 @@ module ddr3_controller #(
     reg[1:0] shift_read_pipe = 0;
     reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
     wire[wb_data_bits-1:0] correct_data;
-    wire late_dq;
+    reg[LANES-1:0] late_dq;
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
@@ -1242,7 +1242,7 @@ module ddr3_controller #(
                 // if DQ is too late (298cd0ad51c1XXXX is written) then we want to DQ to be early 
                 // Thus, we will forward the stage2_data_unaligned directly to stage2_data[1] (instead of the usual stage2_data[0])
                 // checks if the DQ for this lane is late (index being zero while write_dq_late high means we will try 2nd assumption), if yes then we forward stage2_data_unaligned directly to stage2_data[1]
-                if(late_dq) begin
+                if(late_dq[index]) begin
                     {unaligned_data[index], { 
                         stage2_data[1][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
                         stage2_data[1][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
@@ -1270,7 +1270,7 @@ module ddr3_controller #(
             end // end of for loop to forward stage2_unaligned to stage2 by lane
 
             for(index = 0; index < LANES; index = index + 1) begin
-                if(!late_dq) begin // DQ is not late so we will forward stage2_data_unaligned to stage2_data[0]
+                if(!late_dq[index]) begin // DQ is not late so we will forward stage2_data_unaligned to stage2_data[0]
                     /* verilator lint_off WIDTH */
                     // stage2_data_unaligned is the DQ_BITS*LANES*8 raw data from stage 1 so not yet aligned
                     // unaligned_data is 64 bits
@@ -1336,7 +1336,12 @@ module ddr3_controller #(
             end
         end
     end
-    assign late_dq = (lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1);
+    always @* begin
+        for(index = 0; index < LANES; index = index + 1) begin
+            late_dq[index] = (lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1);
+        end
+    end
+
     // generate signals to be received by stage1
     generate
         if(ECC_ENABLE == 3) begin : ecc_3_pipeline_control
