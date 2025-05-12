@@ -57,7 +57,7 @@ Compiling module unisims_ver.IDELAYE2(HIGH_PERFORMANCE_MODE="...
 Compiling module unisims_ver.IDELAYCTRL_default
 Compiling module xil_defaultlib.ddr3_phy(ROW_BITS=16,LANES=2,ODE...
 Compiling module xil_defaultlib.ddr3_top(CONTROLLER_CLK_PERIOD=1...
-Compiling module xil_defaultlib.ddr3(DLL_OFF=1'b1)
+Compiling module xil_defaultlib.ddr3(DLL_OFF=1'b0)
 Compiling module xil_defaultlib.ddr3_dimm_micron_sim
 Compiling module xil_defaultlib.glbl
 Built simulation snapshot ddr3_dimm_micron_sim
@@ -244,7 +244,6 @@ ddr3_dimm_micron_sim.ddr3_0.file_io_open: at time                    0 WARNING: 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1893750.0 ps WARNING: Load Mode 2 Auto Self Refresh is not modeled
 [ 5000 ps] NOP -> 
 [ 2500 ps] NOP -> [ 2500 ps] MRS -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] MRS -> 
-ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 DLL off mode is not fully modeled
 [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] MRS -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] ZQC -> 
@@ -320,49 +319,15 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
+[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
+[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
@@ -380,35 +345,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
+[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
+[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
@@ -426,34 +364,6 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
@@ -462,130 +372,6 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
@@ -636,29 +422,7 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
@@ -668,810 +432,6 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,     0) -> 
-[ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
@@ -1480,15 +440,13 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] MRS -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> 
-[ 2500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 32083750.0 ps WARNING: Load Mode 1 DLL off mode is not fully modeled
-[ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps] NOP -> 
+[ 2500 ps] MRS -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] MRS -> ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 32233750.0 ps WARNING: Load Mode 1 DLL off mode is not fully modeled
-[ 5000 ps] NOP -> 
+[ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] MRS -> [ 5000 ps] NOP -> 
 [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 2500 ps] PRE @ (0) -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
@@ -7211,8 +6169,8 @@ ddr3_dimm_micron_sim.ddr3_0.cmd_task: at time 1913750.0 ps WARNING: Load Mode 1 
 --------------------------------
 DONE TEST 1: FIRST ROW
 Number of Operations: 2304
-Time Started: 138160 ns
-Time Done: 162740 ns
+Time Started: 112780 ns
+Time Done: 137360 ns
 Average Rate: 10 ns/request
 --------------------------------
 
@@ -7221,7 +6179,7 @@ Average Rate: 10 ns/request
 [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,  1016) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] PRE @ (0) -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] ACT @ (0, 32768) -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,     0) -> 
-FAILED: Address = 1151, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000092f75e2592f6502592f5422592f43425, read data = 00000000000000000000000123456789 @ 162820000.0 ps
+FAILED: Address = 1151, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000092f75e2592f6502592f5422592f43425, read data = 00000000000000000000000123456789 @ 137440000.0 ps
 [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,     8) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    16) -> [ 2500 ps] NOP -> 
 [ 7500 ps]  WR @ (0,    24) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    32) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    40) -> 
 [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    48) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    56) -> [ 2500 ps] NOP -> 
@@ -8439,8 +7397,8 @@ FAILED: Address = 1151, expected data = 0000000000000000000000000000000000000000
 --------------------------------
 DONE TEST 1: MIDDLE ROW
 Number of Operations: 2304
-Time Started: 162740 ns
-Time Done: 187330 ns
+Time Started: 137360 ns
+Time Done: 161950 ns
 Average Rate: 10 ns/request
 --------------------------------
 
@@ -8449,7 +7407,7 @@ Average Rate: 10 ns/request
 [ 5000 ps]  RD @ (0,  1008) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,  1016) -> [ 2500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 2500 ps] PRE @ (0) -> [ 5000 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] ACT @ (0, 65535) -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps]  WR @ (0,     0) -> FAILED: Address = 33555583, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000faf75ef5faf650f5faf542f5faf434f5, read data = 00000000000000000000000123456789 @ 187410000.0 ps
+[ 7500 ps]  WR @ (0,     0) -> FAILED: Address = 33555583, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000faf75ef5faf650f5faf542f5faf434f5, read data = 00000000000000000000000123456789 @ 162030000.0 ps
 [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,     8) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    16) -> 
 [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    24) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    32) -> [ 2500 ps] NOP -> 
 [ 7500 ps]  WR @ (0,    40) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    48) -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (0,    56) -> 
@@ -9667,8 +8625,8 @@ Average Rate: 10 ns/request
 --------------------------------
 DONE TEST 1: LAST ROW
 Number of Operations: 2304
-Time Started: 187330 ns
-Time Done: 211920 ns
+Time Started: 161950 ns
+Time Done: 186540 ns
 Average Rate: 10 ns/request
 --------------------------------
 
@@ -9677,7 +8635,7 @@ Average Rate: 10 ns/request
 [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,  1008) -> [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (0,  1016) -> 
 [ 2500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] ACT @ (4,  2852) -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps]  WR @ (4,   960) -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
-[ 7500 ps] NOP -> FAILED: Address = 67108991, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000521a8fa4521981a4521873a4521765a4, read data = 00000000000000000000000123456789 @ 212000000.0 ps
+[ 7500 ps] NOP -> FAILED: Address = 67108991, expected data = 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000521a8fa4521981a4521873a4521765a4, read data = 00000000000000000000000123456789 @ 186620000.0 ps
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 2500 ps] PRE @ (4) -> [ 5000 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] ACT @ (4,  2582) -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps]  WR @ (4,   960) -> [ 2500 ps] NOP -> 
@@ -14762,8 +13720,8 @@ Average Rate: 10 ns/request
 --------------------------------
 DONE TEST 2: RANDOM
 Number of Operations: 2304
-Time Started: 211920 ns
-Time Done: 321620 ns
+Time Started: 186540 ns
+Time Done: 296240 ns
 Average Rate: 47 ns/request
 --------------------------------
 
@@ -14774,7 +13732,7 @@ Average Rate: 47 ns/request
 [ 2500 ps] ACT @ (4, 19991) -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 5000 ps]  RD @ (4,   656) -> [ 2500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
-FAILED: Address = 75846088, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000056c9c1ad56c8b3ad56c7a5ad56c697ad, read data = 00000000000000000000000123456789 @ 321740000.0 ps
+FAILED: Address = 75846088, expected data = 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000056c9c1ad56c8b3ad56c7a5ad56c697ad, read data = 00000000000000000000000123456789 @ 296360000.0 ps
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
 [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> 
 [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> [ 7500 ps] NOP -> [ 2500 ps] NOP -> 
@@ -14866,8 +13824,8 @@ TEST CALIBRATION
 [-]: read_test_address_counter = 0
 [-]: correct_read_data = 767
 [-]: wrong_read_data = 0
-$stop called at time : 323620 ns : File "/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv" Line 751
-run: Time (s): cpu = 00:00:15 ; elapsed = 00:08:21 . Memory (MB): peak = 2856.785 ; gain = 8.004 ; free physical = 2141 ; free virtual = 9436
+$stop called at time : 298240 ns : File "/home/ajacobo/Desktop/UberDDR3/testbench/ddr3_dimm_micron_sim.sv" Line 752
+run: Time (s): cpu = 00:00:14 ; elapsed = 00:07:50 . Memory (MB): peak = 2856.785 ; gain = 8.004 ; free physical = 6700 ; free virtual = 14150
 ## quit
-INFO: xsimkernel Simulation Memory Usage: 154168 KB (Peak: 208428 KB), Simulation CPU Usage: 499620 ms
-INFO: [Common 17-206] Exiting xsim at Fri Apr 18 21:14:53 2025...
+INFO: xsimkernel Simulation Memory Usage: 154172 KB (Peak: 208432 KB), Simulation CPU Usage: 469000 ms
+INFO: [Common 17-206] Exiting xsim at Mon May 12 02:42:15 2025...
