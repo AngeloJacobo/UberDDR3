@@ -2,13 +2,13 @@
 
 module clk_wiz
  (
-  input         clk_in1,
-  output        clk_out1,
-  output        clk_out2,
-  output        clk_out3,
-  output        clk_out4,
-  input         reset,
-  output        locked
+  input wire         clk_in1,
+  output wire        clk_out1,
+  output wire        clk_out2,
+  output wire        clk_out3,
+  output wire        clk_out4,
+  input wire         reset,
+  output wire        locked
  );
   wire        clk_out1_clk_wiz_0;
   wire        clk_out2_clk_wiz_0;
