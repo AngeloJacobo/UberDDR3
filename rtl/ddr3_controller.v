@@ -67,7 +67,7 @@ module ddr3_controller #(
                    COL_BITS = 10, //width of DDR3 column address
                    BA_BITS = 3, //width of bank address
                    DQ_BITS = 8,  //device width
-                   LANES = 2, //number of DDR3 device to be controlled
+                   LANES = 8, //number of DDR3 device to be controlled
                    AUX_WIDTH = 16, //width of aux line (must be >= 4) 
                    WB2_ADDR_BITS = 7, //width of 2nd wishbone address bus 
                    WB2_DATA_BITS = 32, //width of 2nd wishbone data bus
@@ -491,31 +491,13 @@ module ddr3_controller #(
     wire[wb_addr_bits-1:0] wb_addr_plus_anticipate, calib_addr_plus_anticipate;
 
     //pipeline stage 2 regs
-    /* verilator lint_off UNUSEDSIGNAL */
-    // if STAGE2_DATA_DEPTH == 2, then stage2_dm_2 and stage2_data_2 will be unused
-    reg[wb_sel_bits - 1:0] stage2_dm_0, stage2_dm_1, stage2_dm_2, stage2_dm_last;
-    reg[wb_data_bits - 1:0] stage2_data_0, stage2_data_1, stage2_data_2, stage2_data_last;
-    generate
-        if(STAGE2_DATA_DEPTH == 3) begin : stage2_data_depth_3_all
-            always @(posedge i_controller_clk) begin
-                if(sync_rst_controller) begin
-                    stage2_data_2 <= 0;
-                    stage2_dm_2 <= 0;
-                end
-                else begin
-                    stage2_data_2 <= stage2_data_1;
-                    stage2_dm_2 <= stage2_dm_1;
-                end
-            end
-        end
-    endgenerate
-    /* verilator lint_on UNUSEDSIGNAL */
     reg stage2_pending = 0;
     reg[AUX_WIDTH-1:0] stage2_aux = 0;
     reg stage2_we = 0;
     reg[wb_sel_bits - 1:0] stage2_dm_unaligned = 0, stage2_dm_unaligned_temp = 0;
-    
+    reg[wb_sel_bits - 1:0] stage2_dm[STAGE2_DATA_DEPTH-1:0];
     reg[wb_data_bits - 1:0] stage2_data_unaligned = 0, stage2_data_unaligned_temp = 0;
+    reg[wb_data_bits - 1:0] stage2_data[STAGE2_DATA_DEPTH-1:0];
     reg [DQ_BITS*8 - 1:0] unaligned_data[LANES-1:0];
     reg [8 - 1:0] unaligned_dm[LANES-1:0];
     reg[COL_BITS-1:0] stage2_col = 0;
@@ -667,14 +649,10 @@ module ddr3_controller #(
     reg[1:0] shift_read_pipe = 0;
     reg[wb_data_bits-1:0] wrong_data = 0, expected_data=0;
     wire[wb_data_bits-1:0] correct_data;
-    
+    wire late_dq;
     // initial block for all regs
     initial begin
         o_wb_stall = 1;
-        stage2_data_0 =  0;               
-        stage2_data_1 =  0;               
-        stage2_dm_0 = 0;
-        stage2_dm_1 = 0;
         for(index = 0; index < MAX_ADDED_READ_ACK_DELAY; index = index + 1) begin
             o_wb_ack_read_q[index] = 0;
         end
@@ -684,6 +662,11 @@ module ddr3_controller #(
             bank_status_d[index] = 0;
             bank_active_row_q[index] = 0; 
             bank_active_row_d[index] = 0; 
+        end
+
+        for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin
+            stage2_data[index] =  0;               
+            stage2_dm[index] = 0;
         end
 
         for(index=0; index <(1<<(BA_BITS+DUAL_RANK_DIMM)); index=index+1) begin
@@ -977,11 +960,11 @@ module ddr3_controller #(
                     bank_status_q[index] <= 0;  
                     bank_active_row_q[index] <= 0; 
             end
-
-            stage2_data_0 <=  0;               
-            stage2_data_1 <=  0;               
-            stage2_dm_0 <= 0;
-            stage2_dm_1 <= 0;
+             //reset data
+            for(index = 0; index < STAGE2_DATA_DEPTH; index = index+1) begin
+                stage2_data[index] <=  0;               
+                stage2_dm[index] <= 0;
+            end
         end
         
         // can only start accepting requests  when reset is done
@@ -1249,20 +1232,22 @@ module ddr3_controller #(
             end
             
             // stage2 can have multiple pipelined stages inside it which acts as delay before issuing the write data (after issuing write command)
-            stage2_data_1 <=  stage2_data_0;               
-            stage2_dm_1 <= stage2_dm_0;
-                    
+            for(index = 0; index < STAGE2_DATA_DEPTH-1; index = index+1) begin
+                stage2_data[index+1] <=  stage2_data[index]; // 0->1, 1->2           
+                stage2_dm[index+1] <= stage2_dm[index];
+            end
+
             for(index = 0; index < LANES; index = index + 1) begin
                 /* verilator lint_off WIDTH */
                 // if DQ is too late (298cd0ad51c1XXXX is written) then we want to DQ to be early 
                 // Thus, we will forward the stage2_data_unaligned directly to stage2_data[1] (instead of the usual stage2_data[0])
                 // checks if the DQ for this lane is late (index being zero while write_dq_late high means we will try 2nd assumption), if yes then we forward stage2_data_unaligned directly to stage2_data[1]
-                if((lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1)) begin
+                if(late_dq) begin
                     {unaligned_data[index], { 
-                        stage2_data_1[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_1[((DQ_BITS*LANES)*6 + 8*index) +: 8], 
-                        stage2_data_1[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_1[((DQ_BITS*LANES)*4 + 8*index) +: 8], 
-                        stage2_data_1[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_1[((DQ_BITS*LANES)*2 + 8*index) +: 8], 
-                        stage2_data_1[((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data_1[((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
+                        stage2_data[1][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
+                        stage2_data[1][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
+                        stage2_data[1][((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*2 + 8*index) +: 8], 
+                        stage2_data[1][((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data[1][((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
                         <= ( {  stage2_data_unaligned[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*6 + 8*index) +: 8],
                                 stage2_data_unaligned[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*4 + 8*index) +: 8], 
                                 stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],
@@ -1271,10 +1256,10 @@ module ddr3_controller #(
                             // data_start_index is set to 1 so this if statement will pass, but shift left is zero (lsb of data_start_index is removed) which means 
                             // DQ is 1 whole controller cycle early (happens in Kintex-7 with OpenXC7)
                     {unaligned_dm[index], {
-                        stage2_dm_1[LANES*7 + index], stage2_dm_1[LANES*6 + index], 
-                        stage2_dm_1[LANES*5 + index], stage2_dm_1[LANES*4 + index], 
-                        stage2_dm_1[LANES*3 + index], stage2_dm_1[LANES*2 + index],
-                        stage2_dm_1[LANES*1 + index], stage2_dm_1[LANES*0 + index] }} 
+                        stage2_dm[1][LANES*7 + index], stage2_dm[1][LANES*6 + index], 
+                        stage2_dm[1][LANES*5 + index], stage2_dm[1][LANES*4 + index], 
+                        stage2_dm[1][LANES*3 + index], stage2_dm[1][LANES*2 + index],
+                        stage2_dm[1][LANES*1 + index], stage2_dm[1][LANES*0 + index] }} 
                         <= ( {  stage2_dm_unaligned[LANES*7 + index], stage2_dm_unaligned[LANES*6 + index],
                                 stage2_dm_unaligned[LANES*5 + index], stage2_dm_unaligned[LANES*4 + index], 
                                 stage2_dm_unaligned[LANES*3 + index], stage2_dm_unaligned[LANES*2 + index],
@@ -1282,16 +1267,18 @@ module ddr3_controller #(
                                 << (data_start_index[index]>>3)) | unaligned_dm[index];
                 /* verilator lint_on WIDTH */
                 end // end of if statement (dq for this lane is late)
-                
-                else begin // DQ is not late so we will forward stage2_data_unaligned to stage2_data[0]
+            end // end of for loop to forward stage2_unaligned to stage2 by lane
+
+            for(index = 0; index < LANES; index = index + 1) begin
+                if(!late_dq) begin // DQ is not late so we will forward stage2_data_unaligned to stage2_data[0]
                     /* verilator lint_off WIDTH */
                     // stage2_data_unaligned is the DQ_BITS*LANES*8 raw data from stage 1 so not yet aligned
                     // unaligned_data is 64 bits
                     {unaligned_data[index], { 
-                    stage2_data_0[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_0[((DQ_BITS*LANES)*6 + 8*index) +: 8], 
-                    stage2_data_0[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_0[((DQ_BITS*LANES)*4 + 8*index) +: 8], 
-                    stage2_data_0[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_0[((DQ_BITS*LANES)*2 + 8*index) +: 8], 
-                    stage2_data_0[((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data_0[((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
+                    stage2_data[0][((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*6 + 8*index) +: 8], 
+                    stage2_data[0][((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*4 + 8*index) +: 8], 
+                    stage2_data[0][((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*2 + 8*index) +: 8], 
+                    stage2_data[0][((DQ_BITS*LANES)*1 + 8*index) +: 8], stage2_data[0][((DQ_BITS*LANES)*0 + 8*index) +: 8] }} 
                     <= ( {  stage2_data_unaligned[((DQ_BITS*LANES)*7 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*6 + 8*index) +: 8],
                             stage2_data_unaligned[((DQ_BITS*LANES)*5 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*4 + 8*index) +: 8], 
                             stage2_data_unaligned[((DQ_BITS*LANES)*3 + 8*index) +: 8], stage2_data_unaligned[((DQ_BITS*LANES)*2 + 8*index) +: 8],
@@ -1329,10 +1316,10 @@ module ddr3_controller #(
 
                     // The same alignment logic is done with data mask
                     {unaligned_dm[index], {
-                    stage2_dm_0[LANES*7 + index], stage2_dm_0[LANES*6 + index], 
-                    stage2_dm_0[LANES*5 + index], stage2_dm_0[LANES*4 + index], 
-                    stage2_dm_0[LANES*3 + index], stage2_dm_0[LANES*2 + index],
-                    stage2_dm_0[LANES*1 + index], stage2_dm_0[LANES*0 + index] }} 
+                    stage2_dm[0][LANES*7 + index], stage2_dm[0][LANES*6 + index], 
+                    stage2_dm[0][LANES*5 + index], stage2_dm[0][LANES*4 + index], 
+                    stage2_dm[0][LANES*3 + index], stage2_dm[0][LANES*2 + index],
+                    stage2_dm[0][LANES*1 + index], stage2_dm[0][LANES*0 + index] }} 
                     <= ( {  stage2_dm_unaligned[LANES*7 + index], stage2_dm_unaligned[LANES*6 + index],
                             stage2_dm_unaligned[LANES*5 + index], stage2_dm_unaligned[LANES*4 + index], 
                             stage2_dm_unaligned[LANES*3 + index], stage2_dm_unaligned[LANES*2 + index],
@@ -1349,7 +1336,7 @@ module ddr3_controller #(
             end
         end
     end
-
+    assign late_dq = (lane_write_dq_late[index] && (data_start_index[index] != 0)) && (STAGE2_DATA_DEPTH > 1);
     // generate signals to be received by stage1
     generate
         if(ECC_ENABLE == 3) begin : ecc_3_pipeline_control
@@ -1491,37 +1478,18 @@ module ddr3_controller #(
         end
     endgenerate
     generate
-        // determine which stage2_data will be the last and will sent to o_phy_data
-        if(STAGE2_DATA_DEPTH == 1) begin : stage2_data_depth_1
-            always @* begin
-                stage2_data_last = stage2_data_0;
-                stage2_dm_last = stage2_dm_0;
-            end 
-        end
-        else if(STAGE2_DATA_DEPTH == 2) begin : stage2_data_depth_2
-            always @* begin
-                stage2_data_last = stage2_data_1;
-                stage2_dm_last = stage2_dm_1;
-            end
-        end
-        else if(STAGE2_DATA_DEPTH == 3) begin : stage2_data_depth_3
-            always @* begin
-                stage2_data_last = stage2_data_2;
-                stage2_dm_last = stage2_dm_2;
-            end
-        end
         // If DLL off, add 1 more cycle of delay since PHY is faster for DLL OFF
         if(DLL_OFF) begin : dll_off_out_phy
             always @(posedge i_controller_clk) begin
-                o_phy_data <= stage2_data_last; // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
-                o_phy_dm <= stage2_dm_last;
+                o_phy_data <= stage2_data[STAGE2_DATA_DEPTH-1]; // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
+                o_phy_dm <= stage2_dm[STAGE2_DATA_DEPTH-1];
                 o_phy_cmd <= {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
             end
         end
         else begin : dll_on_out_phy
             always @* begin
-                o_phy_data = stage2_data_last; // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
-                o_phy_dm = stage2_dm_last;
+                o_phy_data = stage2_data[STAGE2_DATA_DEPTH-1]; // the data sent to PHY is the last stage of of stage 2 (since stage 2 can have multiple pipelined stages inside it_           
+                o_phy_dm = stage2_dm[STAGE2_DATA_DEPTH-1];
                 o_phy_cmd = {cmd_d[3], cmd_d[2], cmd_d[1], cmd_d[0]};
             end
         end
