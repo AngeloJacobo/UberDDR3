@@ -48,7 +48,7 @@ module ddr3_dimm_micron_sim;
 
 `ifdef TWO_LANES_x8
     localparam BYTE_LANES = 2,
-                ODELAY_SUPPORTED = 0;
+                ODELAY_SUPPORTED = 1;
 `endif 
 
 `ifdef EIGHT_LANES_x8
@@ -65,11 +65,16 @@ module ddr3_dimm_micron_sim;
             DUAL_RANK_DIMM = 0,
             TEST_SELF_REFRESH = 0,
             SECOND_WISHBONE = 0,
-            BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+            BIST_MODE = 1, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
             DLL_OFF = 0;
 
-localparam WB_DATA_BITS = 8*BYTE_LANES*4*2,
-           WB_SEL_BITS = WB_DATA_BITS / 8;
+localparam  WB_DATA_BITS = 8*BYTE_LANES*4*2,
+            WB_SEL_BITS = WB_DATA_BITS / 8,
+            WB_ADDR_BITS = ROW_BITS + COL_BITS + BA_BITS - $clog2(4*2) + DUAL_RANK_DIMM,
+            WB2_ADDR_BITS = 7, 
+            WB2_DATA_BITS = 32, 
+            WB2_SEL_BITS = WB2_DATA_BITS / 8;
+
 
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
@@ -77,14 +82,14 @@ localparam WB_DATA_BITS = 8*BYTE_LANES*4*2,
  reg i_wb_cyc; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
  reg i_wb_stb; //request a transfer
  reg i_wb_we; //write-enable (1 = write, 0 = read)
- reg[$bits(ddr3_top.i_wb_addr)-1:0] i_wb_addr; //burst-addressable {row,bank,col} 
- reg[$bits(ddr3_top.i_wb_data)-1:0] i_wb_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
+ reg[WB_ADDR_BITS - 1:0] i_wb_addr; //burst-addressable {row,bank,col} 
+ reg[WB_DATA_BITS - 1:0] i_wb_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
  reg[WB_SEL_BITS - 1:0] i_wb_sel; //byte strobe for write (1 = write the byte)
  wire o_wb_stall; //1 = busy, cannot accept requests
  wire o_wb_ack; //1 = read/write request has completed
- wire[$bits(ddr3_top.o_wb_data)-1:0] o_wb_data; //read data, for a 4:1 controller data width is 8 times the number of pins on the device
- reg[$bits(ddr3_top.i_aux)-1:0] i_aux;
- wire[$bits(ddr3_top.o_aux)-1:0] o_aux;
+ wire[WB_DATA_BITS - 1:0] o_wb_data; //read data, for a 4:1 controller data width is 8 times the number of pins on the device
+ reg[AUX_WIDTH - 1:0] i_aux;
+ wire[AUX_WIDTH - 1:0] o_aux;
  // PHY Interface to DDR3 Device
   wire[1:0] ck_en; // CKE
   wire[1:0] cs_n; // chip select signal
@@ -93,25 +98,25 @@ localparam WB_DATA_BITS = 8*BYTE_LANES*4*2,
   wire cas_n; // CAS#
   wire we_n; // WE#
   wire reset_n;
-  wire[$bits(ddr3_top.o_ddr3_addr)-1:0] addr;
-  wire[$bits(ddr3_top.o_ddr3_ba_addr)-1:0] ba_addr;
-  wire[$bits(ddr3_top.o_ddr3_dm)-1:0] ddr3_dm;
-  wire[$bits(ddr3_top.io_ddr3_dq)-1:0] dq;
-  wire[$bits(ddr3_top.io_ddr3_dqs)-1:0] dqs;
-  wire[$bits(ddr3_top.io_ddr3_dqs_n)-1:0] dqs_n;
+  wire[ROW_BITS-1:0] addr;
+  wire[BA_BITS-1:0] ba_addr;
+  wire[BYTE_LANES-1:0] ddr3_dm;
+  wire[(8*BYTE_LANES)-1:0]  dq;
+  wire[BYTE_LANES-1:0] dqs;
+  wire[BYTE_LANES-1:0] dqs_n;
   wire[1:0] o_ddr3_clk_p, o_ddr3_clk_n;
   integer index;
   // Wishbone 2 (PHY) inputs
   reg i_wb2_cyc; //bus cycle active (1 = normal operation, 0 = all ongoing transaction are to be cancelled)
   reg i_wb2_stb; //request a transfer
   reg i_wb2_we; //write-enable (1 = write, 0 = read)
-  reg[$bits(ddr3_top.i_wb2_addr)-1:0] i_wb2_addr; //memory-mapped register to be accessed 
-  reg[$bits(ddr3_top.i_wb2_data)-1:0] i_wb2_data; //write data
-  reg[$bits(ddr3_top.i_wb2_sel)-1:0] i_wb2_sel; //byte strobe for write (1 = write the byte)
+  reg[WB2_ADDR_BITS - 1:0] i_wb2_addr; //memory-mapped register to be accessed 
+  reg[WB2_DATA_BITS - 1:0] i_wb2_data; //write data
+  reg[WB2_SEL_BITS - 1:0] i_wb2_sel; //byte strobe for write (1 = write the byte)
   // Wishbone 2 (Controller) outputs
   wire o_wb2_stall; //1 = busy, cannot accept requests
   wire o_wb2_ack; //1 = read/write request has completed
-  wire[$bits(ddr3_top.o_wb2_data)-1:0] o_wb2_data; //read data
+  wire[WB2_DATA_BITS - 1:0] o_wb2_data; //read data
   // User enabled self-refresh
   reg i_user_self_refresh;
   wire clk_locked;

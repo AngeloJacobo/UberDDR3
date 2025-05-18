@@ -28,7 +28,11 @@ parameter integer ODELAY_VALUE = 0;
 parameter PIPE_SEL = "FALSE";
 parameter real REFCLK_FREQUENCY = 200.0;
 parameter SIGNAL_PATTERN    = "DATA";
-parameter TEST_MODEL = 1;
+`ifdef NO_TEST_MODEL
+    parameter TEST_MODEL = 0;
+`else
+    parameter TEST_MODEL = 1;
+`endif
 
 // stop simulation if this modelfile does not support the settings
 initial begin

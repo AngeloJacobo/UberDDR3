@@ -1,4 +1,4 @@
-rm -rf ./uberddr3_sim 
+rm -rf ./uberddr3_sim ./sim.log
 iverilog -o uberddr3_sim -g2012 \
     -DNO_TEST_MODEL \
     -s ddr3_dimm_micron_sim \
@@ -18,7 +18,16 @@ iverilog -o uberddr3_sim -g2012 \
     ./OBUF_model.v \
     ../rtl/ddr3_top.v \
     ../rtl/ddr3_controller.v \
-    ../rtl/ddr3_phy.v 
+    ../rtl/ddr3_phy.v \
+    ./ddr3_module.sv
 
-vvp ./uberddr3_sim
+start_time=$(date +%s)
+
+vvp ./uberddr3_sim > sim.log
+
+end_time=$(date +%s)
+elapsed=$((end_time - start_time))
+
+echo "[INFO] Simulation completed in ${elapsed} seconds."
+
 

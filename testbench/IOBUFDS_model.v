@@ -46,12 +46,6 @@ module IOBUFDS_model (
           .I(I), // Buffer input
           .T(T) // 3-state enable input, high=input, low=output
         ); 
-      integer address_plus_index;
-      integer address_inv;
-      always @* begin
-        address_plus_index = address + index;
-        address_inv = ~address;
-      end
 
       always @* begin
           #1;
