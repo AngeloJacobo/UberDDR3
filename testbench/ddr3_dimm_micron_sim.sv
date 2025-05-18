@@ -53,7 +53,7 @@ module ddr3_dimm_micron_sim;
 
 `ifdef EIGHT_LANES_x8
     localparam BYTE_LANES = 8,
-                ODELAY_SUPPORTED = 0;
+                ODELAY_SUPPORTED = 1;
 `endif
 
 
@@ -68,6 +68,9 @@ module ddr3_dimm_micron_sim;
             BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
             DLL_OFF = 0;
 
+localparam WB_DATA_BITS = 8*BYTE_LANES*4*2,
+           WB_SEL_BITS = WB_DATA_BITS / 8;
+
  reg i_controller_clk, i_ddr3_clk, i_ref_clk, i_ddr3_clk_90;
  reg i_rst_n;
  // Wishbone Interface
@@ -76,7 +79,7 @@ module ddr3_dimm_micron_sim;
  reg i_wb_we; //write-enable (1 = write, 0 = read)
  reg[$bits(ddr3_top.i_wb_addr)-1:0] i_wb_addr; //burst-addressable {row,bank,col} 
  reg[$bits(ddr3_top.i_wb_data)-1:0] i_wb_data; //write data, for a 4:1 controller data width is 8 times the number of pins on the device
- reg[ddr3_top.wb_sel_bits - 1:0] i_wb_sel; //byte strobe for write (1 = write the byte)
+ reg[WB_SEL_BITS - 1:0] i_wb_sel; //byte strobe for write (1 = write the byte)
  wire o_wb_stall; //1 = busy, cannot accept requests
  wire o_wb_ack; //1 = read/write request has completed
  wire[$bits(ddr3_top.o_wb_data)-1:0] o_wb_data; //read data, for a 4:1 controller data width is 8 times the number of pins on the device
@@ -288,7 +291,7 @@ ddr3_top #(
  `endif
  
  
-    reg[ddr3_top.ddr3_controller_inst.wb_data_bits-1:0] orig_phy_data;
+    reg[WB_DATA_BITS-1:0] orig_phy_data;
     // Force change for ECC tests
     // Uncommented since there is ECC_TEST parameter inside ddr3_controller to test ECC
 //    generate
@@ -343,6 +346,10 @@ ddr3_top #(
     integer number_of_op = 0;
     integer time_started = 0;
     integer average_1, average_2, average_3, average_4;
+    integer address_plus_index;
+    integer read_address_plus_index;
+    integer address_inv;
+
     localparam MAX_READS = (2**COL_BITS)*(2**BA_BITS + 1)/8; //1 row = 2**(COL_BITS) addresses/8 burst = 128 words per row. Times 8 to pass all 8 banks
       initial begin
         i_user_self_refresh = 0;
@@ -388,7 +395,8 @@ ddr3_top #(
             @(posedge i_controller_clk) begin
                 if(!i_wb_stb || !o_wb_stall) begin 
                     for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                        address_plus_index = address + index;
+                        i_wb_data[index*32 +: 32] <= $random(address_plus_index); //each $random only has 32 bits
                     end
                     i_wb_cyc <= 1;
                     i_wb_stb <= 1;
@@ -463,7 +471,8 @@ ddr3_top #(
             @(posedge i_controller_clk) begin
                 if(!i_wb_stb || !o_wb_stall) begin 
                     for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                        address_plus_index = address + index;
+                      i_wb_data[index*32 +: 32] <= $random(address_plus_index); //each $random only has 32 bits
                     end
                     i_wb_cyc <= 1;
                     i_wb_stb <= 1;
@@ -534,7 +543,8 @@ ddr3_top #(
             @(posedge i_controller_clk) begin
                 if(!i_wb_stb || !o_wb_stall) begin 
                     for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                        address_plus_index = address + index;
+                        i_wb_data[index*32 +: 32] <= $random(address_plus_index); //each $random only has 32 bits
                     end
                     i_wb_cyc <= 1;
                     i_wb_stb <= 1;
@@ -610,13 +620,15 @@ ddr3_top #(
             @(posedge i_controller_clk) begin
                 if(!i_wb_stb || !o_wb_stall) begin 
                     for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                      i_wb_data[index*32 +: 32] <= $random(address + index); //each $random only has 32 bits
+                        address_plus_index = address + index;
+                        i_wb_data[index*32 +: 32] <= $random(address_plus_index); //each $random only has 32 bits
                     end
                     i_wb_cyc <= 1;
                     i_wb_stb <= 1;
                     i_wb_we <= 1; 
                     i_aux <= 1;
-                    i_wb_addr <= $random(~address); //write at random address
+                    address_inv = ~address;
+                    i_wb_addr <= $random(address_inv); //write at random address
                     if(address == random_start + ($bits(ddr3_top.i_wb_data)/32)*(MAX_READS-1)) begin //inject error at last row
                         number_of_injected_errors <= number_of_injected_errors + 1;
                         i_wb_data <= 64'h123456789;
@@ -650,7 +662,8 @@ ddr3_top #(
                     i_wb_stb <= 1;
                     i_wb_we <= 0; 
                     i_aux <= 0;
-                    i_wb_addr <= $random(~address);
+                    address_inv = ~address;
+                    i_wb_addr <= $random(address_inv);
                     //$display("Read: Address = %0d", i_wb_addr);
                     number_of_reads <= number_of_reads + 1;
                     number_of_op <= number_of_op + 1;
@@ -777,7 +790,8 @@ ddr3_top #(
            @(posedge i_controller_clk);
            if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                    read_address_plus_index = read_address + index;
+                    expected_read_data[index*32 +: 32] = $random(read_address_plus_index); //each $random only has 32 bits
                 end
                 if (ECC_ENABLE == 2) begin
                         expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
@@ -803,7 +817,8 @@ ddr3_top #(
            @(posedge i_controller_clk);
            if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                    read_address_plus_index = read_address + index;
+                    expected_read_data[index*32 +: 32] = $random(read_address_plus_index); //each $random only has 32 bits
                 end
                 if (ECC_ENABLE == 2) begin
                         expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
@@ -829,7 +844,8 @@ ddr3_top #(
            @(posedge i_controller_clk);
            if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                    read_address_plus_index = read_address + index;
+                    expected_read_data[index*32 +: 32] = $random(read_address_plus_index); //each $random only has 32 bits
                 end
                 if (ECC_ENABLE == 2) begin
                         expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;
@@ -855,7 +871,8 @@ ddr3_top #(
            @(posedge i_controller_clk);
            if(o_wb_ack && ddr3_top.ddr3_controller_inst.state_calibrate == ddr3_top.ddr3_controller_inst.DONE_CALIBRATE && o_aux[2:0] == 0) begin
                 for (index = 0; index < $bits(ddr3_top.i_wb_data)/32; index = index + 1) begin
-                    expected_read_data[index*32 +: 32] = $random(read_address + index); //each $random only has 32 bits
+                    read_address_plus_index = read_address + index;
+                    expected_read_data[index*32 +: 32] = $random(read_address_plus_index); //each $random only has 32 bits
                 end
                 if (ECC_ENABLE == 2) begin
                         expected_read_data[511 : ddr3_top.ddr3_controller_inst.ECC_INFORMATION_BITS] = 0;

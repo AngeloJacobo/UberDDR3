@@ -181,7 +181,7 @@ module ddr3_phy #(
             // OSERDESE2: Output SERial/DESerializer with bitslip
             //7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            OSERDESE2 #(
+            OSERDESE2_model #(
                 .DATA_RATE_OQ("SDR"), // DDR, SDR
                 .DATA_RATE_TQ("SDR"), // DDR, SDR
                 .DATA_WIDTH(4), // Parallel data width (2-8,10,14)
@@ -231,7 +231,7 @@ module ddr3_phy #(
             // OSERDESE2: Output SERial/DESerializer with bitslip
             //7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            OSERDESE2 #(
+            OSERDESE2_model #(
                 .DATA_RATE_OQ("SDR"), // DDR, SDR
                 .DATA_RATE_TQ("SDR"), // DDR, SDR
                 .DATA_WIDTH(4), // Parallel data width (2-8,10,14)
@@ -305,7 +305,7 @@ module ddr3_phy #(
         // OSERDESE2: Output SERial/DESerializer with bitslip
         //7 Series
         // Xilinx HDL Libraries Guide, version 13.4
-        OSERDESE2 #(
+        OSERDESE2_model #(
             .DATA_RATE_OQ("DDR"), // DDR, SDR
             .DATA_RATE_TQ("SDR"), // DDR, SDR
             .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -352,7 +352,7 @@ module ddr3_phy #(
             //Delay the DQ
             // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
             (* IODELAY_GROUP="DDR3-GROUP" *)
-            ODELAYE2 #(
+            ODELAYE2_model #(
                 .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
                 .ODELAY_TYPE("FIXED"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
@@ -380,12 +380,12 @@ module ddr3_phy #(
             // OBUFDS: Differential Output Buffer
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            OBUFDS OBUFDS0_inst (
+            OBUFDS_model OBUFDS0_inst (
                 .O(o_ddr3_clk_p[0]), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n[0]), // Diff_n output (connect directly to top-level port)
                 .I(ddr3_clk_delayed) // Buffer input
             );
-            OBUFDS OBUFDS1_inst (
+            OBUFDS_model OBUFDS1_inst (
                 .O(o_ddr3_clk_p[1]), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n[1]), // Diff_n output (connect directly to top-level port)
                 .I(ddr3_clk_delayed) // Buffer input
@@ -396,7 +396,7 @@ module ddr3_phy #(
             // OBUFDS: Differential Output Buffer
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            OBUFDS OBUFDS_inst (
+            OBUFDS_model OBUFDS_inst (
                 .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
                 .I(ddr3_clk_delayed) // Buffer input
@@ -411,12 +411,12 @@ module ddr3_phy #(
             // OBUFDS: Differential Output Buffer
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            OBUFDS OBUFDS0_inst (
+            OBUFDS_model OBUFDS0_inst (
                 .O(o_ddr3_clk_p[1]), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n[1]), // Diff_n output (connect directly to top-level port)
                 .I(!i_ddr3_clk) // Buffer input
             );
-            OBUFDS OBUFDS1_inst (
+            OBUFDS_model OBUFDS1_inst (
                 .O(o_ddr3_clk_p[0]), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n[0]), // Diff_n output (connect directly to top-level port)
                 .I(!i_ddr3_clk) // Buffer input
@@ -427,7 +427,7 @@ module ddr3_phy #(
             // OBUFDS: Differential Output Buffer
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            OBUFDS OBUFDS_inst (
+            OBUFDS_model OBUFDS_inst (
                 .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
                 .I(!i_ddr3_clk) // Buffer input
@@ -445,7 +445,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -495,7 +495,7 @@ module ddr3_phy #(
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
                 (* IODELAY_GROUP="DDR3-GROUP" *)
-                ODELAYE2 #(
+                ODELAYE2_model #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                     .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
                     .ODELAY_TYPE("VAR_LOAD"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
@@ -525,7 +525,7 @@ module ddr3_phy #(
                     // May only be placed in High Performance (HP) Banks
                     // 7 Series
                     // Xilinx HDL Libraries Guide, version 13.4
-                    IOBUF_DCIEN #(
+                    IOBUF_DCIEN_model #(
                     .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
                     .SLEW("FAST"), // Specify the output slew rate
                     .USE_IBUFDISABLE("FALSE") // Use IBUFDISABLE function, "TRUE" or "FALSE"
@@ -544,7 +544,7 @@ module ddr3_phy #(
                     // IOBUF: Single-ended Bi-directional Buffer
                     //All devices
                     // Xilinx HDL Libraries Guide, version 13.4
-                    IOBUF #(
+                    IOBUF_model #(
                         //.DRIVE(12), // Specify the output drive strength
                         .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
                         //.IOSTANDARD("SSTL15"), // Specify the I/O standard
@@ -561,7 +561,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -607,7 +607,7 @@ module ddr3_phy #(
                 // IOBUF: Single-ended Bi-directional Buffer
                 //All devices
                 // Xilinx HDL Libraries Guide, version 13.4
-                IOBUF #(
+                IOBUF_model #(
                     //.DRIVE(12), // Specify the output drive strength
                     .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
                     //.IOSTANDARD("SSTL15"), // Specify the I/O standard
@@ -624,7 +624,7 @@ module ddr3_phy #(
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
             (* IODELAY_GROUP="DDR3-GROUP" *)
-            IDELAYE2 #(
+            IDELAYE2_model #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
                 .IDELAY_TYPE("VAR_LOAD"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
@@ -653,7 +653,7 @@ module ddr3_phy #(
             // ISERDESE2: Input SERial/DESerializer with bitslip
             //7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            ISERDESE2 #(
+            ISERDESE2_model #(
                 .DATA_RATE("DDR"), // DDR, SDR
                 .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
                 // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
@@ -726,7 +726,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -776,7 +776,7 @@ module ddr3_phy #(
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
                 (* IODELAY_GROUP="DDR3-GROUP" *)
-                ODELAYE2 #(
+                ODELAYE2_model #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                     .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter to 5ps ("TRUE"), Reduced power but high jitter 9ns ("FALSE")
                     .ODELAY_TYPE("VAR_LOAD"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
@@ -803,7 +803,7 @@ module ddr3_phy #(
                 // OBUF: Single-ended Output Buffer
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OBUF #(
+                OBUF_model #(
                 //.IOSTANDARD("SSTL_15"), // Specify the output I/O standard
                 .SLEW("FAST") // Specify the output slew rate
                 ) OBUF_dm (
@@ -816,7 +816,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -862,7 +862,7 @@ module ddr3_phy #(
                 // OBUF: Single-ended Output Buffer
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OBUF #(
+                OBUF_model #(
                 //.IOSTANDARD("SSTL_15"), // Specify the output I/O standard
                 .SLEW("FAST") // Specify the output slew rate
                 ) OBUF_dm (
@@ -881,7 +881,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -930,7 +930,7 @@ module ddr3_phy #(
                 // Xilinx HDL Libraries Guide, version 13.4
                 //Delay the DQ
                 (* IODELAY_GROUP="DDR3-GROUP" *)
-                ODELAYE2 #(
+                ODELAYE2_model #(
                     .DELAY_SRC("ODATAIN"), // Delay input (ODATAIN, CLKIN)
                     .HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
                     .ODELAY_TYPE("VAR_LOAD"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
@@ -960,7 +960,7 @@ module ddr3_phy #(
                     // May only be placed in High Performance (HP) Banks
                     // 7 Series
                     // Xilinx HDL Libraries Guide, version 13.4
-                    IOBUFDS_DCIEN #(
+                    IOBUFDS_DCIEN_model #(
                         .IBUF_LOW_PWR("FALSE"), // Low Power - "TRUE", High Performance = "FALSE"
                         .SLEW("FAST"), // Specify the output slew rate
                         .USE_IBUFDISABLE("FALSE") // Use IBUFDISABLE function, "TRUE" or "FALSE"
@@ -980,7 +980,7 @@ module ddr3_phy #(
                     // IOBUFDS: Differential Bi-directional Buffer
                     //7 Series
                     // Xilinx HDL Libraries Guide, version 13.4
-                    IOBUFDS #(
+                    IOBUFDS_model #(
                         //.DIFF_TERM("FALSE"), // Differential Termination ("TRUE"/"FALSE")
                         .IBUF_LOW_PWR("FALSE") // Low Power - "TRUE", High Performance = "FALSE"
                         //.IOSTANDARD("DIFF_SSTL15") // Specify the I/O standard. CONSULT WITH DATASHEET
@@ -1000,7 +1000,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -1046,7 +1046,7 @@ module ddr3_phy #(
                 // IOBUFDS: Differential Bi-directional Buffer
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                IOBUFDS #(
+                IOBUFDS_model #(
                     //.DIFF_TERM("FALSE"), // Differential Termination ("TRUE"/"FALSE")
                     .IBUF_LOW_PWR("FALSE") // Low Power - "TRUE", High Performance = "FALSE"
                     //.IOSTANDARD("DIFF_SSTL15") // Specify the I/O standard. CONSULT WITH DATASHEET
@@ -1065,7 +1065,7 @@ module ddr3_phy #(
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
             (* IODELAY_GROUP="DDR3-GROUP" *)
-            IDELAYE2 #(
+            IDELAYE2_model #(
                 .DELAY_SRC("IDATAIN"), // Delay input (IDATAIN, DATAIN)
                 .HIGH_PERFORMANCE_MODE("TRUE"), //Reduced jitter ("TRUE"), Reduced power ("FALSE")
                 .IDELAY_TYPE("VAR_LOAD"), //FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
@@ -1095,7 +1095,7 @@ module ddr3_phy #(
             // ISERDESE2: Input SERial/DESerializer with bitslip
             //7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            ISERDESE2 #(
+            ISERDESE2_model #(
                 .DATA_RATE("DDR"), // DDR, SDR
                 .DATA_WIDTH(serdes_ratio*2), // Parallel data width (2-8,10,14)
                 // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
@@ -1186,7 +1186,7 @@ module ddr3_phy #(
                 // ISERDESE2: Input SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                ISERDESE2 #(
+                ISERDESE2_model #(
                     .DATA_RATE("DDR"), // DDR, SDR
                     .DATA_WIDTH(serdes_ratio*2), // Parallel data width (2-8,10,14)
                     // INIT_Q1 - INIT_Q4: Initial value on the Q outputs (0/1)
@@ -1252,7 +1252,7 @@ module ddr3_phy #(
                 // OSERDESE2: Output SERial/DESerializer with bitslip
                 //7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
-                OSERDESE2 #(
+                OSERDESE2_model #(
                     .DATA_RATE_OQ("DDR"), // DDR, SDR
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
@@ -1305,7 +1305,7 @@ module ddr3_phy #(
     // 7 Series
     // Xilinx HDL Libraries Guide, version 13.4
     (* IODELAY_GROUP="DDR3-GROUP" *)
-    IDELAYCTRL IDELAYCTRL_inst (
+    IDELAYCTRL_model IDELAYCTRL_inst (
         .RDY(idelayctrl_rdy), // 1-bit output: Ready output
         .REFCLK(i_ref_clk), // 1-bit input: Reference clock input.The frequency of REFCLK must be 200 MHz to guarantee the tap-delay value specified in the applicable data sheet.
         .RST(sync_rst) // 1-bit input: Active high reset input, To ,Minimum Reset pulse width is 52ns
