@@ -1,4 +1,15 @@
 verilog xil_defaultlib --include "../../testbench" \
+"../../testbench/models/IDELAYCTRL_model.v" \
+"../../testbench/models/IDELAYE2_model.v" \
+"../../testbench/models/IOBUF_DCIEN.v" \
+"../../testbench/models/IOBUF_model.v" \
+"../../testbench/models/IOBUFDS_DCIEN_model.v" \
+"../../testbench/models/IOBUFDS_model.v" \
+"../../testbench/models/ISERDESE2_model.v" \
+"../../testbench/models/OBUFDS_model.v" \
+"../../testbench/models/ODELAYE2_model.v" \
+"../../testbench/models/OSERDESE2_model.v" \
+"../../testbench/models/OBUF_model.v" \
 "../../rtl/ddr3_controller.v" \
 "../../rtl/ddr3_phy.v" \
 "../../rtl/ddr3_top.v" \
