@@ -87,7 +87,7 @@ module IDELAYE2_model (
 
             // check if delayed signal matches with the actual IDELAY primitive, if not then stop simulation
             always @* begin
-                #1;
+                #100;
                 if((DATAOUT_test !== DATAOUT) && ($time > 500_000)) begin
                     $display("IDELAYE2 MODEL does not match: time = %t", $time);
                     unequal <= 1;
