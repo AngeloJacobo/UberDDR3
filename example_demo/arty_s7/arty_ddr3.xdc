@@ -248,11 +248,11 @@ set_property PACKAGE_PIN T4 [get_ports ddr3_clk_n]
 
 
 ## Configuration options, can be used for all designs
-set_property BITSTREAM.CONFIG.CONFIGRATE 50 [current_design]
-set_property CONFIG_VOLTAGE 3.3 [current_design]
-set_property CFGBVS VCCO [current_design]
-set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
-set_property CONFIG_MODE SPIx4 [current_design]
+# set_property BITSTREAM.CONFIG.CONFIGRATE 50 [current_design]
+# set_property CONFIG_VOLTAGE 3.3 [current_design]
+# set_property CFGBVS VCCO [current_design]
+# set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
+# set_property CONFIG_MODE SPIx4 [current_design]
 
 ## SW3 is assigned to a pin M5 in the 1.35v bank. This pin can also be used as
 ## the VREF for BANK 34. To ensure that SW3 does not define the reference voltage
