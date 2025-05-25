@@ -363,7 +363,7 @@ module ddr3_phy #(
 
             //Delay the DQ
             // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
-            (* IODELAY_GROUP="DDR3-GROUP" *)
+            // (* IODELAY_GROUP="DDR3-GROUP" *)
             `ifndef SIM_MODEL
                 ODELAYE2 #(
             `else 
@@ -538,7 +538,7 @@ module ddr3_phy #(
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
-                (* IODELAY_GROUP="DDR3-GROUP" *)
+                // (* IODELAY_GROUP="DDR3-GROUP" *)
                 `ifndef SIM_MODEL
                     ODELAYE2 #(
                 `else 
@@ -687,7 +687,7 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            (* IODELAY_GROUP="DDR3-GROUP" *)
+            // (* IODELAY_GROUP="DDR3-GROUP" *)
             `ifndef SIM_MODEL
                 IDELAYE2 #(
             `else 
@@ -851,7 +851,7 @@ module ddr3_phy #(
                 //odelay adds an insertion delay of 600ps to the actual delay setting: https://support.xilinx.com/s/article/42133?language=en_US
                 //Delay the DQ
                 // Delay resolution: 1/(32 x 2 x F REF ) = 78.125ps
-                (* IODELAY_GROUP="DDR3-GROUP" *)
+                // (* IODELAY_GROUP="DDR3-GROUP" *)
                 `ifndef SIM_MODEL
                     ODELAYE2 #(
                 `else 
@@ -1025,7 +1025,7 @@ module ddr3_phy #(
                 // 7 Series
                 // Xilinx HDL Libraries Guide, version 13.4
                 //Delay the DQ
-                (* IODELAY_GROUP="DDR3-GROUP" *)
+                // (* IODELAY_GROUP="DDR3-GROUP" *)
                 `ifndef SIM_MODEL
                     ODELAYE2 #(
                 `else 
@@ -1180,7 +1180,7 @@ module ddr3_phy #(
             // IDELAYE2: Input Fixed or Variable Delay Element
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
-            (* IODELAY_GROUP="DDR3-GROUP" *)
+            // (* IODELAY_GROUP="DDR3-GROUP" *)
             `ifndef SIM_MODEL
                 IDELAYE2 #(
             `else 
@@ -1436,7 +1436,7 @@ module ddr3_phy #(
     // IDELAYCTRL: IDELAYE2/ODELAYE2 Tap Delay Value Control
     // 7 Series
     // Xilinx HDL Libraries Guide, version 13.4
-    (* IODELAY_GROUP="DDR3-GROUP" *)
+    // (* IODELAY_GROUP="DDR3-GROUP" *)
     `ifndef SIM_MODEL
         IDELAYCTRL IDELAYCTRL_inst (
     `else 
