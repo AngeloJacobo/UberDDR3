@@ -40,7 +40,7 @@ run()
 # RUN_STEP: <compile>
 compile()
 {
-  xvlog $xvlog_opts -prj vlog.prj 2>&1 | tee compile.log
+  xvlog --define SIM_MODEL $xvlog_opts -prj vlog.prj 2>&1 | tee compile.log
 }
 
 # RUN_STEP: <elaborate>

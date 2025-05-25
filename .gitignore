@@ -18,6 +18,8 @@ example_demo/build_logs*
 *.bba
 *toolchain-nix*
 testbench/ddr3_dimm_micron_sim_behav.wcfg
+testbench/icarus_sim/*.log
+testbench/icarus_sim/uberddr3_sim
 
 # But do not ignore testbench/xsim/test_*.log
 !testbench/xsim/test_*.log

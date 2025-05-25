@@ -80,27 +80,27 @@
      assign led[2] = (o_debug1[4:0] == 23 && !user_temp_alarm_out); //light up if at DONE_CALIBRATE
      assign led[3] = (o_debug1[4:0] == 23 && !user_temp_alarm_out); //light up if at DONE_CALIBRATE
      
-    always @(posedge i_controller_clk) begin
-        begin
-            i_wb_stb <= 0;
-            i_wb_we <= 0;
-            i_wb_addr <= 0;
-            i_wb_data <= 0;
-            if(!o_wb_stall && m_axis_tvalid) begin
-                if(rd_data >= 97 && rd_data <= 122) begin //write to DDR3 if ASCII is small letter
-                    i_wb_stb <= 1;                 
-                    i_wb_we <= 1;                  
-                    i_wb_addr <= ~rd_data ;                
-                    i_wb_data <= rd_data; 
-                end
-                else if(rd_data >= 65 && rd_data <= 90) begin //read from DDR3 if ASCII is capital letter
-                    i_wb_stb <= 1; //make request
-                    i_wb_we <= 0; //read
-                    i_wb_addr <= ~(rd_data + 8'd32);
-                end
-            end
-        end
-    end
+    // always @(posedge i_controller_clk) begin
+    //     begin
+    //         i_wb_stb <= 0;
+    //         i_wb_we <= 0;
+    //         i_wb_addr <= 0;
+    //         i_wb_data <= 0;
+    //         if(!o_wb_stall && m_axis_tvalid) begin
+    //             if(rd_data >= 97 && rd_data <= 122) begin //write to DDR3 if ASCII is small letter
+    //                 i_wb_stb <= 1;                 
+    //                 i_wb_we <= 1;                  
+    //                 i_wb_addr <= ~rd_data ;                
+    //                 i_wb_data <= rd_data; 
+    //             end
+    //             else if(rd_data >= 65 && rd_data <= 90) begin //read from DDR3 if ASCII is capital letter
+    //                 i_wb_stb <= 1; //make request
+    //                 i_wb_we <= 0; //read
+    //                 i_wb_addr <= ~(rd_data + 8'd32);
+    //             end
+    //         end
+    //     end
+    // end
      
     (* mark_debug = "true" *) wire clk_locked;
     clk_wiz clk_wiz_inst
@@ -117,34 +117,34 @@
     .clk_in1(i_clk)
     );
     
-    // UART TX/RXmodule from https://github.com/ben-marshall/uart
-    uart_tx #(
-        .BIT_RATE(9600),
-        .CLK_HZ(83_333_333),
-        .PAYLOAD_BITS(8),
-        .STOP_BITS(1)
-        ) uart_tx_inst (
-        .clk(i_controller_clk), // Top level system clock input.
-        .resetn(!i_rst && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
-        .uart_txd(tx), // UART transmit pin.
-        .uart_tx_busy(), // Module busy sending previous item.
-        .uart_tx_en(o_wb_ack), // Send the data on uart_tx_data
-        .uart_tx_data(o_wb_data) // The data to be sent
-    );
-    uart_rx #(
-        .BIT_RATE(9600),
-        .CLK_HZ(83_333_333),
-        .PAYLOAD_BITS(8),
-        .STOP_BITS(1)
-    ) uart_rx_inst (
-        .clk(i_controller_clk), // Top level system clock input.
-        .resetn(!i_rst && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
-        .uart_rxd(rx), // UART Recieve pin.
-        .uart_rx_en(o_debug1[4:0] == 23), // Recieve enable
-        .uart_rx_break(), // Did we get a BREAK message?
-        .uart_rx_valid(m_axis_tvalid), // Valid data recieved/available.
-        .uart_rx_data(rd_data)   // The recieved data.
-    );
+    // // UART TX/RXmodule from https://github.com/ben-marshall/uart
+    // uart_tx #(
+    //     .BIT_RATE(9600),
+    //     .CLK_HZ(83_333_333),
+    //     .PAYLOAD_BITS(8),
+    //     .STOP_BITS(1)
+    //     ) uart_tx_inst (
+    //     .clk(i_controller_clk), // Top level system clock input.
+    //     .resetn(!i_rst && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+    //     .uart_txd(tx), // UART transmit pin.
+    //     .uart_tx_busy(), // Module busy sending previous item.
+    //     .uart_tx_en(o_wb_ack), // Send the data on uart_tx_data
+    //     .uart_tx_data(o_wb_data) // The data to be sent
+    // );
+    // uart_rx #(
+    //     .BIT_RATE(9600),
+    //     .CLK_HZ(83_333_333),
+    //     .PAYLOAD_BITS(8),
+    //     .STOP_BITS(1)
+    // ) uart_rx_inst (
+    //     .clk(i_controller_clk), // Top level system clock input.
+    //     .resetn(!i_rst && clk_locked && o_debug1[4:0] == 23), // Asynchronous active low reset.
+    //     .uart_rxd(rx), // UART Recieve pin.
+    //     .uart_rx_en(o_debug1[4:0] == 23), // Recieve enable
+    //     .uart_rx_break(), // Did we get a BREAK message?
+    //     .uart_rx_valid(m_axis_tvalid), // Valid data recieved/available.
+    //     .uart_rx_data(rd_data)   // The recieved data.
+    // );
     
     // `define XADC
      `ifdef XADC
