@@ -1,13 +1,14 @@
 rm -rf ./uberddr3_sim ./sim.log
 iverilog -o uberddr3_sim -g2012 \
     -DNO_TEST_MODEL \
+    -DSIM_MODEL \
     -s ddr3_dimm_micron_sim \
     -I ../ \
     ../ddr3_dimm_micron_sim.sv \
     ../ddr3.sv \
     ../models/IDELAYCTRL_model.v \
     ../models/IDELAYE2_model.v \
-    ../models/IOBUF_DCIEN.v \
+    ../models/IOBUF_DCIEN_model.v \
     ../models/IOBUF_model.v \
     ../models/IOBUFDS_DCIEN_model.v \
     ../models/IOBUFDS_model.v \

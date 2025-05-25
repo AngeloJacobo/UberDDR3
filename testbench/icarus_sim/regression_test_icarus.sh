@@ -55,6 +55,7 @@ fi
 
 # Loop over each test configuration
 index=1
+rm -f *.log
 for TEST in "${TESTS[@]}"; do
     # Parse the test configuration into individual variables
     read -r CONTROLLER_CLK_PERIOD DDR3_CLK_PERIOD ODELAY_SUPPORTED LANES_OPTION ADD_BUS_DELAY BIST_MODE <<< "$TEST"

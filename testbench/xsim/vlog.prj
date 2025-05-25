@@ -1,7 +1,7 @@
 verilog xil_defaultlib --include "../../testbench" \
 "../../testbench/models/IDELAYCTRL_model.v" \
 "../../testbench/models/IDELAYE2_model.v" \
-"../../testbench/models/IOBUF_DCIEN.v" \
+"../../testbench/models/IOBUF_DCIEN_model.v" \
 "../../testbench/models/IOBUF_model.v" \
 "../../testbench/models/IOBUFDS_DCIEN_model.v" \
 "../../testbench/models/IOBUFDS_model.v" \
