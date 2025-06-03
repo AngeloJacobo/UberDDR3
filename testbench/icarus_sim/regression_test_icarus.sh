@@ -122,7 +122,6 @@ for TEST in "${TESTS[@]}"; do
     # Run the simulation script with the respective log file
     LOG_FILE="./test_${CONTROLLER_CLK_PERIOD}_ddr3_${DDR3_CLK_PERIOD}_odelay_${ODELAY_SUPPORTED}_lanes_${LANES_OPTION,,}_bus_delay_${ADD_BUS_DELAY}_bist_${BIST_MODE}.log"
     rm -rf $LOG_FILE
-    # ./ddr3_dimm_micron_sim.sh >> "$LOG_FILE"
     # add timeout if simulation takes too long
     ./sim_icarus.sh >> "$LOG_FILE" 2>&1
     EXIT_CODE=$?  # Capture exit code immediately
@@ -138,8 +137,15 @@ for TEST in "${TESTS[@]}"; do
 
     # Report the results
     echo "     Test completed. Duration: ${minutes}m ${seconds}s. Results saved to '$LOG_FILE'."
-    echo ""
     
+    # check if the test passes
+    if grep -q "Number of Injected Errors = 4" "$LOG_FILE" && grep -q "\[-\]: wrong_read_data = 0" "$LOG_FILE"; then
+        NEW_LOG_FILE="./PASS_${LOG_FILE#./}"
+        mv "$LOG_FILE" "$NEW_LOG_FILE"
+        echo "     Renamed to $NEW_LOG_FILE"
+    fi
+    echo ""
+
     # Increment the index
     ((index++))
 done

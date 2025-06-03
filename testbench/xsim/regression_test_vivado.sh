@@ -137,6 +137,13 @@ for TEST in "${TESTS[@]}"; do
 
     # Report the results
     echo "     Test completed. Duration: ${minutes}m ${seconds}s. Results saved to '$LOG_FILE'."
+    
+    # check if the test passes
+    if grep -q "Number of Injected Errors = 4" "$LOG_FILE" && grep -q "\[-\]: wrong_read_data = 0" "$LOG_FILE"; then
+        NEW_LOG_FILE="./PASS_${LOG_FILE#./}"
+        mv "$LOG_FILE" "$NEW_LOG_FILE"
+        echo "     Renamed to $NEW_LOG_FILE"
+    fi
     echo ""
     
     # Increment the index
