@@ -87,6 +87,7 @@ module ddr3_controller #(
                    DLL_OFF = 0, // 1 = DLL off for low frequency ddr3 clock
                    WB_ERROR = 0, // set to 1 to support Wishbone error (asserts at ECC double bit error)
     parameter[1:0] BIST_MODE = 2, // 0 = No BIST, 1 = run through all address space ONCE , 2 = run through all address space for every test (burst w/r, random w/r, alternating r/w)
+    parameter[0:0] BIST_TEST_DATAMASK = 1, // 1 = include per-byte DM writes in BIST, 0 = all-byte writes only
     parameter[1:0] ECC_ENABLE = 0, // set to 1 or 2 to add ECC (1 = Side-band ECC per burst, 2 = Side-band ECC per 8 bursts , 3 = Inline ECC )  (only change when you know what you are doing)
     parameter[1:0] DIC = 2'b00, //Output Driver Impedance Control (2'b00 = RZQ/6, 2'b01 = RZQ/7, RZQ = 240ohms)  (only change when you know what you are doing)
     parameter[2:0] RTT_NOM = 3'b011, //RTT Nominal (3'b000 = disabled, 3'b001 = RZQ/4, 3'b010 = RZQ/2 , 3'b011 = RZQ/6, RZQ = 240ohms)
@@ -3180,7 +3181,7 @@ BITSLIP_DQS_TRAIN_3: if(train_delay == 0) begin //train again the ISERDES to cap
        BURST_WRITE: if(!o_wb_stall_calib) begin // Test 1: Burst write (per byte write to test datamask feature), then burst read
                             calib_stb <= 1'b1; 
                             calib_aux <= 2; // write
-                            if(TDQS == 0 && ECC_ENABLE == 0) begin //Test datamask by writing 1 byte at a time
+                            if(BIST_TEST_DATAMASK && TDQS == 0 && ECC_ENABLE == 0) begin //Test datamask by writing 1 byte at a time
                                 calib_sel <= 1 << write_by_byte_counter;
                                 calib_we <= 1; 
                                 calib_addr <= write_test_address_counter;
