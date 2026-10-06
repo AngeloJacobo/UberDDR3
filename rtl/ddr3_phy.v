@@ -137,6 +137,7 @@ module ddr3_phy #(
     wire[LANES-1:0] oserdes_bitslip_reference;
     reg[$clog2(SYNC_RESET_DELAY):0] delay_before_release_reset;
     reg sync_rst = 0;
+    wire[1:0] ddr3_clk_inverted; // CK output when ODELAY is not supported (from ODDRs)
     wire ddr3_clk;
     reg toggle_dqs_q; //past value of i_controller_toggle_dqs
     wire ddr3_clk_delayed;
@@ -436,6 +437,24 @@ module ddr3_phy #(
 
                 // if dual rank enabled, then there will be two clk
         if(DUAL_RANK_DIMM) begin
+            // CK is the inverted DDR3 clock. Generate it with an ODDR (D1=0, D2=1) rather than a !clk in
+            // fabric: an inverter LUT puts a placement-dependent delay (up to ~1 ns here) on the clock
+            // path, and without ODELAY nothing compensates it.
+            `ifndef SIM_MODEL
+                ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) ODDR_ck0 (
+                    .Q(ddr3_clk_inverted[0]), .C(i_ddr3_clk), .CE(1'b1), .D1(1'b0), .D2(1'b1), .R(1'b0), .S(1'b0));
+            `else
+                assign ddr3_clk_inverted[0] = !i_ddr3_clk;
+            `endif
+            // CK is the inverted DDR3 clock. Generate it with an ODDR (D1=0, D2=1) rather than a !clk in
+            // fabric: an inverter LUT puts a placement-dependent delay (up to ~1 ns here) on the clock
+            // path, and without ODELAY nothing compensates it.
+            `ifndef SIM_MODEL
+                ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) ODDR_ck1 (
+                    .Q(ddr3_clk_inverted[1]), .C(i_ddr3_clk), .CE(1'b1), .D1(1'b0), .D2(1'b1), .R(1'b0), .S(1'b0));
+            `else
+                assign ddr3_clk_inverted[1] = !i_ddr3_clk;
+            `endif
             // OBUFDS: Differential Output Buffer
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -446,7 +465,7 @@ module ddr3_phy #(
             `endif
                 .O(o_ddr3_clk_p[1]), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n[1]), // Diff_n output (connect directly to top-level port)
-                .I(!i_ddr3_clk) // Buffer input
+                .I(ddr3_clk_inverted[1]) // Buffer input
             );
             `ifndef SIM_MODEL
                 OBUFDS OBUFDS1_inst (
@@ -455,11 +474,20 @@ module ddr3_phy #(
             `endif
                 .O(o_ddr3_clk_p[0]), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n[0]), // Diff_n output (connect directly to top-level port)
-                .I(!i_ddr3_clk) // Buffer input
+                .I(ddr3_clk_inverted[0]) // Buffer input
             );
             // End of OBUFDS_inst instantiation
         end
         else begin
+            // CK is the inverted DDR3 clock. Generate it with an ODDR (D1=0, D2=1) rather than a !clk in
+            // fabric: an inverter LUT puts a placement-dependent delay (up to ~1 ns here) on the clock
+            // path, and without ODELAY nothing compensates it.
+            `ifndef SIM_MODEL
+                ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0), .SRTYPE("SYNC")) ODDR_ck0 (
+                    .Q(ddr3_clk_inverted[0]), .C(i_ddr3_clk), .CE(1'b1), .D1(1'b0), .D2(1'b1), .R(1'b0), .S(1'b0));
+            `else
+                assign ddr3_clk_inverted[0] = !i_ddr3_clk;
+            `endif
             // OBUFDS: Differential Output Buffer
             // 7 Series
             // Xilinx HDL Libraries Guide, version 13.4
@@ -470,7 +498,7 @@ module ddr3_phy #(
             `endif
                 .O(o_ddr3_clk_p), // Diff_p output (connect directly to top-level port)
                 .OB(o_ddr3_clk_n), // Diff_n output (connect directly to top-level port)
-                .I(!i_ddr3_clk) // Buffer input
+                .I(ddr3_clk_inverted[0]) // Buffer input
             );
         end
     end
@@ -1117,13 +1145,20 @@ module ddr3_phy #(
                     .DATA_RATE_TQ("BUF"), // DDR, SDR
                     .DATA_WIDTH(8), // Parallel data width (2-8,10,14)
                     .INIT_OQ(1'b1), // Initial value of OQ output (1'b0,1'b1)
+                `ifndef SIM_MODEL
+                    .IS_CLK_INVERTED(1'b1), // invert CLK in the OLOGIC: a !clk in fabric adds placement-dependent delay
+                `endif
                     .TRISTATE_WIDTH(1)
                 )
                 OSERDESE2_dqs(
                     .OFB(), // 1-bit output: Feedback path for data
                     .OQ(oserdes_dqs[gen_index]), // 1-bit output: Data path output
                     .TQ(oserdes_dqs_tri_control[gen_index]),
+                `ifndef SIM_MODEL
+                    .CLK(i_ddr3_clk), // 1-bit input: High speed clock (inverted by IS_CLK_INVERTED)
+                `else
                     .CLK(!i_ddr3_clk), // 1-bit input: High speed clock
+                `endif
                     .CLKDIV(i_controller_clk), // 1-bit input: Divided clock
                     // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
                     .D1(1'b1 && (i_controller_toggle_dqs || toggle_dqs_q)), //the last part will still have half dqs series
